@@ -3,93 +3,65 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import * as NavigationMenu from '@radix-ui/react-navigation-menu'
-import { HomeModernIcon, SignalIcon, TvIcon, WindowIcon } from '@heroicons/react/24/outline'
-
+import * as Tooltip from '@radix-ui/react-tooltip'
+import { ArchiveBoxIcon, Cog6ToothIcon, DeviceTabletIcon, InformationCircleIcon, SignalIcon, TvIcon, UsersIcon, WindowIcon } from '@heroicons/react/24/outline'
 
 const Sidebar = () => {
   const pathname = usePathname()
 
   const menuItems = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: HomeModernIcon
-    },
-    {
-      name: 'IPTV',
-      href: '/iptv',
-      icon: TvIcon
-    },
-    {
-      name: 'Chromecast',
-      href: '/chromecast',
-      icon: WindowIcon
-    },
-    {
-      name: 'Channel',
-      href: '/channel',
-      icon: SignalIcon
-    }
+    { name: 'Dashboard', href: '/dashboard', icon: ArchiveBoxIcon },
+    { name: 'Devices', href: '/devices', icon: DeviceTabletIcon },
+    { name: 'IPTV', href: '/iptv', icon: TvIcon },
+    { name: 'Chromecast', href: '/chromecast', icon: WindowIcon },
+    { name: 'Channel', href: '/channel', icon: SignalIcon },
+    { name: 'Users', href: '/users', icon: UsersIcon },
+    { name: 'Help', href: '/help', icon: InformationCircleIcon },
+    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
   ]
 
   return (
-    <div className="w-64 bg-zinc-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-colors">
-      <div className="flex flex-col h-full">
-        {/* Header dengan Icon dan Title */}
-        <div className="flex items-center gap-3 p-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex-shrink-0">
-            <HomeModernIcon className="w-8 h-8 text-lime-900" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              IPTV Monitoring
-            </h1>
-          </div>
-        </div>
-
+    <Tooltip.Provider delayDuration={300}>
+      <div className="w-12 bg-white border-r border-gray-200 flex flex-col">
         {/* Navigation Menu */}
-        <div className="flex-1 p-4">
-          <NavigationMenu.Root orientation="vertical" className="w-full">
-            <NavigationMenu.List className="flex flex-col gap-2 w-full">
-              {menuItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname === item.href
+        <div className="flex flex-col py-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href
+            
+            return (
+              <Tooltip.Root key={item.name}>
+                <Tooltip.Trigger asChild>
+                  <Link 
+                    href={item.href}
+                    className={`
+                      flex items-center justify-center w-12 h-12 transition-colors hover:text-slate-100 hover:bg-sky-500 rounded-lg
+                      ${isActive 
+                        ? 'text-blue-600 bg-blue-50 border-r-2 border-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      }
+                    `}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </Link>
+                </Tooltip.Trigger>
                 
-                return (
-                  <NavigationMenu.Item key={item.name} className="w-full">
-                    <Link href={item.href} passHref legacyBehavior>
-                      <NavigationMenu.Link asChild>
-                        <button
-                          className={`
-                            w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200
-                            ${isActive 
-                              ? 'bg-lime-500 text-white shadow-sm' 
-                              : 'text-slate-700 dark:text-slate-300 hover:bg-lime-900 hover:text-white'
-                            }
-                            focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
-                          `}
-                        >
-                          <Icon className="w-5 h-5 flex-shrink-0" />
-                          <span className="font-medium">{item.name}</span>
-                        </button>
-                      </NavigationMenu.Link>
-                    </Link>
-                  </NavigationMenu.Item>
-                )
-              })}
-            </NavigationMenu.List>
-          </NavigationMenu.Root>
-        </div>
-
-        {/* Footer atau space kosong */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-          <div className="text-xs text-slate-500 dark:text-slate-400 text-center">
-            © 2024 IPTV Monitoring
-          </div>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    side="right"
+                    sideOffset={8}
+                    className="px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg z-50"
+                  >
+                    {item.name}
+                    <Tooltip.Arrow className="fill-gray-900" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            )
+          })}
         </div>
       </div>
-    </div>
+    </Tooltip.Provider>
   )
 }
 
