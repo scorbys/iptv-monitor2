@@ -11,8 +11,8 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: ArchiveBoxIcon },
-    { name: 'Devices', href: '/devices', icon: DeviceTabletIcon },
-    { name: 'IPTV', href: '/iptv', icon: TvIcon },
+    // { name: 'Devices', href: '/devices', icon: DeviceTabletIcon },
+    { name: 'TV Hospitality', href: '/hospitality', icon: TvIcon },
     { name: 'Chromecast', href: '/chromecast', icon: WindowIcon },
     { name: 'Channel', href: '/channel', icon: SignalIcon },
     { name: 'Users', href: '/users', icon: UsersIcon },
@@ -35,9 +35,9 @@ const Sidebar = () => {
                   <Link 
                     href={item.href}
                     className={`
-                      flex items-center justify-center w-12 h-12 transition-colors hover:text-slate-100 hover:bg-sky-500 rounded-lg
+                      flex items-center justify-center w-12 h-12 transition-colors rounded-lg
                       ${isActive 
-                        ? 'text-blue-600 bg-blue-50 border-r-2 border-blue-600' 
+                        ? 'text-blue-600 bg-inherit' 
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                       }
                     `}

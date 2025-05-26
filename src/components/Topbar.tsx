@@ -69,7 +69,7 @@ export default function Topbar() {
               sideOffset={8}
               align="end"
             >
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+              <div className="px-4 py-3 border-b border-slate-100 bg-blue-200 dark:border-slate-700">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Notifications ({notifications.length})
                 </h3>
