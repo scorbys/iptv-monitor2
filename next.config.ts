@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
+/** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    domains: [
+      "upload.wikimedia.org",
+      "via.placeholder.com",
+      "placehold.co",
+      "cdn.jsdelivr.net"
+    ],
+  },
 };
 
 export default nextConfig;
