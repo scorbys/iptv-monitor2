@@ -79,13 +79,13 @@ export default function DashboardPage() {
     .slice(0, 5)
 
   // Get channels by category
-  const channelsByCategory = channels.reduce((acc, channel) => {
-    if (!acc[channel.category]) {
-      acc[channel.category] = []
-    }
-    acc[channel.category].push(channel)
-    return acc
-  }, {} as Record<string, Channel[]>)
+  // const channelsByCategory = channels.reduce((acc, channel) => {
+  //   if (!acc[channel.category]) {
+  //     acc[channel.category] = []
+  //   }
+  //   acc[channel.category].push(channel)
+  //   return acc
+  // }, {} as Record<string, Channel[]>)
 
   if (loading) {
     return (
