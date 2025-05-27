@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { ArchiveBoxIcon, Cog6ToothIcon, DeviceTabletIcon, InformationCircleIcon, SignalIcon, TvIcon, UsersIcon, WindowIcon } from '@heroicons/react/24/outline'
+import { ArchiveBoxIcon, Cog6ToothIcon, InformationCircleIcon, SignalIcon, TvIcon, UsersIcon, WindowIcon } from '@heroicons/react/24/outline'
 
 const Sidebar = () => {
   const pathname = usePathname()
