@@ -53,7 +53,7 @@ export default function ChannelsPage() {
   // Fetch channels data
   const fetchChannels = async () => {
     try {
-      const response = await fetch("http://iptv-backend-prod.up.railway.app/api/channels");
+      const response = await fetch("https://iptv-backend-prod.up.railway.app/api/channels");
       const result = await response.json();
 
       if (result.success) {
@@ -67,7 +67,7 @@ export default function ChannelsPage() {
   // Fetch dashboard stats
   const fetchStats = async () => {
     try {
-      const response = await fetch("http://iptv-backend-prod.up.railway.app/api/dashboard/stats");
+      const response = await fetch("https://iptv-backend-prod.up.railway.app/api/dashboard/stats");
       const result = await response.json();
 
       if (result.success) {
@@ -108,7 +108,7 @@ export default function ChannelsPage() {
   const checkChannelStatus = async (channelId: number) => {
     try {
       const response = await fetch(
-        `http://iptv-backend-prod.up.railway.app/api/channels/${channelId}/check`,
+        `https://iptv-backend-prod.up.railway.app/api/channels/${channelId}/check`,
         {
           method: "POST",
         }
