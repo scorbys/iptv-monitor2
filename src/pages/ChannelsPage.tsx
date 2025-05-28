@@ -53,7 +53,7 @@ export default function ChannelsPage() {
   // Fetch channels data
   const fetchChannels = async () => {
     try {
-      const response = await fetch("https://iptv-backend-prod.up.railway.app/api/channels");
+      const response = await fetch("http://iptv-backend-prod.up.railway.app/api/channels");
       const result = await response.json();
 
       if (result.success) {
