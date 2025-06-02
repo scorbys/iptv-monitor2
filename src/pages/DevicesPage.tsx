@@ -74,7 +74,7 @@ export default function DevicesPage() {
   const totalCount = devices.length
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="p-6 bg-blue-50 min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         {/* Left - Search */}

@@ -36,11 +36,11 @@ export default function Topbar() {
   ];
 
   return (
-    <header className="w-full h-[50px] bg-gray-100 flex items-center justify-between px-6">
+    <header className="w-full h-[50px] bg-sky-900 flex items-center justify-between px-6">
       {/* Left Section - Brand */}
       <div className="flex items-center gap-3">
-        <HomeModernIcon className="w-6 h-6 text-blue-600" />
-        <h1 className="text-lg font-medium text-gray-900">IPTV System Monitoring</h1>
+        <HomeModernIcon className="w-6 h-6 text-white" />
+        <h1 className="text-lg font-medium text-white">IPTV System Monitoring</h1>
       </div>
 
       {/* Right Section - Notifications & Profile */}
@@ -57,7 +57,7 @@ export default function Topbar() {
                 size="2"
                 className="relative p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               >
-                <BellIcon className="w-5 h-5" />
+                <BellIcon className="w-5 h-5 text-white" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               </Button>
             </div>
@@ -122,7 +122,7 @@ export default function Topbar() {
               <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gray-200">
                 <AvatarIcon className="w-4 h-4 text-gray-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Admin</span>
+              <span className="text-sm font-medium text-gray-50">Admin</span>
             </button>
           </DropdownMenu.Trigger>
 

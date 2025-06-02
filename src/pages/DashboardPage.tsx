@@ -40,8 +40,8 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       const [statsResponse, channelsResponse] = await Promise.all([
-        fetch('http://iptv-backend-prod.up.railway.app/api/dashboard/stats'),
-        fetch('http://iptv-backend-prod.up.railway.app/api/channels')
+        fetch('http://localhost:3001/api/dashboard/stats'),
+        fetch('http://localhost:3001/api/channels')
       ])
       
       const statsResult = await statsResponse.json()
