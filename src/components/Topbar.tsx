@@ -2,10 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { BellIcon, HomeModernIcon } from "@heroicons/react/24/outline";
+import { BellIcon } from "@heroicons/react/24/outline";
 import { AvatarIcon, GearIcon, ExitIcon } from "@radix-ui/react-icons";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
+import Image from "next/image";
 
 export default function Topbar() {
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -39,8 +40,16 @@ export default function Topbar() {
     <header className="w-full h-[50px] bg-sky-900 flex items-center justify-between px-6">
       {/* Left Section - Brand */}
       <div className="flex items-center gap-3">
-        <HomeModernIcon className="w-6 h-6 text-white" />
-        <h1 className="text-lg font-medium text-white">IPTV System Monitoring</h1>
+        <Image
+          src="/logo.png"
+          alt="Logo"
+          width={20}
+          height={20}
+          className="w-5 h-5 object-contain"
+        />
+        <h1 className="text-lg font-medium text-white">
+          IPTV System Monitoring
+        </h1>
       </div>
 
       {/* Right Section - Notifications & Profile */}
