@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, 
   RefreshCw, 
@@ -15,233 +15,219 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-type TV = {
+interface TV {
+  id: number;
   roomNo: string;
   ipAddress: string;
-  status: string;
+  status: 'online' | 'offline';
   responseTime?: number;
-  lastChecked?: string;
+  lastChecked: string;
   error?: string;
   model?: string;
-  _id?: string;
-};
+}
 
-type TVStats = {
+interface TVStats {
   totalTVs: number;
   onlineTVs: number;
   offlineTVs: number;
   uptime: string;
-};
+  lastUpdated: string;
+}
+
+const ITEMS_PER_PAGE = 20;
+const API_BASE_URL = 'https://iptv-backend-prod.up.railway.app';
 
 const TVHospitalityDashboard = () => {
   const [tvs, setTvs] = useState<TV[]>([]);
+  const [stats, setStats] = useState<TVStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('roomNo');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [stats, setStats] = useState<TVStats>({
-    totalTVs: 0,
-    onlineTVs: 0,
-    offlineTVs: 0,
-    uptime: '0.0'
-  });
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [currentTime, setCurrentTime] = useState<string>('');
-  
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const itemsPerPage = 20;
-
-  useEffect(() => {
-    setMounted(true);
-    setCurrentTime(new Date().toLocaleString('en-US', { 
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }));
-  }, []);
-
-  // Get API base URL
-  const getBaseURL = () => {
-    if (typeof window === 'undefined') return 'http://localhost:3001';
-    return process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3001' 
-      : 'https://iptv-backend-prod.up.railway.app';
-  };
 
   // Fetch TV data
-  const fetchTVs = React.useCallback(async () => {
+  const fetchTVs = useCallback(async () => {
     try {
       setError(null);
-      const baseURL = getBaseURL();
-      const params = new URLSearchParams({
-        status: statusFilter,
-        search: searchTerm,
-        sortBy: sortBy,
-        sortOrder: sortOrder
-      });
-      
-      const response = await fetch(`${baseURL}/api/hospitality/tvs?${params}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(10000)
-      });
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs`);
       
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.success) {
-        const allTVs = data.data || [];
-        setStats({
-          totalTVs: data.totalCount || 0,
-          onlineTVs: data.onlineCount || 0,
-          offlineTVs: data.offlineCount || 0,
-          uptime: data.totalCount > 0 ? ((data.onlineCount / data.totalCount) * 100).toFixed(1) : '0.0'
-        });
-        
-        // Calculate pagination
-        const totalPages = Math.ceil(allTVs.length / itemsPerPage);
-        setTotalPages(totalPages);
-        
-        // Get current page data
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const paginatedTVs = allTVs.slice(startIndex, endIndex);
-        
-        setTvs(paginatedTVs);
+      if (result.success && Array.isArray(result.data)) {
+        setTvs(result.data);
       } else {
-        throw new Error(data.message || 'Failed to fetch TV data');
+        console.error('Invalid TV data format:', result);
+        setTvs([]);
       }
     } catch (error) {
       console.error('Error fetching TVs:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to fetch TV data: ${errorMessage}`);
+      setError('Failed to fetch TV data');
       setTvs([]);
-    } finally {
-      setLoading(false);
     }
-  }, [statusFilter, searchTerm, sortBy, sortOrder, currentPage]);
+  }, []);
+
+  // Fetch dashboard stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/dashboard/stats`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setStats(result.data);
+      } else {
+        console.error('Invalid stats data format:', result);
+        setStats(null);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      setStats(null);
+    }
+  }, []);
 
   // Check all TVs status
-  const checkAllTVs = async () => {
-    setIsRefreshing(true);
+  const checkAllTVs = useCallback(async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
     try {
       setError(null);
-      const baseURL = getBaseURL();
-      
-      const response = await fetch(`${baseURL}/api/hospitality/tvs/check-all`, {
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/check-all`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(30000)
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.success) {
-        await fetchTVs();
-        setCurrentTime(new Date().toLocaleString('en-US', { 
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }));
+      if (result.success) {
+        await Promise.all([fetchTVs(), fetchStats()]);
       } else {
-        throw new Error(data.message || 'Failed to check TV status');
+        throw new Error(result.message || 'Failed to check TV status');
       }
     } catch (error) {
       console.error('Error checking all TVs:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to check all TVs: ${errorMessage}`);
+      setError('Failed to check all TVs');
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
-  };
+  }, [refreshing, fetchTVs, fetchStats]);
 
   // Check individual TV status
-  const checkTVStatus = async (roomNo: string) => {
+  const checkTVStatus = useCallback(async (tvId: number) => {
+    if (!tvId) return;
+    
     try {
-      setError(null);
-      const baseURL = getBaseURL();
-      
-      const response = await fetch(`${baseURL}/api/hospitality/tvs/${roomNo}/check`, {
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/${tvId}/check`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(10000)
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.success) {
-        setTvs(prevTvs => 
-          prevTvs.map(tv => 
-            tv.roomNo === roomNo ? { ...tv, ...data.data } : tv
-          )
-        );
-      } else {
-        throw new Error(data.message || 'Failed to check TV status');
+      if (result.success && result.data) {
+        setTvs(prev => prev.map(tv => 
+          tv.id === tvId ? { ...tv, ...result.data } : tv
+        ));
       }
     } catch (error) {
       console.error('Error checking TV status:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to check TV ${roomNo}: ${errorMessage}`);
     }
-  };
+  }, []);
 
-  // Reset to first page when filters change
+  // Effect untuk mounted state
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, sortBy, sortOrder]);
+    setMounted(true);
+  }, []);
 
-  // Fetch data
-  useEffect(() => {
-    if (mounted) {
-      fetchTVs();
-    }
-  }, [mounted, fetchTVs]);
-
-  // Auto-refresh every 3 minutes
+  // Effect untuk initial data load dan auto-refresh
   useEffect(() => {
     if (!mounted) return;
     
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([fetchTVs(), fetchStats()]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Auto-refresh setiap 3 menit
     const interval = setInterval(() => {
-      if (!isRefreshing) {
+      if (document.visibilityState === 'visible' && !refreshing) {
         fetchTVs();
-        setCurrentTime(new Date().toLocaleString('en-US', { 
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }));
+        fetchStats();
       }
     }, 180000);
-    
+
     return () => clearInterval(interval);
-  }, [isRefreshing, fetchTVs, mounted]);
+  }, [mounted, fetchTVs, fetchStats, refreshing]);
+
+  // Filtered TVs dengan memoization
+  const filteredTVs = useMemo(() => {
+    return tvs.filter((tv) => {
+      const matchesSearch = 
+        tv.roomNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tv.ipAddress?.includes(searchTerm) ||
+        false;
+      
+      const matchesStatus = 
+        statusFilter === 'All' || 
+        tv.status === statusFilter.toLowerCase();
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [tvs, searchTerm, statusFilter]);
+
+  // Pagination data
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(filteredTVs.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedTVs = filteredTVs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    return {
+      totalPages,
+      startIndex,
+      paginatedTVs,
+      endIndex: Math.min(startIndex + ITEMS_PER_PAGE, filteredTVs.length)
+    };
+  }, [filteredTVs, currentPage]);
+
+  // Handle page change
+  const handlePageChange = useCallback((page: number) => {
+    if (page >= 1 && page <= paginationData.totalPages) {
+      setCurrentPage(page);
+    }
+  }, [paginationData.totalPages]);
+
+  // Reset page ketika filter berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   // Utility functions
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useCallback((status: string) => {
     const isOnline = status === 'online';
     return (
       <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
@@ -251,14 +237,13 @@ const TVHospitalityDashboard = () => {
         {isOnline ? 'Online' : 'Offline'}
       </div>
     );
-  };
+  }, []);
 
-  const formatLastChecked = (lastChecked?: string) => {
+  const formatLastChecked = useCallback((lastChecked?: string) => {
     if (!lastChecked || !mounted) return 'Never';
     try {
       const date = new Date(lastChecked);
       return date.toLocaleString('en-US', {
-        year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -268,90 +253,94 @@ const TVHospitalityDashboard = () => {
     } catch {
       return 'Invalid Date';
     }
-  };
+  }, [mounted]);
 
-  const getResponseTimeColor = (responseTime?: number) => {
+  const getResponseTimeColor = useCallback((responseTime?: number) => {
     if (!responseTime) return 'text-gray-500';
     if (responseTime < 100) return 'text-green-600';
     if (responseTime < 500) return 'text-yellow-600';
     return 'text-red-600';
-  };
+  }, []);
 
   // Pagination component
-  const Pagination = () => {
+  const Pagination = useCallback(() => {
+    if (paginationData.totalPages <= 1) return null;
+
     const maxVisiblePages = 5;
     const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const endPage = Math.min(paginationData.totalPages, startPage + maxVisiblePages - 1);
     const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 
     return (
       <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
         <div className="flex justify-between flex-1 sm:hidden">
           <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Previous
           </button>
           <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === paginationData.totalPages}
             className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Next
           </button>
         </div>
+        
         <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(currentPage * itemsPerPage, stats.totalTVs)}</span> of{' '}
-              <span className="font-medium">{stats.totalTVs}</span> results
+              Showing <span className="font-medium">{paginationData.startIndex + 1}</span> to{' '}
+              <span className="font-medium">{paginationData.endIndex}</span> of{' '}
+              <span className="font-medium">{filteredTVs.length}</span> results
             </p>
           </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+          
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              title="Previous page"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            
+            {pages.map(page => (
               <button
                 type="button"
-                title="Previous page"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                  page === currentPage
+                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
               >
-                <ChevronLeft className="h-5 w-5" />
+                {page}
               </button>
-              {pages.map(page => (
-                <button
-                  type="button"
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                    page === currentPage
-                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                  }`}
-                  title={`Go to page ${page}`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button
-                type="button"
-                title="Next page"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </nav>
+            ))}
+            
+            <button
+              type="button"
+              title="Next page"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === paginationData.totalPages}
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
     );
-  };
+  }, [paginationData, currentPage, handlePageChange, filteredTVs.length]);
 
+  // Loading states
   if (!mounted) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -401,47 +390,49 @@ const TVHospitalityDashboard = () => {
           )}
           
           {/* Stats Cards */}
-          <div className="grid md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total TVs</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalTVs}</p>
+          {stats && (
+            <div className="grid md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total TVs</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalTVs}</p>
+                  </div>
+                  <Monitor className="w-8 h-8 text-blue-500" />
                 </div>
-                <Monitor className="w-8 h-8 text-blue-500" />
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Online</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.onlineTVs}</p>
+                  </div>
+                  <Wifi className="w-8 h-8 text-green-500" />
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Offline</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.offlineTVs}</p>
+                  </div>
+                  <WifiOff className="w-8 h-8 text-red-500" />
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Uptime</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats.uptime}%</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-purple-500" />
+                </div>
               </div>
             </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Online</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.onlineTVs}</p>
-                </div>
-                <Wifi className="w-8 h-8 text-green-500" />
-              </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Offline</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.offlineTVs}</p>
-                </div>
-                <WifiOff className="w-8 h-8 text-red-500" />
-              </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Uptime</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.uptime}%</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-purple-500" />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Controls */}
@@ -463,46 +454,19 @@ const TVHospitalityDashboard = () => {
               {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-400" />
-                <label htmlFor="statusFilter" className="sr-only">Status Filter</label>
+                <label htmlFor="statusFilter" className="sr-only">
+                  Filter by status
+                </label>
                 <select
                   id="statusFilter"
-                  title="Status Filter"
+                  aria-label="Filter by status"
                   className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="all">All Status</option>
-                  <option value="online">Online Only</option>
-                  <option value="offline">Offline Only</option>
-                </select>
-              </div>
-
-              {/* Sort Options */}
-              <div className="flex gap-2">
-                <label htmlFor="sortBy" className="sr-only">Sort By</label>
-                <select
-                  id="sortBy"
-                  title="Sort By"
-                  className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <option value="roomNo">Room Number</option>
-                  <option value="ipAddress">IP Address</option>
-                  <option value="status">Status</option>
-                  <option value="responseTime">Response Time</option>
-                </select>
-                
-                <label htmlFor="sortOrder" className="sr-only">Sort Order</label>
-                <select
-                  id="sortOrder"
-                  title="Sort Order"
-                  className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                >
-                  <option value="asc">Ascending</option>
-                  <option value="desc">Descending</option>
+                  <option value="All">All Status</option>
+                  <option value="Online">Online Only</option>
+                  <option value="Offline">Offline Only</option>
                 </select>
               </div>
             </div>
@@ -510,11 +474,11 @@ const TVHospitalityDashboard = () => {
             {/* Refresh Button */}
             <button
               onClick={checkAllTVs}
-              disabled={isRefreshing}
+              disabled={refreshing}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Checking...' : 'Check All TVs'}
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Checking...' : 'Check All TVs'}
             </button>
           </div>
         </div>
@@ -535,8 +499,8 @@ const TVHospitalityDashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {tvs.map((tv, index) => (
-                  <tr key={tv.roomNo || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                {paginationData.paginatedTVs.map((tv, index) => (
+                  <tr key={tv.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{tv.roomNo}</div>
                     </td>
@@ -562,8 +526,9 @@ const TVHospitalityDashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => checkTVStatus(tv.roomNo)}
-                        className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                        onClick={() => checkTVStatus(tv.id)}
+                        disabled={!tv.id}
+                        className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-3 h-3" />
                         Check
@@ -576,20 +541,27 @@ const TVHospitalityDashboard = () => {
           </div>
           
           {/* Pagination */}
-          {totalPages > 1 && <Pagination />}
+          <Pagination />
           
-          {tvs.length === 0 && !loading && (
+          {/* Empty State */}
+          {filteredTVs.length === 0 && (
             <div className="text-center py-12">
               <Monitor className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">
-                {error ? 'Unable to load TV data' : 'No TVs found matching your criteria'}
+              <p className="text-gray-500 mb-4">
+                {searchTerm || statusFilter !== 'All' 
+                  ? 'No TVs found matching your criteria' 
+                  : 'No TVs available'
+                }
               </p>
-              {error && (
+              {(searchTerm || statusFilter !== 'All') && (
                 <button
-                  onClick={fetchTVs}
-                  className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('All');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
-                  Retry
+                  Clear Filters
                 </button>
               )}
             </div>
@@ -598,9 +570,13 @@ const TVHospitalityDashboard = () => {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Total: {stats.totalTVs} TVs • Showing {tvs.length} per page • Auto-refresh every 3 minutes</p>
-          {mounted && currentTime && (
-            <p className="mt-1">Last updated: {currentTime}</p>
+          <p>
+            Total: {filteredTVs.length} TVs • 
+            Showing {paginationData.paginatedTVs.length} per page • 
+            Auto-refresh every 3 minutes
+          </p>
+          {stats?.lastUpdated && (
+            <p className="mt-1">Last updated: {formatLastChecked(stats.lastUpdated)}</p>
           )}
         </div>
       </div>
