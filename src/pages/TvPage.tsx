@@ -67,12 +67,12 @@ const TVHospitalityDashboard = () => {
   const getBaseURL = () => {
     // Check if we're in the browser
     if (typeof window === 'undefined') {
-      return 'https://iptv-monitor-backend.railway.internal';
+      return 'https://iptv-backend-prod.up.railway.app';
     }
     
     // For development
     if (process.env.NODE_ENV === 'development') {
-      return 'https://iptv-monitor-backend.railway.internal';
+      return 'https://iptv-backend-prod.up.railway.app';
     }
     
     // For production - try different possible URLs
