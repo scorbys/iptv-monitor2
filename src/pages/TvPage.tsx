@@ -67,12 +67,12 @@ const TVHospitalityDashboard = () => {
   const getBaseURL = () => {
     // Check if we're in the browser
     if (typeof window === 'undefined') {
-      return 'http://localhost:3001';
+      return 'http://iptv-monitor-backend.railway.internal';
     }
     
     // For development
     if (process.env.NODE_ENV === 'development') {
-      return 'http://localhost:3001';
+      return 'http://iptv-monitor-backend.railway.internal';
     }
     
     // For production - try different possible URLs

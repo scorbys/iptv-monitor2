@@ -55,7 +55,7 @@ export default function ChannelsPage() {
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/channels");
+      const response = await fetch("http://iptv-monitor-backend.railway.internal/api/channels");
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -76,7 +76,7 @@ export default function ChannelsPage() {
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/dashboard/stats");
+      const response = await fetch("http://iptv-monitor-backend.railway.internal/api/dashboard/stats");
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -143,7 +143,7 @@ export default function ChannelsPage() {
     
     try {
       const response = await fetch(
-        `http://localhost:3001/api/channels/${channelId}/check`,
+        `http://iptv-monitor-backend.railway.internal/api/channels/${channelId}/check`,
         {
           method: "POST",
           headers: {
