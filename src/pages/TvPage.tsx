@@ -10,7 +10,9 @@ import {
   Filter,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 type TV = {
@@ -48,11 +50,14 @@ const TVHospitalityDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 20;
 
-  // Fix hydration issue
   useEffect(() => {
     setMounted(true);
-    // Set initial time on client side only
     setCurrentTime(new Date().toLocaleString('en-US', { 
       year: 'numeric',
       month: '2-digit',
@@ -63,26 +68,15 @@ const TVHospitalityDashboard = () => {
     }));
   }, []);
 
-  // Get the base URL for API calls - Fixed for different environments
+  // Get API base URL
   const getBaseURL = () => {
-    // Check if we're in the browser
-    if (typeof window === 'undefined') {
-      return 'https://iptv-backend-prod.up.railway.app';
-    }
-    
-    // For development
-    if (process.env.NODE_ENV === 'development') {
-      return 'https://iptv-backend-prod.up.railway.app';
-    }
-    
-    // For production - try different possible URLs
-    const { protocol, hostname } = window.location;
-    
-    // First try same host with port 3001
-    return `${protocol}//${hostname}:3001`;
+    if (typeof window === 'undefined') return 'http://localhost:3001';
+    return process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3001' 
+      : 'https://iptv-backend-prod.up.railway.app';
   };
 
-  // Fetch TV data with better error handling
+  // Fetch TV data
   const fetchTVs = React.useCallback(async () => {
     try {
       setError(null);
@@ -94,99 +88,71 @@ const TVHospitalityDashboard = () => {
         sortOrder: sortOrder
       });
       
-      const url = `${baseURL}/api/hospitality/tvs?${params}`;
-      console.log('Fetching from:', url);
-      
-      // First check if server is reachable
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(url, {
+      const response = await fetch(`${baseURL}/api/hospitality/tvs?${params}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000)
       });
       
-      clearTimeout(timeoutId);
-      
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`API endpoint not found. Please check if the server is running on ${baseURL}`);
-        }
-        throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+        throw new Error(`Server error: ${response.status}`);
       }
       
       const data = await response.json();
       
       if (data.success) {
-        setTvs(data.data || []);
+        const allTVs = data.data || [];
         setStats({
           totalTVs: data.totalCount || 0,
           onlineTVs: data.onlineCount || 0,
           offlineTVs: data.offlineCount || 0,
           uptime: data.totalCount > 0 ? ((data.onlineCount / data.totalCount) * 100).toFixed(1) : '0.0'
         });
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(allTVs.length / itemsPerPage);
+        setTotalPages(totalPages);
+        
+        // Get current page data
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedTVs = allTVs.slice(startIndex, endIndex);
+        
+        setTvs(paginatedTVs);
       } else {
         throw new Error(data.message || 'Failed to fetch TV data');
       }
     } catch (error) {
       console.error('Error fetching TVs:', error);
-      let errorMessage = 'Unknown error';
-      
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          errorMessage = 'Request timeout - Server may be unreachable';
-        } else if (error.message.includes('fetch')) {
-          errorMessage = 'Cannot connect to server. Please check if the backend server is running.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setError(`Failed to fetch TV data: ${errorMessage}`);
       setTvs([]);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm, sortBy, sortOrder]);
+  }, [statusFilter, searchTerm, sortBy, sortOrder, currentPage]);
 
-  // Check all TVs status with better error handling
+  // Check all TVs status
   const checkAllTVs = async () => {
     setIsRefreshing(true);
     try {
       setError(null);
       const baseURL = getBaseURL();
-      const url = `${baseURL}/api/hospitality/tvs/check-all`;
       
-      console.log('Checking all TVs at:', url);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
-      const response = await fetch(url, {
+      const response = await fetch(`${baseURL}/api/hospitality/tvs/check-all`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000)
       });
       
-      clearTimeout(timeoutId);
-      
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`API endpoint not found. Please check if the server is running on ${baseURL}`);
-        }
-        throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+        throw new Error(`Server error: ${response.status}`);
       }
       
       const data = await response.json();
       
       if (data.success) {
-        await fetchTVs(); // Refresh data
-        // Update current time after successful refresh
+        await fetchTVs();
         setCurrentTime(new Date().toLocaleString('en-US', { 
           year: 'numeric',
           month: '2-digit',
@@ -200,18 +166,7 @@ const TVHospitalityDashboard = () => {
       }
     } catch (error) {
       console.error('Error checking all TVs:', error);
-      let errorMessage = 'Unknown error';
-      
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          errorMessage = 'Request timeout - Server may be unreachable';
-        } else if (error.message.includes('fetch')) {
-          errorMessage = 'Cannot connect to server. Please check if the backend server is running.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setError(`Failed to check all TVs: ${errorMessage}`);
     } finally {
       setIsRefreshing(false);
@@ -223,37 +178,23 @@ const TVHospitalityDashboard = () => {
     try {
       setError(null);
       const baseURL = getBaseURL();
-      const url = `${baseURL}/api/hospitality/tvs/${roomNo}/check`;
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(url, {
+      const response = await fetch(`${baseURL}/api/hospitality/tvs/${roomNo}/check`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000)
       });
       
-      clearTimeout(timeoutId);
-      
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`API endpoint not found. Please check if the server is running on ${baseURL}`);
-        }
-        throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+        throw new Error(`Server error: ${response.status}`);
       }
       
       const data = await response.json();
       
       if (data.success) {
-        // Update specific TV in the list
         setTvs(prevTvs => 
           prevTvs.map(tv => 
-            tv.roomNo === roomNo 
-              ? { ...tv, ...data.data }
-              : tv
+            tv.roomNo === roomNo ? { ...tv, ...data.data } : tv
           )
         );
       } else {
@@ -261,44 +202,30 @@ const TVHospitalityDashboard = () => {
       }
     } catch (error) {
       console.error('Error checking TV status:', error);
-      let errorMessage = 'Unknown error';
-      
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          errorMessage = 'Request timeout';
-        } else if (error.message.includes('fetch')) {
-          errorMessage = 'Cannot connect to server';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setError(`Failed to check TV ${roomNo}: ${errorMessage}`);
     }
   };
 
-  // Initial data fetch - only after component is mounted
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, sortBy, sortOrder]);
+
+  // Fetch data
   useEffect(() => {
     if (mounted) {
       fetchTVs();
     }
   }, [mounted, fetchTVs]);
 
-  // Fetch data when filters change - only if mounted
-  useEffect(() => {
-    if (!loading && mounted) {
-      fetchTVs();
-    }
-  }, [searchTerm, statusFilter, sortBy, sortOrder, fetchTVs, loading, mounted]);
-
-  // Auto-refresh every 3 minutes - only if mounted
+  // Auto-refresh every 3 minutes
   useEffect(() => {
     if (!mounted) return;
     
     const interval = setInterval(() => {
       if (!isRefreshing) {
         fetchTVs();
-        // Update current time during auto-refresh
         setCurrentTime(new Date().toLocaleString('en-US', { 
           year: 'numeric',
           month: '2-digit',
@@ -313,29 +240,23 @@ const TVHospitalityDashboard = () => {
     return () => clearInterval(interval);
   }, [isRefreshing, fetchTVs, mounted]);
 
+  // Utility functions
   const getStatusBadge = (status: string) => {
-    if (status === 'online') {
-      return (
-        <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-          <CheckCircle className="w-3 h-3" />
-          Online
-        </div>
-      );
-    }
+    const isOnline = status === 'online';
     return (
-      <div className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-        <XCircle className="w-3 h-3" />
-        Offline
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+        isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+      }`}>
+        {isOnline ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+        {isOnline ? 'Online' : 'Offline'}
       </div>
     );
   };
 
-  // Fixed date formatting to prevent hydration mismatch
   const formatLastChecked = (lastChecked?: string) => {
     if (!lastChecked || !mounted) return 'Never';
     try {
       const date = new Date(lastChecked);
-      // Use a consistent format that works both server and client side
       return date.toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
@@ -356,7 +277,81 @@ const TVHospitalityDashboard = () => {
     return 'text-red-600';
   };
 
-  // Don't render until mounted to prevent hydration issues
+  // Pagination component
+  const Pagination = () => {
+    const maxVisiblePages = 5;
+    const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+        <div className="flex justify-between flex-1 sm:hidden">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+              <span className="font-medium">{Math.min(currentPage * itemsPerPage, stats.totalTVs)}</span> of{' '}
+              <span className="font-medium">{stats.totalTVs}</span> results
+            </p>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                type="button"
+                title="Previous page"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              {pages.map(page => (
+                <button
+                  type="button"
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    page === currentPage
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                  title={`Go to page ${page}`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                title="Next page"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!mounted) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -394,19 +389,7 @@ const TVHospitalityDashboard = () => {
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2">
                 <XCircle className="w-5 h-5 text-red-500" />
-                <div className="flex-1">
-                  <span className="text-red-700">{error}</span>
-                  {error.includes('server') && (
-                    <div className="mt-2 text-sm text-red-600">
-                      <p>Troubleshooting steps:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Make sure your backend server is running on port 3001</li>
-                        <li>Check if the API endpoints are properly configured</li>
-                        <li>Verify CORS settings allow connections from your frontend</li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                <span className="text-red-700">{error}</span>
                 <button
                   onClick={() => setError(null)}
                   className="ml-auto text-red-500 hover:text-red-700"
@@ -471,7 +454,7 @@ const TVHospitalityDashboard = () => {
                 <input
                   type="text"
                   placeholder="Search room number or IP..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64"
+                  className="pl-10 pr-4 py-2 border border-gray-300 text-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -480,11 +463,11 @@ const TVHospitalityDashboard = () => {
               {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-400" />
-                <label htmlFor="statusFilter" className="sr-only">Filter by status</label>
+                <label htmlFor="statusFilter" className="sr-only">Status Filter</label>
                 <select
                   id="statusFilter"
-                  title="Filter by status"
-                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  title="Status Filter"
+                  className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -496,11 +479,11 @@ const TVHospitalityDashboard = () => {
 
               {/* Sort Options */}
               <div className="flex gap-2">
-                <label htmlFor="sortBy" className="sr-only">Sort by</label>
+                <label htmlFor="sortBy" className="sr-only">Sort By</label>
                 <select
                   id="sortBy"
-                  title="Sort by"
-                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  title="Sort By"
+                  className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                 >
@@ -510,13 +493,13 @@ const TVHospitalityDashboard = () => {
                   <option value="responseTime">Response Time</option>
                 </select>
                 
-                <label htmlFor="sortOrder" className="sr-only">Sort order</label>
+                <label htmlFor="sortOrder" className="sr-only">Sort Order</label>
                 <select
                   id="sortOrder"
-                  title="Sort order"
-                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  title="Sort Order"
+                  className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={sortOrder}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortOrder(e.target.value)}
+                  onChange={(e) => setSortOrder(e.target.value)}
                 >
                   <option value="asc">Ascending</option>
                   <option value="desc">Descending</option>
@@ -542,27 +525,13 @@ const TVHospitalityDashboard = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Room No
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IP Address
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Model
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Response Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Checked
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room No</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Checked</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -606,6 +575,9 @@ const TVHospitalityDashboard = () => {
             </table>
           </div>
           
+          {/* Pagination */}
+          {totalPages > 1 && <Pagination />}
+          
           {tvs.length === 0 && !loading && (
             <div className="text-center py-12">
               <Monitor className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -626,11 +598,9 @@ const TVHospitalityDashboard = () => {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Total: {tvs.length} TVs displayed • Auto-refresh every 3 minutes</p>
+          <p>Total: {stats.totalTVs} TVs • Showing {tvs.length} per page • Auto-refresh every 3 minutes</p>
           {mounted && currentTime && (
-            <p className="mt-1">
-              Last updated: {currentTime}
-            </p>
+            <p className="mt-1">Last updated: {currentTime}</p>
           )}
         </div>
       </div>
