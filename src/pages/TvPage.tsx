@@ -35,7 +35,7 @@ interface TVStats {
 }
 
 const ITEMS_PER_PAGE = 20;
-const API_BASE_URL = 'https://iptv-backend-prod.up.railway.app';
+const API_BASE_URL = "https://iptv-backend-prod.up.railway.app"; // Adjust this to your API base URL
 
 const TVHospitalityDashboard = () => {
   const [tvs, setTvs] = useState<TV[]>([]);
@@ -48,38 +48,54 @@ const TVHospitalityDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // Fetch TV data
+  // Fetch TV data with better error handling
   const fetchTVs = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs`);
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Failed to fetch TVs: ${response.status}`);
       }
       
       const result = await response.json();
       
       if (result.success && Array.isArray(result.data)) {
-        setTvs(result.data);
+        // Transform data to ensure proper types
+        const transformedTVs = result.data.map((tv: TV) => ({
+          ...tv,
+          id: tv.id || Math.random(),
+          responseTime: tv.responseTime ? Number(tv.responseTime) : undefined,
+          status: tv.status || 'offline',
+          lastChecked: tv.lastChecked || new Date().toISOString(),
+        }));
+        setTvs(transformedTVs);
       } else {
         console.error('Invalid TV data format:', result);
         setTvs([]);
       }
     } catch (error) {
       console.error('Error fetching TVs:', error);
-      setError('Failed to fetch TV data');
+      setError(error instanceof Error ? error.message : 'Failed to fetch TV data');
       setTvs([]);
     }
   }, []);
 
-  // Fetch dashboard stats
+  // Fetch dashboard stats with better error handling
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/dashboard/stats`);
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/dashboard/stats`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Failed to fetch stats: ${response.status}`);
       }
       
       const result = await response.json();
@@ -96,7 +112,7 @@ const TVHospitalityDashboard = () => {
     }
   }, []);
 
-  // Check all TVs status
+  // Check all TVs status with better error handling
   const checkAllTVs = useCallback(async () => {
     if (refreshing) return;
     
@@ -105,60 +121,87 @@ const TVHospitalityDashboard = () => {
       setError(null);
       const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/check-all`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+        },
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Failed to check TVs: ${response.status}`);
       }
       
       const result = await response.json();
       
       if (result.success) {
+        // Refresh data after checking
         await Promise.all([fetchTVs(), fetchStats()]);
       } else {
         throw new Error(result.message || 'Failed to check TV status');
       }
     } catch (error) {
       console.error('Error checking all TVs:', error);
-      setError('Failed to check all TVs');
+      setError(error instanceof Error ? error.message : 'Failed to check all TVs');
     } finally {
       setRefreshing(false);
     }
   }, [refreshing, fetchTVs, fetchStats]);
 
-  // Check individual TV status
-  const checkTVStatus = useCallback(async (tvId: number) => {
-    if (!tvId) return;
+  // Check individual TV status with proper data update
+  const checkTVStatus = useCallback(async (roomNo: string) => {
+    if (!roomNo) return;
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/${tvId}/check`, {
+      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/${roomNo}/check`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+        },
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Failed to check TV ${roomNo}: ${response.status}`);
       }
       
       const result = await response.json();
       
       if (result.success && result.data) {
+        // Update specific TV with new data
         setTvs(prev => prev.map(tv => 
-          tv.id === tvId ? { ...tv, ...result.data } : tv
+          tv.roomNo === roomNo 
+            ? { 
+                ...tv, 
+                ...result.data,
+                responseTime: result.data.responseTime ? Number(result.data.responseTime) : undefined,
+                lastChecked: result.data.lastChecked || new Date().toISOString(),
+              } 
+            : tv
         ));
+        
+        // Also refresh stats to keep them in sync
+        fetchStats();
       }
     } catch (error) {
-      console.error('Error checking TV status:', error);
+      console.error(`Error checking TV ${roomNo}:`, error);
+      // Update TV with error state if check fails
+      setTvs(prev => prev.map(tv => 
+        tv.roomNo === roomNo 
+          ? { 
+              ...tv, 
+              status: 'offline' as const,
+              error: error instanceof Error ? error.message : 'Check failed',
+              lastChecked: new Date().toISOString(),
+            } 
+          : tv
+      ));
     }
-  }, []);
+  }, [fetchStats]);
 
-  // Effect untuk mounted state
+  // Mount effect
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Effect untuk initial data load dan auto-refresh
+  // Initial data load and auto-refresh
   useEffect(() => {
     if (!mounted) return;
     
@@ -173,7 +216,7 @@ const TVHospitalityDashboard = () => {
 
     loadData();
 
-    // Auto-refresh setiap 3 menit
+    // Auto-refresh every 3 minutes when page is visible
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible' && !refreshing) {
         fetchTVs();
@@ -184,7 +227,7 @@ const TVHospitalityDashboard = () => {
     return () => clearInterval(interval);
   }, [mounted, fetchTVs, fetchStats, refreshing]);
 
-  // Filtered TVs dengan memoization
+  // Filtered TVs with memoization
   const filteredTVs = useMemo(() => {
     return tvs.filter((tv) => {
       const matchesSearch = 
@@ -221,24 +264,32 @@ const TVHospitalityDashboard = () => {
     }
   }, [paginationData.totalPages]);
 
-  // Reset page ketika filter berubah
+  // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
 
-  // Utility functions
-  const getStatusBadge = useCallback((status: string) => {
+  // Status badge component
+  const getStatusBadge = useCallback((status: string, responseTime?: number) => {
     const isOnline = status === 'online';
     return (
-      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-        isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-      }`}>
-        {isOnline ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-        {isOnline ? 'Online' : 'Offline'}
+      <div className="space-y-1">
+        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+          isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {isOnline ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+          {isOnline ? 'Online' : 'Offline'}
+        </div>
+        {responseTime && (
+          <div className={`text-xs ${getResponseTimeColor(responseTime)}`}>
+            {responseTime}ms
+          </div>
+        )}
       </div>
     );
   }, []);
 
+  // Format last checked date
   const formatLastChecked = useCallback((lastChecked?: string) => {
     if (!lastChecked || !mounted) return 'Never';
     try {
@@ -255,6 +306,7 @@ const TVHospitalityDashboard = () => {
     }
   }, [mounted]);
 
+  // Get response time color
   const getResponseTimeColor = useCallback((responseTime?: number) => {
     if (!responseTime) return 'text-gray-500';
     if (responseTime < 100) return 'text-green-600';
@@ -314,6 +366,7 @@ const TVHospitalityDashboard = () => {
               <button
                 type="button"
                 key={page}
+                title={`Go to page ${page}`}
                 onClick={() => handlePageChange(page)}
                 className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                   page === currentPage
@@ -493,7 +546,6 @@ const TVHospitalityDashboard = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Checked</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -511,12 +563,7 @@ const TVHospitalityDashboard = () => {
                       <div className="text-sm text-gray-600">{tv.model || 'Samsung Hospitality'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(tv.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm font-medium ${getResponseTimeColor(tv.responseTime)}`}>
-                        {tv.responseTime ? `${tv.responseTime}ms` : '-'}
-                      </div>
+                      {getStatusBadge(tv.status, tv.responseTime)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -526,8 +573,7 @@ const TVHospitalityDashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => checkTVStatus(tv.id)}
-                        disabled={!tv.id}
+                        onClick={() => checkTVStatus(tv.roomNo)}
                         className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-3 h-3" />
