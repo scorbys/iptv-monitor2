@@ -27,6 +27,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "www.biznetnetworks.com",
+      },
+      {
+        protocol: "https",
+        hostname: "biznethome.net",
       }
     ],
   },

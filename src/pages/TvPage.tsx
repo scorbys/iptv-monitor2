@@ -1,25 +1,24 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Search, 
-  RefreshCw, 
-  Monitor, 
-  Wifi, 
-  WifiOff, 
-  Filter,
-  CheckCircle,
-  XCircle,
-  Clock,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  MagnifyingGlassIcon,
+  ArrowPathIcon,
+  ComputerDesktopIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+} from "@heroicons/react/24/outline";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Button } from "@radix-ui/themes";
+import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
+import { DateFormatter } from "../components/DateFormatter";
 
 interface TV {
   id: number;
   roomNo: string;
   ipAddress: string;
-  status: 'online' | 'offline';
+  status: "online" | "offline";
   responseTime?: number;
   lastChecked: string;
   error?: string;
@@ -35,166 +34,60 @@ interface TVStats {
 }
 
 const ITEMS_PER_PAGE = 20;
-const API_BASE_URL = "https://iptv-backend-prod.up.railway.app"; // Adjust this to your API base URL
 
-const TVHospitalityDashboard = () => {
+export default function TvPage() {
   const [tvs, setTvs] = useState<TV[]>([]);
   const [stats, setStats] = useState<TVStats | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // Fetch TV data with better error handling
+  // Fetch TVs data
   const fetchTVs = useCallback(async () => {
     try {
-      setError(null);
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
+      const response = await fetch("http://localhost:3001/api/hospitality/tvs");
       if (!response.ok) {
-        throw new Error(`Failed to fetch TVs: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
       const result = await response.json();
-      
+
       if (result.success && Array.isArray(result.data)) {
-        // Transform data to ensure proper types
-        const transformedTVs = result.data.map((tv: TV) => ({
-          ...tv,
-          id: tv.id || Math.random(),
-          responseTime: tv.responseTime ? Number(tv.responseTime) : undefined,
-          status: tv.status || 'offline',
-          lastChecked: tv.lastChecked || new Date().toISOString(),
-        }));
-        setTvs(transformedTVs);
+        setTvs(result.data);
       } else {
-        console.error('Invalid TV data format:', result);
+        console.error("Invalid TV data format:", result);
         setTvs([]);
       }
     } catch (error) {
-      console.error('Error fetching TVs:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch TV data');
+      console.error("Error fetching TVs:", error);
       setTvs([]);
     }
   }, []);
 
-  // Fetch dashboard stats with better error handling
+  // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/dashboard/stats`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
+      const response = await fetch(
+        "http://localhost:3001/api/hospitality/dashboard/stats"
+      );
       if (!response.ok) {
-        throw new Error(`Failed to fetch stats: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         setStats(result.data);
       } else {
-        console.error('Invalid stats data format:', result);
+        console.error("Invalid stats data format:", result);
         setStats(null);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
       setStats(null);
     }
   }, []);
-
-  // Check all TVs status with better error handling
-  const checkAllTVs = useCallback(async () => {
-    if (refreshing) return;
-    
-    setRefreshing(true);
-    try {
-      setError(null);
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/check-all`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to check TVs: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        // Refresh data after checking
-        await Promise.all([fetchTVs(), fetchStats()]);
-      } else {
-        throw new Error(result.message || 'Failed to check TV status');
-      }
-    } catch (error) {
-      console.error('Error checking all TVs:', error);
-      setError(error instanceof Error ? error.message : 'Failed to check all TVs');
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, fetchTVs, fetchStats]);
-
-  // Check individual TV status with proper data update
-  const checkTVStatus = useCallback(async (roomNo: string) => {
-    if (!roomNo) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/hospitality/tvs/${roomNo}/check`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to check TV ${roomNo}: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.success && result.data) {
-        // Update specific TV with new data
-        setTvs(prev => prev.map(tv => 
-          tv.roomNo === roomNo 
-            ? { 
-                ...tv, 
-                ...result.data,
-                responseTime: result.data.responseTime ? Number(result.data.responseTime) : undefined,
-                lastChecked: result.data.lastChecked || new Date().toISOString(),
-              } 
-            : tv
-        ));
-        
-        // Also refresh stats to keep them in sync
-        fetchStats();
-      }
-    } catch (error) {
-      console.error(`Error checking TV ${roomNo}:`, error);
-      // Update TV with error state if check fails
-      setTvs(prev => prev.map(tv => 
-        tv.roomNo === roomNo 
-          ? { 
-              ...tv, 
-              status: 'offline' as const,
-              error: error instanceof Error ? error.message : 'Check failed',
-              lastChecked: new Date().toISOString(),
-            } 
-          : tv
-      ));
-    }
-  }, [fetchStats]);
 
   // Mount effect
   useEffect(() => {
@@ -204,7 +97,7 @@ const TVHospitalityDashboard = () => {
   // Initial data load and auto-refresh
   useEffect(() => {
     if (!mounted) return;
-    
+
     const loadData = async () => {
       setLoading(true);
       try {
@@ -216,53 +109,97 @@ const TVHospitalityDashboard = () => {
 
     loadData();
 
-    // Auto-refresh every 3 minutes when page is visible
+    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible' && !refreshing) {
+      if (document.visibilityState === "visible") {
         fetchTVs();
         fetchStats();
       }
-    }, 180000);
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [mounted, fetchTVs, fetchStats, refreshing]);
+  }, [mounted, fetchTVs, fetchStats]);
 
-  // Filtered TVs with memoization
+  // Manual refresh
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchTVs(), fetchStats()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, fetchTVs, fetchStats]);
+
+  // Check individual TV status
+  const checkTVStatus = useCallback(async (roomNo: string) => {
+    if (!roomNo) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/hospitality/tvs/${roomNo}/check`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setTvs((prev) =>
+          prev.map((tv) =>
+            tv.roomNo === roomNo ? { ...tv, ...result.data } : tv
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error checking TV status:", error);
+    }
+  }, []);
+
+  // Filtered TVs
   const filteredTVs = useMemo(() => {
     return tvs.filter((tv) => {
-      const matchesSearch = 
+      const matchesSearch =
         tv.roomNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tv.ipAddress?.includes(searchTerm) ||
         false;
-      
-      const matchesStatus = 
-        statusFilter === 'All' || 
-        tv.status === statusFilter.toLowerCase();
+
+      const matchesStatus =
+        statusFilter === "All" || tv.status === statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
   }, [tvs, searchTerm, statusFilter]);
 
-  // Pagination data
+  // Pagination
   const paginationData = useMemo(() => {
     const totalPages = Math.ceil(filteredTVs.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedTVs = filteredTVs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    const paginatedTVs = filteredTVs.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
+    );
 
     return {
       totalPages,
       startIndex,
       paginatedTVs,
-      endIndex: Math.min(startIndex + ITEMS_PER_PAGE, filteredTVs.length)
+      endIndex: Math.min(startIndex + ITEMS_PER_PAGE, filteredTVs.length),
     };
   }, [filteredTVs, currentPage]);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number) => {
-    if (page >= 1 && page <= paginationData.totalPages) {
-      setCurrentPage(page);
-    }
-  }, [paginationData.totalPages]);
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   // Reset page when filter changes
   useEffect(() => {
@@ -270,364 +207,431 @@ const TVHospitalityDashboard = () => {
   }, [searchTerm, statusFilter]);
 
   // Status badge component
-  const getStatusBadge = useCallback((status: string, responseTime?: number) => {
-    const isOnline = status === 'online';
-    return (
-      <div className="space-y-1">
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-          isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {isOnline ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-          {isOnline ? 'Online' : 'Offline'}
-        </div>
+  const StatusBadge = useCallback(
+    ({ status, responseTime }: { status: string; responseTime?: number }) => (
+      <div>
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            status === "online"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          <div
+            className={`w-1.5 h-1.5 rounded-full mr-1 ${
+              status === "online" ? "bg-green-500" : "bg-red-500"
+            }`}
+          ></div>
+          {status
+            ? status.charAt(0).toUpperCase() + status.slice(1)
+            : "Unknown"}
+        </span>
         {responseTime && (
-          <div className={`text-xs ${getResponseTimeColor(responseTime)}`}>
-            {responseTime}ms
-          </div>
+          <div className="text-xs text-gray-500 mt-1">{responseTime}ms</div>
         )}
       </div>
-    );
-  }, []);
+    ),
+    []
+  );
 
-  // Format last checked date
-  const formatLastChecked = useCallback((lastChecked?: string) => {
-    if (!lastChecked || !mounted) return 'Never';
-    try {
-      const date = new Date(lastChecked);
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-    } catch {
-      return 'Invalid Date';
-    }
-  }, [mounted]);
-
-  // Get response time color
-  const getResponseTimeColor = useCallback((responseTime?: number) => {
-    if (!responseTime) return 'text-gray-500';
-    if (responseTime < 100) return 'text-green-600';
-    if (responseTime < 500) return 'text-yellow-600';
-    return 'text-red-600';
-  }, []);
-
-  // Pagination component
-  const Pagination = useCallback(() => {
-    if (paginationData.totalPages <= 1) return null;
-
-    const maxVisiblePages = 5;
-    const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    const endPage = Math.min(paginationData.totalPages, startPage + maxVisiblePages - 1);
-    const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-
+  if (!mounted || loading) {
     return (
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
-        <div className="flex justify-between flex-1 sm:hidden">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === paginationData.totalPages}
-            className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-        
-        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{paginationData.startIndex + 1}</span> to{' '}
-              <span className="font-medium">{paginationData.endIndex}</span> of{' '}
-              <span className="font-medium">{filteredTVs.length}</span> results
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              title="Previous page"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            
-            {pages.map(page => (
-              <button
-                type="button"
-                key={page}
-                title={`Go to page ${page}`}
-                onClick={() => handlePageChange(page)}
-                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                  page === currentPage
-                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            
-            <button
-              type="button"
-              title="Next page"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === paginationData.totalPages}
-              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }, [paginationData, currentPage, handlePageChange, filteredTVs.length]);
-
-  // Loading states
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
-          <span className="text-lg text-gray-600">Initializing...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-blue-50">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
-          <span className="text-lg text-gray-600">Loading TV data...</span>
+      <div className="p-6 bg-blue-50 min-h-screen">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading TVs...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-blue-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Monitor className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">TV Hospitality Dashboard</h1>
+    <div className="p-6 bg-blue-50 min-h-screen">
+      {/* Header Stats */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total TVs</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalTVs || 0}
+                </p>
+              </div>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <ComputerDesktopIcon className="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
           </div>
-          
-          {/* Error Alert */}
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-red-500" />
-                <span className="text-red-700">{error}</span>
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-auto text-red-500 hover:text-red-700"
+
+          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Online</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {stats.onlineTVs || 0}
+                </p>
+              </div>
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CheckCircleIcon className="w-6 h-6 text-green-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Offline</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {stats.offlineTVs || 0}
+                </p>
+              </div>
+              <div className="p-2 bg-red-50 rounded-lg">
+                <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">
+                  System Uptime
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {stats.uptime || "0"}%
+                </p>
+              </div>
+              <div className="p-2 bg-gray-50 rounded-lg">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                    parseFloat(stats.uptime || "0") >= 95
+                      ? "bg-green-100"
+                      : parseFloat(stats.uptime || "0") >= 80
+                      ? "bg-yellow-100"
+                      : "bg-red-100"
+                  }`}
                 >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {/* Stats Cards */}
-          {stats && (
-            <div className="grid md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total TVs</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalTVs}</p>
-                  </div>
-                  <Monitor className="w-8 h-8 text-blue-500" />
-                </div>
-              </div>
-              
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Online</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.onlineTVs}</p>
-                  </div>
-                  <Wifi className="w-8 h-8 text-green-500" />
-                </div>
-              </div>
-              
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Offline</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.offlineTVs}</p>
-                  </div>
-                  <WifiOff className="w-8 h-8 text-red-500" />
-                </div>
-              </div>
-              
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Uptime</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.uptime}%</p>
-                  </div>
-                  <CheckCircle className="w-8 h-8 text-purple-500" />
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      parseFloat(stats.uptime || "0") >= 95
+                        ? "bg-green-500"
+                        : parseFloat(stats.uptime || "0") >= 80
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  ></div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
+      )}
 
-        {/* Controls */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search room number or IP..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 text-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+      {/* Controls */}
+      <div className="bg-white rounded-lg p-4 shadow-sm border mb-6">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          {/* Search */}
+          <div className="relative w-full lg:w-96">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by room number or IP address..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2.5 w-full bg-gray-50 text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all"
+            />
+          </div>
 
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-400" />
-                <label htmlFor="statusFilter" className="sr-only">
-                  Filter by status
-                </label>
-                <select
-                  id="statusFilter"
-                  aria-label="Filter by status"
-                  className="border border-gray-300 text-gray-800 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="All">All Status</option>
-                  <option value="Online">Online Only</option>
-                  <option value="Offline">Offline Only</option>
-                </select>
-              </div>
-            </div>
+          {/* Filters and Actions */}
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            {/* Status Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-gray-300 transition-all min-w-24">
+                  <span className="text-sm text-gray-700 font-medium">
+                    {statusFilter}
+                  </span>
+                  <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-32 bg-white rounded-lg shadow-lg border border-gray-200 p-1 z-50">
+                  {["All", "Online", "Offline"].map((status) => (
+                    <DropdownMenu.Item
+                      key={`status-${status}`}
+                      className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded cursor-pointer outline-none transition-colors"
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {status}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
 
             {/* Refresh Button */}
             <button
-              onClick={checkAllTVs}
+              onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Checking...' : 'Check All TVs'}
+              <ArrowPathIcon
+                className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+              <span className="text-sm font-medium">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
             </button>
           </div>
         </div>
+      </div>
 
-        {/* TV Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room No</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Checked</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginationData.paginatedTVs.map((tv, index) => (
-                  <tr key={tv.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{tv.roomNo}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{tv.ipAddress}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{tv.model || 'Samsung Hospitality'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(tv.status, tv.responseTime)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        {formatLastChecked(tv.lastChecked)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => checkTVStatus(tv.roomNo)}
-                        className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Check
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Pagination */}
-          <Pagination />
-          
-          {/* Empty State */}
-          {filteredTVs.length === 0 && (
-            <div className="text-center py-12">
-              <Monitor className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-4">
-                {searchTerm || statusFilter !== 'All' 
-                  ? 'No TVs found matching your criteria' 
-                  : 'No TVs available'
-                }
-              </p>
-              {(searchTerm || statusFilter !== 'All') && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('All');
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+      {/* TVs Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Room No
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  IP Address
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Model
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Last Checked
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paginationData.paginatedTVs.map((tv, index) => (
+                <tr
+                  key={`tv-${tv.id || index}`}
+                  className="hover:bg-blue-50/50 transition-colors"
                 >
-                  Clear Filters
-                </button>
-              )}
-            </div>
-          )}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shadow-sm">
+                        <span className="text-sm font-bold text-blue-700">
+                          {tv.roomNo || "-"}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <code className="text-sm text-gray-900 px-2 py-1 font-mono">
+                      {tv.ipAddress || "N/A"}
+                    </code>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                      {tv.model || "Samsung Hospitality"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge
+                      status={tv.status}
+                      responseTime={tv.responseTime}
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <DateFormatter
+                      date={tv.lastChecked}
+                      fallback="Never checked"
+                      className="text-xs"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => checkTVStatus(tv.roomNo)}
+                      disabled={!tv.roomNo}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all"
+                    >
+                      Check Now
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>
-            Total: {filteredTVs.length} TVs • 
-            Showing {paginationData.paginatedTVs.length} per page • 
-            Auto-refresh every 3 minutes
-          </p>
-          {stats?.lastUpdated && (
-            <p className="mt-1">Last updated: {formatLastChecked(stats.lastUpdated)}</p>
-          )}
+        {filteredTVs.length === 0 && (
+          <div className="text-center py-16">
+            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <ComputerDesktopIcon className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No TVs found
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {searchTerm
+                ? `No TVs match "${searchTerm}"`
+                : "No TVs available with current filters"}
+            </p>
+            {(searchTerm || statusFilter !== "All") && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("All");
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {paginationData.totalPages > 1 && (
+        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm border">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              Showing{" "}
+              <span className="font-medium">
+                {paginationData.startIndex + 1}
+              </span>{" "}
+              to <span className="font-medium">{paginationData.endIndex}</span>{" "}
+              of <span className="font-medium">{filteredTVs.length}</span> TVs
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                variant="soft"
+                size="2"
+                className="disabled:opacity-50"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+                Previous
+              </Button>
+
+              {(() => {
+                const { totalPages } = paginationData;
+                const maxVisiblePages = 5;
+                let startPage = Math.max(
+                  1,
+                  currentPage - Math.floor(maxVisiblePages / 2)
+                );
+                const endPage = Math.min(
+                  totalPages,
+                  startPage + maxVisiblePages - 1
+                );
+
+                if (endPage - startPage < maxVisiblePages - 1) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+
+                const pages = [];
+
+                if (startPage > 1) {
+                  pages.push(
+                    <Button
+                      key="page-1"
+                      onClick={() => handlePageChange(1)}
+                      variant="soft"
+                      size="2"
+                    >
+                      1
+                    </Button>
+                  );
+                  if (startPage > 2) {
+                    pages.push(
+                      <span
+                        key="ellipsis-start"
+                        className="px-2 py-1 text-gray-400"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={`page-${i}`}
+                      onClick={() => handlePageChange(i)}
+                      className={
+                        currentPage === i
+                          ? "text-gray-600 font-semibold bg-gray-100 px-3 py-1 rounded"
+                          : "text-gray-400 px-3 py-1 rounded"
+                      }
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(
+                      <span
+                        key="ellipsis-end"
+                        className="px-2 py-1 text-gray-400"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                  pages.push(
+                    <Button
+                      key={`page-${totalPages}`}
+                      onClick={() => handlePageChange(totalPages)}
+                      variant="soft"
+                      size="2"
+                    >
+                      {totalPages}
+                    </Button>
+                  );
+                }
+
+                return pages;
+              })()}
+
+              <Button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === paginationData.totalPages}
+                variant="soft"
+                size="2"
+                className="disabled:opacity-50"
+              >
+                Next
+                <ChevronRightIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer Info */}
+      <div className="mt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-4">
+            {stats && stats.lastUpdated && (
+              <span className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Last updated: <DateFormatter date={stats.lastUpdated} />
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500">
+            Auto-refresh every 30 seconds
+          </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default TVHospitalityDashboard;
+}
