@@ -48,7 +48,7 @@ export default function TvPage() {
   // Fetch TVs data
   const fetchTVs = useCallback(async () => {
     try {
-      const response = await fetch('https://iptv-backend-prod.up.railway.app//api/hospitality/tvs');
+      const response = await fetch('https://iptv-backend-prod.up.railway.app/api/hospitality/tvs');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -70,7 +70,7 @@ export default function TvPage() {
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(
-        'https://iptv-backend-prod.up.railway.app//api/hospitality/dashboard/stats'
+        'https://iptv-backend-prod.up.railway.app/api/hospitality/dashboard/stats'
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -138,7 +138,7 @@ export default function TvPage() {
 
     try {
       const response = await fetch(
-        `https://iptv-backend-prod.up.railway.app//api/hospitality/tvs/${roomNo}/check`,
+        `https://iptv-backend-prod.up.railway.app/api/hospitality/tvs/${roomNo}/check`,
         {
           method: "POST",
           headers: {
