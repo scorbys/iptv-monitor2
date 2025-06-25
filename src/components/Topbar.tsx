@@ -7,8 +7,10 @@ import { AvatarIcon, GearIcon, ExitIcon } from "@radix-ui/react-icons";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export default function Topbar() {
+  const router = useRouter();
   const [notificationOpen, setNotificationOpen] = useState(false);
 
   // Sample notifications
@@ -36,6 +38,13 @@ export default function Topbar() {
     },
   ];
 
+  const handleLogout = () => {
+    // Hapus data user dari localStorage
+    localStorage.removeItem("user");
+    // Redirect ke halaman login
+    router.push("/login");
+  };
+
   return (
     <header className="w-full h-[50px] bg-sky-900 flex items-center justify-between px-6">
       {/* Left Section - Brand */}
@@ -43,13 +52,13 @@ export default function Topbar() {
         <Image
           src="/logo.png"
           alt="Logo"
-          width={20}
-          height={20}
-          className="w-5 h-5 object-contain"
+          width={480}
+          height={480}
+          className="w-22 h-22 object-contain"
         />
-        <h1 className="text-lg font-medium text-white">
+        {/* <h1 className="text-lg font-medium text-white">
           IPTV System Monitoring
-        </h1>
+        </h1> */}
       </div>
 
       {/* Right Section - Notifications & Profile */}
@@ -154,7 +163,10 @@ export default function Topbar() {
               <DropdownMenu.Separator className="h-px bg-gray-200 my-1" />
 
               <DropdownMenu.Item asChild>
-                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded cursor-pointer">
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded cursor-pointer"
+                  onClick={handleLogout}
+                >
                   <ExitIcon className="w-4 h-4" />
                   Sign Out
                 </button>

@@ -48,7 +48,9 @@ export default function TvPage() {
   // Fetch TVs data
   const fetchTVs = useCallback(async () => {
     try {
-      const response = await fetch('https://iptv-backend-prod.up.railway.app/api/hospitality/tvs');
+      const response = await fetch('http://localhost:3001/api/hospitality/tvs', {
+        credentials: 'include' // <-- tambahkan ini
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -70,7 +72,9 @@ export default function TvPage() {
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(
-        'https://iptv-backend-prod.up.railway.app/api/hospitality/dashboard/stats'
+        'http://localhost:3001/api/hospitality/dashboard/stats', {
+          credentials: 'include'
+        }
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -109,13 +113,13 @@ export default function TvPage() {
 
     loadData();
 
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 2 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchTVs();
         fetchStats();
       }
-    }, 30000);
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [mounted, fetchTVs, fetchStats]);
@@ -138,12 +142,13 @@ export default function TvPage() {
 
     try {
       const response = await fetch(
-        `https://iptv-backend-prod.up.railway.app/api/hospitality/tvs/${roomNo}/check`,
+        `http://localhost:3001/api/hospitality/tvs/${roomNo}/check`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: 'include'
         }
       );
 
@@ -441,7 +446,7 @@ export default function TvPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge
                       status={tv.status}
-                      responseTime={tv.responseTime}
+                      // responseTime={tv.responseTime}
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -628,7 +633,7 @@ export default function TvPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 30 seconds
+            Auto-refresh every 2 minutes
           </div>
         </div>
       </div>

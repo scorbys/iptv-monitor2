@@ -55,7 +55,9 @@ export default function ChannelsPage() {
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
     try {
-      const response = await fetch('https://iptv-backend-prod.up.railway.app/api/channels');
+      const response = await fetch('http://localhost:3001/api/channels', {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -77,7 +79,9 @@ export default function ChannelsPage() {
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(
-        'https://iptv-backend-prod.up.railway.app/api/channels/dashboard/stats'
+        'http://localhost:3001/api/channels/dashboard/stats', {
+          credentials: 'include'
+        }
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -116,13 +120,13 @@ export default function ChannelsPage() {
 
     loadData();
 
-    // Set up auto-refresh every 30 seconds
+    // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchChannels();
         fetchStats();
       }
-    }, 30000);
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [mounted, fetchChannels, fetchStats]);
@@ -145,12 +149,13 @@ export default function ChannelsPage() {
 
     try {
       const response = await fetch(
-        `https://iptv-backend-prod.up.railway.app/api/channels/${channelId}/check`,
+        `http://localhost:3001/api/channels/${channelId}/check`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: 'include'
         }
       );
 
@@ -227,7 +232,7 @@ export default function ChannelsPage() {
 
   // Status badge component untuk konsistensi
   const StatusBadge = useCallback(
-    ({ status, responseTime }: { status: string; responseTime?: number }) => (
+    ({ status }: { status: string }) => (
       <div>
         <span
           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -245,9 +250,6 @@ export default function ChannelsPage() {
             ? status.charAt(0).toUpperCase() + status.slice(1)
             : "Unknown"}
         </span>
-        {responseTime && (
-          <div className="text-xs text-gray-500 mt-1">{responseTime}ms</div>
-        )}
       </div>
     ),
     []
@@ -529,7 +531,6 @@ export default function ChannelsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge
                       status={channel.status}
-                      responseTime={channel.responseTime}
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -721,7 +722,7 @@ export default function ChannelsPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 30 seconds
+            Auto-refresh every 2 minutes
           </div>
         </div>
       </div>
