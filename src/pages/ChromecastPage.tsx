@@ -54,7 +54,7 @@ export default function ChromecastPage() {
   // Fetch Chromecast data
   const fetchChromecasts = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/chromecast', {
+      const response = await fetch('https://iptv-backend-prod.up.railway.app/api/chromecast', {
         credentials: 'include'
       });
       if (!response.ok) {
@@ -78,7 +78,7 @@ export default function ChromecastPage() {
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(
-        'http://localhost:3001/api/chromecast/dashboard/stats',
+        'https://iptv-backend-prod.up.railway.app/api/chromecast/dashboard/stats',
         {
           credentials: 'include'
         }
@@ -149,7 +149,7 @@ export default function ChromecastPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/chromecast/${deviceName}/check`,
+        `https://iptv-backend-prod.up.railway.app/api/chromecast/${deviceName}/check`,
         {
           method: "POST",
           headers: {
