@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './AuthContext';
-import { AuthGuard } from './AuthGuard';
+import { useAuth } from '@/components/AuthContext';
+import { AuthGuard } from '@/components/AuthGuard';
 
 interface FormData {
   email: string;
