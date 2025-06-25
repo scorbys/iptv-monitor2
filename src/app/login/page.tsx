@@ -1,8 +1,8 @@
 'use client'
 
-import LoginPage from '@/pages/LoginPage';
+import LoginPage from '@/components/LoginPage';
 
-export default function Hospitality() {
+export default function Login() {
   return (
     <LoginPage />
   )
