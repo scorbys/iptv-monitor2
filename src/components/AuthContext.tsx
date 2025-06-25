@@ -37,9 +37,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const apiCall = async (endpoint: string, data?: Record<string, unknown>) => {
+  const apiCall = React.useCallback(async (endpoint: string, data?: Record<string, unknown>) => {
     try {
-      const response = await fetch(`http://localhost:3001${endpoint}`, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-backend-prod.up.railway.app';
+      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
         method: data ? 'POST' : 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -59,9 +60,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('API call error:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = React.useCallback(async () => {
     try {
       setLoading(true);
       const result = await apiCall('/api/auth/verify');
@@ -81,7 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiCall]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -141,10 +142,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Check authentication on mount
-  useEffect(() => {
-    checkAuth();
-  }, []);
+// Check authentication on mount
+useEffect(() => {
+  checkAuth();
+}, [checkAuth]);
 
   const value: AuthContextType = {
     user,
