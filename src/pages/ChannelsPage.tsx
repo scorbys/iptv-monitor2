@@ -14,8 +14,7 @@ import Image from "next/image";
 import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter"; // Import komponen DateFormatter
-import router from "next/router";
-
+import { useRouter } from "next/router";
 interface Channel {
   id: number;
   channelNumber: number;
@@ -52,17 +51,22 @@ export default function ChannelsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+    if (!token) {
+      router.push("/login");
+    }
+  }, [router]);
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
     try {
       // Cek token terlebih dahulu
-      const token =
-        localStorage.getItem("authToken") ||
-        sessionStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
       if (!token) {
-        // Redirect ke login
-        router.push("/login");
+        router.push("/login"); // Sekarang router sudah tersedia
         return;
       }
 
@@ -73,13 +77,13 @@ export default function ChannelsPage() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          credentials: "include",
         }
       );
 
       if (response.status === 401 || response.status === 403) {
         // Token expired atau tidak valid
         localStorage.removeItem("authToken");
+        sessionStorage.removeItem("authToken");
         router.push("/login");
         return;
       }
@@ -99,20 +103,27 @@ export default function ChannelsPage() {
       console.error("Error fetching channels:", error);
       setChannels([]);
     }
-  }, []);
+  }, [router]);
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
     try {
+      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+      
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
         {
-          credentials: "include",
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+            "Content-Type": "application/json",
+          },
         }
       );
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const result = await response.json();
 
       if (result.success && result.data) {
