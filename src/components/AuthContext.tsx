@@ -40,20 +40,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(async (endpoint: string, data?: Record<string, unknown>) => {
   try {
     // Gunakan URL yang konsisten dengan next.config.ts
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-backend-prod.up.railway.app';
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-monitor-backend-production.up.railway.app';
     const response = await fetch(`${apiBaseUrl}${endpoint}`, {
       method: data ? 'POST' : 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include',
+      credentials: 'include', // Penting untuk cookies
+      mode: 'cors', // Tambahkan mode CORS
     });
     
     // Tambahkan pengecekan response yang lebih baik
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch {
+        errorMessage = await response.text() || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
     
     const result = await response.json();
@@ -63,7 +71,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     throw error;
   }
 }, []);
-
   const checkAuth = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -71,7 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (result.success && result.user) {
         setUser({
-          id: result.user.userId || result.user.id,
+          id: result.user.userId || result.user.userId,
           username: result.user.username,
           email: result.user.email
         });
@@ -95,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (result.success && result.user) {
         setUser({
-          id: result.user.id,
+          id: result.user.userId,
           username: result.user.username,
           email: result.user.email
         });
@@ -119,7 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (result.success && result.user) {
         setUser({
-          id: result.user.id,
+          id: result.user.userId,
           username: result.user.username,
           email: result.user.email
         });

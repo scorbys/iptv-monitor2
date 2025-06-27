@@ -187,6 +187,8 @@ export const config = {
      * - favicon.ico (favicon file)
      * - Any file with extension in root
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)',
+    '/api/((?!auth/).*)', // Protect all API routes except auth
+    '/(dashboard|channels|hospitality|chromecast)/:path*', // Protect specific pages
   ],
 };

@@ -35,9 +35,24 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // TAMBAHKAN: Headers untuk CORS
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: 'https://iptv-monitor-backend-production.up.railway.app' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+        ],
+      },
+    ];
+  },
+
   experimental: {
     serverActions: {
-      allowedOrigins: ['https://iptv-monitor2.vercel.app', 'https://iptv-backend-prod.up.railway.app'],
+      allowedOrigins: ['https://iptv-monitor2.vercel.app', 'https://iptv-monitor-backend-production.up.railway.app'],
     }
   },
 };
