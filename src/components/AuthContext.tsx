@@ -40,37 +40,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(async (endpoint: string, data?: Record<string, unknown>) => {
   try {
     // Gunakan URL yang konsisten dengan next.config.ts
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-monitor-backend-production.up.railway.app';
-    const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-      method: data ? 'POST' : 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      credentials: 'include', // Penting untuk cookies
-      mode: 'cors', // Tambahkan mode CORS
-    });
+    // const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-monitor-backend-production.up.railway.app';
+    const response = await fetch(endpoint, {
+        method: data ? 'POST' : 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: 'include', // Penting untuk cookies
+      });
     
     // Tambahkan pengecekan response yang lebih baik
     if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        errorMessage = await response.text() || errorMessage;
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = await response.text() || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
-      throw new Error(errorMessage);
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('API call error:', error);
+      throw error;
     }
-    
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('API call error:', error);
-    throw error;
-  }
-}, []);
+  }, []);
+  
   const checkAuth = React.useCallback(async () => {
     try {
       setLoading(true);
