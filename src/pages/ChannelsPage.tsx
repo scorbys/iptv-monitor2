@@ -13,7 +13,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
 import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import { DateFormatter } from "../components/DateFormatter"; // Import komponen DateFormatter
+import { DateFormatter } from "../components/DateFormatter";
 import { useRouter } from "next/router";
 interface Channel {
   id: number;
@@ -54,17 +54,25 @@ export default function ChannelsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const token =
+      localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     if (!token) {
       router.push("/login");
     }
-  }, [router]);
+  }, [router, mounted]);
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
     try {
       // Cek token terlebih dahulu
-      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
       if (!token) {
         router.push("/login"); // Sekarang router sudah tersedia
         return;
@@ -108,8 +116,10 @@ export default function ChannelsPage() {
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
     try {
-      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-      
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
+
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
         {
@@ -123,7 +133,7 @@ export default function ChannelsPage() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -136,11 +146,6 @@ export default function ChannelsPage() {
       console.error("Error fetching stats:", error);
       setStats(null);
     }
-  }, []);
-
-  // Effect untuk mounted state
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   // Effect untuk initial data load dan auto-refresh
