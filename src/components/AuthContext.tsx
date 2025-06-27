@@ -38,29 +38,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
 
   const apiCall = React.useCallback(async (endpoint: string, data?: Record<string, unknown>) => {
-    try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-backend-prod.up.railway.app';
-      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-        method: data ? 'POST' : 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: data ? JSON.stringify(data) : undefined,
-        credentials: 'include',
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || `HTTP error! status: ${response.status}`);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('API call error:', error);
-      throw error;
+  try {
+    // Gunakan URL yang konsisten dengan next.config.ts
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-backend-prod.up.railway.app';
+    const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+      method: data ? 'POST' : 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: 'include',
+    });
+    
+    // Tambahkan pengecekan response yang lebih baik
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
-  }, []);
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('API call error:', error);
+    throw error;
+  }
+}, []);
 
   const checkAuth = React.useCallback(async () => {
     try {

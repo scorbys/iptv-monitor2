@@ -37,16 +37,8 @@ const nextConfig: NextConfig = {
 
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'localhost:3001']
+      allowedOrigins: ['https://iptv-monitor2.vercel.app', 'https://iptv-backend-prod.up.railway.app'],
     }
-  },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:3001/api/:path*',
-      },
-    ]
   },
 };
 
