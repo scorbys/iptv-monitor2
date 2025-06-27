@@ -14,6 +14,7 @@ import Image from "next/image";
 import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter"; // Import komponen DateFormatter
+import router from "next/router";
 
 interface Channel {
   id: number;
@@ -55,9 +56,34 @@ export default function ChannelsPage() {
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
     try {
-      const response = await fetch('https://iptv-monitor-backend-production.up.railway.app/api/channels', {
-        credentials: 'include'
-      });
+      // Cek token terlebih dahulu
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
+      if (!token) {
+        // Redirect ke login
+        router.push("/login");
+        return;
+      }
+
+      const response = await fetch(
+        "https://iptv-monitor-backend-production.up.railway.app/api/channels",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        }
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        // Token expired atau tidak valid
+        localStorage.removeItem("authToken");
+        router.push("/login");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -79,8 +105,9 @@ export default function ChannelsPage() {
   const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(
-        'https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats', {
-          credentials: 'include'
+        "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
+        {
+          credentials: "include",
         }
       );
       if (!response.ok) {
@@ -155,7 +182,7 @@ export default function ChannelsPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: 'include'
+          credentials: "include",
         }
       );
 
@@ -529,9 +556,7 @@ export default function ChannelsPage() {
                     </code>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge
-                      status={channel.status}
-                    />
+                    <StatusBadge status={channel.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter

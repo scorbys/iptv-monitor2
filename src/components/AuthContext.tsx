@@ -40,8 +40,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(async (endpoint: string, data?: Record<string, unknown>) => {
   try {
     // Gunakan URL yang konsisten dengan next.config.ts
-    // const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-monitor-backend-production.up.railway.app';
-    const response = await fetch(endpoint, {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://iptv-monitor-backend-production.up.railway.app';
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, {
         method: data ? 'POST' : 'GET',
         headers: {
           'Content-Type': 'application/json',
