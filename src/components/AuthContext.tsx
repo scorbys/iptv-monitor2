@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const apiCall = React.useCallback(async (endpoint: string, data?: Record<string, unknown>) => {
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-backend-prod.up.railway.app/api/channels';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://iptv-backend-prod.up.railway.app';
       const response = await fetch(`${apiBaseUrl}${endpoint}`, {
         method: data ? 'POST' : 'GET',
         headers: {
