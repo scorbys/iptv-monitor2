@@ -17,7 +17,7 @@ const ROUTE_CONFIG = {
   // Protected routes that require authentication
   protected: [
     '/dashboard',
-    '/channels',
+    '/channel',
     '/hospitality',
     '/chromecast',
     '/api/channels',
@@ -183,12 +183,10 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
-     * - _next/image (image optimization files)
+     * - _next/image (image optimization files)  
      * - favicon.ico (favicon file)
      * - Any file with extension in root
      */
     '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)',
-    '/api/((?!auth/).*)', // Protect all API routes except auth
-    '/(dashboard|channels|hospitality|chromecast)/:path*', // Protect specific pages
   ],
 };

@@ -42,22 +42,6 @@ interface ChannelStats {
 
 const ITEMS_PER_PAGE = 20;
 
-const getToken = () => {
-  if (typeof window !== "undefined") {
-    return (
-      localStorage.getItem("authToken") || sessionStorage.getItem("authToken")
-    );
-  }
-  return null;
-};
-
-const removeToken = () => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("authToken");
-    sessionStorage.removeItem("authToken");
-  }
-};
-
 const isValidUrl = (string: string) => {
   try {
     new URL(string);
@@ -85,41 +69,25 @@ export default function ChannelsPage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-    }
-  }, [mounted, router]);
-
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
-    if (!mounted || !router) return;
+    if (!mounted) return;
 
     try {
-      // Cek token terlebih dahulu
-      const token = getToken();
-      if (!token) {
-        router.push("/login"); // Sekarang router sudah tersedia
-        return;
-      }
 
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels",
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          credentials: 'include', // This will send cookies automatically
+        headers: {
+          "Content-Type": "application/json",
+        },
         }
       );
 
       if (response.status === 401 || response.status === 403) {
         // Token expired atau tidak valid
-        removeToken(); // Hapus token dari localStorage/sessionStorage
-        router.push("/login");
+        window.location.href = '/login';
         return;
       }
 
@@ -138,33 +106,26 @@ export default function ChannelsPage() {
       console.error("Error fetching channels:", error);
       setChannels([]);
     }
-  }, [router, mounted]);
+  }, [mounted]);
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
-    if (!mounted || !router) return;
+    if (!mounted) return;
 
     try {
-      const token = getToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          credentials: 'include', // This will send cookies automatically
+        headers: {
+          "Content-Type": "application/json",
+        },
         }
       );
 
       if (response.status === 401 || response.status === 403) {
         // Token expired atau tidak valid
-        removeToken();
-        router.push("/login");
+        window.location.href = '/login';
         return;
       }
 
@@ -184,7 +145,7 @@ export default function ChannelsPage() {
       console.error("Error fetching stats:", error);
       setStats(null);
     }
-  }, [router, mounted]);
+  }, [mounted]);
 
   // Effect untuk initial data load dan auto-refresh
   useEffect(() => {
