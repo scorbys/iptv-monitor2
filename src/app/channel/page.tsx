@@ -2,7 +2,7 @@
 
 import Topbar from '@/components/Topbar'
 import Sidebar from '@/components/Sidebar'
-import ChannelsPage from '@/pages/ChannelsPage'
+import ChannelsPage from '@/components/ChannelsPage'
 
 export default function Channel() {
   return (
