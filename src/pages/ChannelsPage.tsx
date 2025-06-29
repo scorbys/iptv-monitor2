@@ -60,7 +60,7 @@ export default function ChannelsPage() {
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !router) return;
 
     const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     if (!token) {
@@ -70,7 +70,7 @@ export default function ChannelsPage() {
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
-    if (!mounted) return;
+    if (!mounted || !router) return;
 
     try {
       // Cek token terlebih dahulu
@@ -299,7 +299,7 @@ export default function ChannelsPage() {
   );
 
   // Jika belum mounted, return loading state sederhana
-  if (!mounted) {
+  if (!router || !mounted) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">
