@@ -13,7 +13,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
 import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import { DateFormatter } from "./DateFormatter";
+import { DateFormatter } from "../components/DateFormatter";
 import { useRouter } from "next/router";
 
 interface Channel {
