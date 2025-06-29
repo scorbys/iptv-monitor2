@@ -14,7 +14,7 @@ import Image from "next/image";
 import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 interface Channel {
   id: number;
@@ -42,6 +42,31 @@ interface ChannelStats {
 
 const ITEMS_PER_PAGE = 20;
 
+const getToken = () => {
+  if (typeof window !== "undefined") {
+    return (
+      localStorage.getItem("authToken") || sessionStorage.getItem("authToken")
+    );
+  }
+  return null;
+};
+
+const removeToken = () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("authToken");
+    sessionStorage.removeItem("authToken");
+  }
+};
+
+const isValidUrl = (string: string) => {
+  try {
+    new URL(string);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export default function ChannelsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [stats, setStats] = useState<ChannelStats | null>(null);
@@ -51,8 +76,9 @@ export default function ChannelsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+
+  const router = useRouter();
 
   // Effect untuk mounted state
   useEffect(() => {
@@ -60,13 +86,13 @@ export default function ChannelsPage() {
   }, []);
 
   useEffect(() => {
-    if (!mounted || !router) return;
+    if (!mounted) return;
 
-    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+    const token = getToken();
     if (!token) {
       router.push("/login");
     }
-  }, [router, mounted]);
+  }, [mounted, router]);
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
@@ -74,7 +100,7 @@ export default function ChannelsPage() {
 
     try {
       // Cek token terlebih dahulu
-      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+      const token = getToken();
       if (!token) {
         router.push("/login"); // Sekarang router sudah tersedia
         return;
@@ -92,8 +118,7 @@ export default function ChannelsPage() {
 
       if (response.status === 401 || response.status === 403) {
         // Token expired atau tidak valid
-        localStorage.removeItem("authToken");
-        sessionStorage.removeItem("authToken");
+        removeToken(); // Hapus token dari localStorage/sessionStorage
         router.push("/login");
         return;
       }
@@ -118,8 +143,10 @@ export default function ChannelsPage() {
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
     try {
-      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-      
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
+
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
         {
@@ -133,7 +160,7 @@ export default function ChannelsPage() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -538,17 +565,22 @@ export default function ChannelsPage() {
                     <div className="flex items-center gap-3">
                       {channel.logo && (
                         <div className="h-10 w-20 relative bg-gray-50 rounded-lg border overflow-hidden">
-                          <Image
-                            src={channel.logo}
-                            alt={channel.channelName || "Channel logo"}
-                            fill
-                            className="object-contain p-1"
-                            sizes="80px"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = "none";
-                            }}
-                          />
+                          {channel.logo && isValidUrl(channel.logo) ? (
+                            <Image
+                              src={channel.logo}
+                              alt={channel.channelName || "Channel logo"}
+                              fill
+                              className="object-contain p-1"
+                              sizes="80px"
+                              unoptimized // Tambahkan jika ada masalah dengan optimisasi
+                            />
+                          ) : (
+                            <div className="h-10 w-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                              <span className="text-xs text-gray-500">
+                                No Logo
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                       <div>
