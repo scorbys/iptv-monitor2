@@ -51,18 +51,27 @@ export default function ChannelsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  // Effect untuk mounted state
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+
     const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     if (!token) {
       router.push("/login");
     }
-  }, [router]);
+  }, [router, mounted]);
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
+    if (!mounted) return;
+
     try {
       // Cek token terlebih dahulu
       const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
@@ -104,7 +113,7 @@ export default function ChannelsPage() {
       console.error("Error fetching channels:", error);
       setChannels([]);
     }
-  }, [router]);
+  }, [router, mounted]);
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
@@ -137,11 +146,6 @@ export default function ChannelsPage() {
       console.error("Error fetching stats:", error);
       setStats(null);
     }
-  }, []);
-
-  // Effect untuk mounted state
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   // Effect untuk initial data load dan auto-refresh
