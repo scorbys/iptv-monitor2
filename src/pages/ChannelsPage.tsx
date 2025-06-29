@@ -142,20 +142,31 @@ export default function ChannelsPage() {
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
+    if (!mounted || !router) return;
+
     try {
-      const token =
-        localStorage.getItem("authToken") ||
-        sessionStorage.getItem("authToken");
+      const token = getToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
 
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
         {
           headers: {
-            ...(token && { Authorization: `Bearer ${token}` }),
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         }
       );
+
+      if (response.status === 401 || response.status === 403) {
+        // Token expired atau tidak valid
+        removeToken();
+        router.push("/login");
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -173,7 +184,7 @@ export default function ChannelsPage() {
       console.error("Error fetching stats:", error);
       setStats(null);
     }
-  }, []);
+  }, [router, mounted]);
 
   // Effect untuk initial data load dan auto-refresh
   useEffect(() => {
