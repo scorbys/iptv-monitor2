@@ -53,8 +53,9 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'https://iptv-monitor-backend-production.up.railway.app/api/:path*',
+        source: "/api/:path*",
+        destination:
+          "https://iptv-monitor-backend-production.up.railway.app/api/:path*",
       },
     ];
   },
