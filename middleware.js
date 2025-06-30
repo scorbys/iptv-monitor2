@@ -104,7 +104,8 @@ function createRedirect(request, destination, clearCookie = false, reason = '') 
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 0
+      maxAge: 0,
+      path: '/'
     });
   }
   
@@ -131,6 +132,12 @@ export async function middleware(request) {
   let authResult = { isValid: false, user: null };
   if (token) {
     authResult = await verifyAuthToken(token);
+
+    console.log(`Token verification for ${pathname}:`, {
+      hasToken: !!token,
+      isValid: authResult.isValid,
+      user: authResult.user?.username
+    });
   }
 
   // Handle public routes
@@ -154,9 +161,18 @@ export async function middleware(request) {
   // Handle protected routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
     if (!authResult.isValid) {
-      return createRedirect(request, '/login', true, 'Unauthenticated access to protected route');
+      // Hanya clear cookie jika token ada tapi tidak valid
+      const shouldClearCookie = !!token && !authResult.isValid;
+      return createRedirect(request, '/login', shouldClearCookie, `Unauthenticated access to protected route (token: ${!!token}, valid: ${authResult.isValid})`);
     }
-    return NextResponse.next();
+
+    // Tambahkan header user info untuk client-side
+    const response = NextResponse.next();
+    if (authResult.user) {
+      response.headers.set('x-user-id', authResult.user.id);
+      response.headers.set('x-user-username', authResult.user.username);
+    }
+    return response;
   }
 
   // Handle API routes that aren't explicitly configured
@@ -167,12 +183,20 @@ export async function middleware(request) {
         { status: 401 }
       );
     }
+
+    // Tambahkan user info ke request headers untuk API
+    const response = NextResponse.next();
+    if (authResult.user) {
+      response.headers.set('x-user-id', authResult.user.id);
+      response.headers.set('x-user-username', authResult.user.username);
+    }
     return NextResponse.next();
   }
 
   // Default behavior for other routes
   if (!authResult.isValid) {
-    return createRedirect(request, '/login', true, 'Unauthenticated access to unspecified route');
+    const shouldClearCookie = !!token && !authResult.isValid;
+    return createRedirect(request, '/login', shouldClearCookie, 'Unauthenticated access to unspecified route');
   }
 
   return NextResponse.next();

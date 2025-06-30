@@ -74,30 +74,35 @@ export default function ChannelsPage() {
     if (!mounted) return;
 
     try {
-
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels",
         {
-          credentials: 'include', // This will send cookies automatically
-        headers: {
-          "Content-Type": "application/json",
-        },
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache", // Prevent caching issues
+          },
         }
       );
 
+      // Handle 401/403 dengan lebih baik
       if (response.status === 401 || response.status === 403) {
-        // Token expired atau tidak valid
-        window.location.href = '/login';
+        console.error(
+          "Authentication failed, but let middleware handle redirect"
+        );
+        // Jangan redirect manual, biarkan middleware yang handle
         return;
       }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       const result = await response.json();
 
       if (result.success && Array.isArray(result.data)) {
         setChannels(result.data);
+        console.log(`Loaded ${result.data.length} channels`);
       } else {
         console.error("Invalid channels data format:", result);
         setChannels([]);
@@ -105,6 +110,16 @@ export default function ChannelsPage() {
     } catch (error) {
       console.error("Error fetching channels:", error);
       setChannels([]);
+
+      // Hanya show error jika bukan masalah auth
+      if (
+        error instanceof Error &&
+        !error.message.includes("401") &&
+        !error.message.includes("403")
+      ) {
+        // Bisa tambahkan toast notification di sini
+        console.error("Failed to fetch channels:", error.message);
+      }
     }
   }, [mounted]);
 
@@ -116,16 +131,19 @@ export default function ChannelsPage() {
       const response = await fetch(
         "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
         {
-          credentials: 'include', // This will send cookies automatically
-        headers: {
-          "Content-Type": "application/json",
-        },
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache", // Prevent caching issues
+          },
         }
       );
 
+      // Handle 401/403 dengan lebih baik
       if (response.status === 401 || response.status === 403) {
-        // Token expired atau tidak valid
-        window.location.href = '/login';
+        console.error(
+          "Authentication failed for stats, but let middleware handle redirect"
+        );
         return;
       }
 
@@ -137,6 +155,7 @@ export default function ChannelsPage() {
 
       if (result.success && result.data) {
         setStats(result.data);
+        console.log("Stats loaded successfully");
       } else {
         console.error("Invalid stats data format:", result);
         setStats(null);
@@ -147,14 +166,18 @@ export default function ChannelsPage() {
     }
   }, [mounted]);
 
-  // Effect untuk initial data load dan auto-refresh
+  // Effect untuk initial data load dengan better error handling
   useEffect(() => {
     if (!mounted) return;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchChannels(), fetchStats()]);
+        // Load data secara sequential untuk better error handling
+        await fetchChannels();
+        await fetchStats();
+      } catch (error) {
+        console.error("Error loading initial data:", error);
       } finally {
         setLoading(false);
       }
@@ -164,6 +187,7 @@ export default function ChannelsPage() {
 
     // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
+      // Cek visibility dan authentication state
       if (document.visibilityState === "visible") {
         fetchChannels();
         fetchStats();
@@ -186,6 +210,7 @@ export default function ChannelsPage() {
   }, [refreshing, fetchChannels, fetchStats]);
 
   // Check specific channel status
+  // Check specific channel status dengan better error handling
   const checkChannelStatus = useCallback(async (channelId: number) => {
     if (!channelId) return;
 
@@ -200,6 +225,11 @@ export default function ChannelsPage() {
           credentials: "include",
         }
       );
+
+      if (response.status === 401 || response.status === 403) {
+        console.error("Authentication failed for channel check");
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
