@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // TAMBAHKAN: Headers untuk CORS
+  // Headers untuk security (tidak untuk CORS ke external API)
   async headers() {
     return [
       {
@@ -46,6 +46,15 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "origin-when-cross-origin" },
         ],
+      },
+    ];
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'https://iptv-monitor-backend-production.up.railway.app/api/:path*',
       },
     ];
   },
