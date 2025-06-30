@@ -15,6 +15,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
+import { useRouter } from "next/navigation";
 
 interface Chromecast {
   idCast: number;
@@ -51,121 +52,181 @@ export default function ChromecastPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
 
-  // Fetch Chromecast data
-  const fetchChromecasts = useCallback(async () => {
-    try {
-      const response = await fetch('https://iptv-monitor-backend-production.up.railway.app/api/chromecast', {
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-
-      if (result.success && Array.isArray(result.data)) {
-        setChromecasts(result.data);
-      } else {
-        console.error("Invalid Chromecast data format:", result);
+  const router = useRouter();
+  
+    // Effect untuk mounted state
+    useEffect(() => {
+      setMounted(true);
+    }, []);
+  
+    // Fetch Chromecast data
+    const fetchChromecasts = useCallback(async () => {
+      if (!mounted) return;
+  
+      try {
+        const response = await fetch(
+          "https://iptv-monitor-backend-production.up.railway.app/api/chromecast",
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache", // Prevent caching issues
+            },
+          }
+        );
+  
+        // Handle 401/403 dengan lebih baik
+        if (response.status === 401 || response.status === 403) {
+          console.error(
+            "Authentication failed, but let middleware handle redirect"
+          );
+          // Jangan redirect manual, biarkan middleware yang handle
+          return;
+        }
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const result = await response.json();
+  
+        if (result.success && Array.isArray(result.data)) {
+          setChromecasts(result.data);
+          console.log(`Loaded ${result.data.length} channels`);
+        } else {
+          console.error("Invalid Chromecast data format:", result);
+          setChromecasts([]);
+        }
+      } catch (error) {
+        console.error("Error fetching channels:", error);
         setChromecasts([]);
+  
+        // Hanya show error jika bukan masalah auth
+        if (
+          error instanceof Error &&
+          !error.message.includes("401") &&
+          !error.message.includes("403")
+        ) {
+          // Bisa tambahkan toast notification di sini
+          console.error("Failed to fetch Chromecasts:", error.message);
+        }
       }
-    } catch (error) {
-      console.error("Error fetching Chromecasts:", error);
-      setChromecasts([]);
-    }
-  }, []);
+    }, [mounted]);
 
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
-    try {
-      const response = await fetch(
-        'https://iptv-monitor-backend-production.up.railway.app/api/chromecast/dashboard/stats',
-        {
-          credentials: 'include'
+      if (!mounted) return;
+  
+      try {
+        const response = await fetch(
+          "https://iptv-monitor-backend-production.up.railway.app/api/chromecast/dashboard/stats",
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache", // Prevent caching issues
+            },
+          }
+        );
+  
+        // Handle 401/403 dengan lebih baik
+        if (response.status === 401 || response.status === 403) {
+          console.error(
+            "Authentication failed for stats, but let middleware handle redirect"
+          );
+          return;
         }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        setStats(result.data);
-      } else {
-        console.error("Invalid stats data format:", result);
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const result = await response.json();
+  
+        if (result.success && result.data) {
+          setStats(result.data);
+          console.log("Stats loaded successfully");
+        } else {
+          console.error("Invalid stats data format:", result);
+          setStats(null);
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
         setStats(null);
       }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      setStats(null);
-    }
-  }, []);
-
-  // Mount effect
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Initial data load and auto-refresh
-  useEffect(() => {
-    if (!mounted) return;
-
-    const loadData = async () => {
-      setLoading(true);
+    }, [mounted]);
+  
+    // Effect untuk initial data load dengan better error handling
+    useEffect(() => {
+      if (!mounted) return;
+  
+      const loadData = async () => {
+        setLoading(true);
+        try {
+          // Load data secara sequential untuk better error handling
+          await fetchChromecasts();
+          await fetchStats();
+        } catch (error) {
+          console.error("Error loading initial data:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      loadData();
+  
+      // Set up auto-refresh every 2 minutes
+      const interval = setInterval(() => {
+        // Cek visibility dan authentication state
+        if (document.visibilityState === "visible") {
+          fetchChromecasts();
+          fetchStats();
+        }
+      }, 120000);
+  
+      return () => clearInterval(interval);
+    }, [mounted, fetchChromecasts, fetchStats]);
+  
+    // Manual refresh dengan loading state
+    const handleRefresh = useCallback(async () => {
+      if (refreshing) return;
+  
+      setRefreshing(true);
       try {
         await Promise.all([fetchChromecasts(), fetchStats()]);
       } finally {
-        setLoading(false);
+        setRefreshing(false);
       }
-    };
-
-    loadData();
-
-    // Auto-refresh every 2 minutes
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        fetchChromecasts();
-        fetchStats();
-      }
-    }, 120000);
-
-    return () => clearInterval(interval);
-  }, [mounted, fetchChromecasts, fetchStats]);
-
-  // Manual refresh
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
-
-    setRefreshing(true);
-    try {
-      await Promise.all([fetchChromecasts(), fetchStats()]);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, fetchChromecasts, fetchStats]);
-
-  // Check individual Chromecast status
-  const checkChromecastStatus = useCallback(async (deviceName: string) => {
-    if (!deviceName) return;
-
-    try {
-      const response = await fetch(
-        `https://iptv-monitor-backend-production.up.railway.app/api/chromecast/${deviceName}/check`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: 'include'
+    }, [refreshing, fetchChromecasts, fetchStats]);
+  
+    // Check specific channel status dengan better error handling
+    const checkChromecastStatus = useCallback(async (deviceName: string) => {
+      if (!deviceName) return;
+  
+      try {
+        const response = await fetch(
+          `https://iptv-monitor-backend-production.up.railway.app/api/chromecast/${deviceName}/check`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          }
+        );
+  
+        if (response.status === 401 || response.status === 403) {
+          console.error("Authentication failed for Chromecast check");
+          return;
         }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const result = await response.json();
+  
+        if (result.success && result.data) {
         setChromecasts((prev) =>
           prev.map((device) =>
             device.deviceName === deviceName ? { ...device, ...result.data } : device
@@ -173,9 +234,9 @@ export default function ChromecastPage() {
         );
       }
     } catch (error) {
-      console.error("Error checking Chromecast status:", error);
-    }
-  }, []);
+        console.error("Error checking channel status:", error);
+      }
+    }, []);
 
   // Filtered Chromecasts
   const filteredChromecasts = useMemo(() => {
@@ -305,7 +366,7 @@ export default function ChromecastPage() {
     []
   );
 
-  if (!mounted || loading) {
+  if (!router || !mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">

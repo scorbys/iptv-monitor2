@@ -209,7 +209,6 @@ export default function ChannelsPage() {
     }
   }, [refreshing, fetchChannels, fetchStats]);
 
-  // Check specific channel status
   // Check specific channel status dengan better error handling
   const checkChannelStatus = useCallback(async (channelId: number) => {
     if (!channelId) return;
