@@ -204,13 +204,13 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)  
-     * - favicon.ico (favicon file)
-     * - Any file with extension in root
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/',
+    '/dashboard/:path*',
+    '/channel/:path*',
+    '/hospitality/:path*',
+    '/chromecast/:path*',
+    '/login',
+    '/register',
+    '/api/:path*'
   ],
 };
