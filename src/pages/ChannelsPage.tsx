@@ -71,57 +71,46 @@ export default function ChannelsPage() {
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
-    if (!mounted) return;
+  if (!mounted) return;
 
-    try {
-      const response = await fetch(
-        "https://iptv-monitor-backend-production.up.railway.app/api/channels",
-        {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache", // Prevent caching issues
-          },
-        }
-      );
+  console.log('🔍 Fetching channels...'); // Debug log
+  
+  try {
+    const response = await fetch("/api/channels", {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+      },
+    });
 
-      // Handle 401/403 dengan lebih baik
-      if (response.status === 401 || response.status === 403) {
-        console.error(
-          "Authentication failed, but let middleware handle redirect"
-        );
-        // Jangan redirect manual, biarkan middleware yang handle
-        return;
-      }
+    console.log('📡 Response status:', response.status); // Debug log
+    console.log('📡 Response headers:', Object.fromEntries(response.headers)); // Debug log
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success && Array.isArray(result.data)) {
-        setChannels(result.data);
-        console.log(`Loaded ${result.data.length} channels`);
-      } else {
-        console.error("Invalid channels data format:", result);
-        setChannels([]);
-      }
-    } catch (error) {
-      console.error("Error fetching channels:", error);
-      setChannels([]);
-
-      // Hanya show error jika bukan masalah auth
-      if (
-        error instanceof Error &&
-        !error.message.includes("401") &&
-        !error.message.includes("403")
-      ) {
-        // Bisa tambahkan toast notification di sini
-        console.error("Failed to fetch channels:", error.message);
-      }
+    if (response.status === 401 || response.status === 403) {
+      console.error("Authentication failed, but let middleware handle redirect");
+      return;
     }
-  }, [mounted]);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('📊 API Result:', result); // Debug log
+
+    if (result.success && Array.isArray(result.data)) {
+      setChannels(result.data);
+      console.log(`✅ Loaded ${result.data.length} channels`);
+    } else {
+      console.error("❌ Invalid channels data format:", result);
+      setChannels([]);
+    }
+  } catch (error) {
+    console.error("❌ Error fetching channels:", error);
+    setChannels([]);
+  }
+}, [mounted]);
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
@@ -129,7 +118,7 @@ export default function ChannelsPage() {
 
     try {
       const response = await fetch(
-        "https://iptv-monitor-backend-production.up.railway.app/api/channels/dashboard/stats",
+        "/api/channels/dashboard/stats",
         {
           credentials: "include",
           headers: {
@@ -215,7 +204,7 @@ export default function ChannelsPage() {
 
     try {
       const response = await fetch(
-        `https://iptv-monitor-backend-production.up.railway.app/api/channels/${channelId}/check`,
+        `/api/channels/${channelId}/check`,
         {
           method: "POST",
           headers: {
