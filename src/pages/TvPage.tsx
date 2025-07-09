@@ -47,42 +47,79 @@ export default function TvPage() {
 
   // Fetch TVs data
   const fetchTVs = useCallback(async () => {
+    if (!mounted) return;
+
+    console.log("Fetching TVs..."); // Debug log
+
     try {
-      const response = await fetch('https://iptv-monitor-backend-production.up.railway.app/api/hospitality/tvs', {
-        credentials: 'include' // <-- tambahkan ini
+      const response = await fetch("/api/hospitality/tvs", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
       });
+
+      console.log("Response status:", response.status); // Debug log
+      console.log("Response headers:", Object.fromEntries(response.headers)); // Debug log
+
+      if (response.status === 401 || response.status === 403) {
+        console.error(
+          "Authentication failed, but let middleware handle redirect"
+        );
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       const result = await response.json();
+      console.log("API Result:", result); // Debug log
 
       if (result.success && Array.isArray(result.data)) {
         setTvs(result.data);
+        console.log(`Loaded ${result.data.length} TVs`);
       } else {
-        console.error("Invalid TV data format:", result);
+        console.error("Invalid TVs data format:", result);
         setTvs([]);
       }
     } catch (error) {
       console.error("Error fetching TVs:", error);
       setTvs([]);
     }
-  }, []);
+  }, [mounted]);
 
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
+    if (!mounted) return;
+
     try {
-      const response = await fetch(
-        'https://iptv-monitor-backend-production.up.railway.app/api/hospitality/dashboard/stats', {
-          credentials: 'include'
-        }
-      );
+      const response = await fetch("/api/hospitality/dashboard/stats", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache", // Prevent caching issues
+        },
+      });
+
+      // Handle 401/403 dengan lebih baik
+      if (response.status === 401 || response.status === 403) {
+        console.error(
+          "Authentication failed for stats, but let middleware handle redirect"
+        );
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       const result = await response.json();
 
       if (result.success && result.data) {
         setStats(result.data);
+        console.log("Stats loaded successfully");
       } else {
         console.error("Invalid stats data format:", result);
         setStats(null);
@@ -91,7 +128,7 @@ export default function TvPage() {
       console.error("Error fetching stats:", error);
       setStats(null);
     }
-  }, []);
+  }, [mounted]);
 
   // Mount effect
   useEffect(() => {
@@ -141,16 +178,13 @@ export default function TvPage() {
     if (!roomNo) return;
 
     try {
-      const response = await fetch(
-        `https://iptv-monitor-backend-production.up.railway.app/api/hospitality/tvs/${roomNo}/check`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: 'include'
-        }
-      );
+      const response = await fetch(`/api/hospitality/tvs/${roomNo}/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -255,7 +289,7 @@ export default function TvPage() {
       {/* Header Stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Total TVs</p>
@@ -269,7 +303,7 @@ export default function TvPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Online</p>
@@ -283,7 +317,7 @@ export default function TvPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Offline</p>
@@ -297,7 +331,7 @@ export default function TvPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">
@@ -334,7 +368,7 @@ export default function TvPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border mb-6">
+      <div className="bg-white rounded-lg p-4 shadow-sm  mb-6">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           {/* Search */}
           <div className="relative w-full lg:w-96">
@@ -439,7 +473,7 @@ export default function TvPage() {
                     </code>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800  border-purple-200">
                       {tv.model || "Samsung Hospitality"}
                     </span>
                   </td>
@@ -501,7 +535,7 @@ export default function TvPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm border">
+        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Showing{" "}

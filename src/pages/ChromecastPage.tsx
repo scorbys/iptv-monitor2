@@ -53,190 +53,177 @@ export default function ChromecastPage() {
   const [mounted, setMounted] = useState(false);
 
   const router = useRouter();
-  
-    // Effect untuk mounted state
-    useEffect(() => {
-      setMounted(true);
-    }, []);
-  
-    // Fetch Chromecast data
-    const fetchChromecasts = useCallback(async () => {
-      if (!mounted) return;
-  
-      try {
-        const response = await fetch(
-          "https://iptv-monitor-backend-production.up.railway.app/api/chromecast",
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-cache", // Prevent caching issues
-            },
-          }
+
+  // Effect untuk mounted state
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch Chromecast data
+  const fetchChromecasts = useCallback(async () => {
+    if (!mounted) return;
+
+    console.log("Fetching chromecast..."); // Debug log
+
+    try {
+      const response = await fetch("/api/chromecast", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      console.log("Response status:", response.status); // Debug log
+      console.log("Response headers:", Object.fromEntries(response.headers)); // Debug log
+
+      if (response.status === 401 || response.status === 403) {
+        console.error(
+          "Authentication failed, but let middleware handle redirect"
         );
-  
-        // Handle 401/403 dengan lebih baik
-        if (response.status === 401 || response.status === 403) {
-          console.error(
-            "Authentication failed, but let middleware handle redirect"
-          );
-          // Jangan redirect manual, biarkan middleware yang handle
-          return;
-        }
-  
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-  
-        const result = await response.json();
-  
-        if (result.success && Array.isArray(result.data)) {
-          setChromecasts(result.data);
-          console.log(`Loaded ${result.data.length} channels`);
-        } else {
-          console.error("Invalid Chromecast data format:", result);
-          setChromecasts([]);
-        }
-      } catch (error) {
-        console.error("Error fetching channels:", error);
-        setChromecasts([]);
-  
-        // Hanya show error jika bukan masalah auth
-        if (
-          error instanceof Error &&
-          !error.message.includes("401") &&
-          !error.message.includes("403")
-        ) {
-          // Bisa tambahkan toast notification di sini
-          console.error("Failed to fetch Chromecasts:", error.message);
-        }
+        return;
       }
-    }, [mounted]);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("API Result:", result); // Debug log
+
+      if (result.success && Array.isArray(result.data)) {
+        setChromecasts(result.data);
+        console.log(`Loaded ${result.data.length} chromecast`);
+      } else {
+        console.error("Invalid chromecast data format:", result);
+        setChromecasts([]);
+      }
+    } catch (error) {
+      console.error("Error fetching chromecast:", error);
+      setChromecasts([]);
+    }
+  }, [mounted]);
 
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
-      if (!mounted) return;
-  
-      try {
-        const response = await fetch(
-          "https://iptv-monitor-backend-production.up.railway.app/api/chromecast/dashboard/stats",
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-cache", // Prevent caching issues
-            },
-          }
+    if (!mounted) return;
+
+    try {
+      const response = await fetch("/api/chromecast/dashboard/stats", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache", // Prevent caching issues
+        },
+      });
+
+      // Handle 401/403 dengan lebih baik
+      if (response.status === 401 || response.status === 403) {
+        console.error(
+          "Authentication failed for stats, but let middleware handle redirect"
         );
-  
-        // Handle 401/403 dengan lebih baik
-        if (response.status === 401 || response.status === 403) {
-          console.error(
-            "Authentication failed for stats, but let middleware handle redirect"
-          );
-          return;
-        }
-  
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-  
-        const result = await response.json();
-  
-        if (result.success && result.data) {
-          setStats(result.data);
-          console.log("Stats loaded successfully");
-        } else {
-          console.error("Invalid stats data format:", result);
-          setStats(null);
-        }
-      } catch (error) {
-        console.error("Error fetching stats:", error);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setStats(result.data);
+        console.log("Stats loaded successfully");
+      } else {
+        console.error("Invalid stats data format:", result);
         setStats(null);
       }
-    }, [mounted]);
-  
-    // Effect untuk initial data load dengan better error handling
-    useEffect(() => {
-      if (!mounted) return;
-  
-      const loadData = async () => {
-        setLoading(true);
-        try {
-          // Load data secara sequential untuk better error handling
-          await fetchChromecasts();
-          await fetchStats();
-        } catch (error) {
-          console.error("Error loading initial data:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-  
-      loadData();
-  
-      // Set up auto-refresh every 2 minutes
-      const interval = setInterval(() => {
-        // Cek visibility dan authentication state
-        if (document.visibilityState === "visible") {
-          fetchChromecasts();
-          fetchStats();
-        }
-      }, 120000);
-  
-      return () => clearInterval(interval);
-    }, [mounted, fetchChromecasts, fetchStats]);
-  
-    // Manual refresh dengan loading state
-    const handleRefresh = useCallback(async () => {
-      if (refreshing) return;
-  
-      setRefreshing(true);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      setStats(null);
+    }
+  }, [mounted]);
+
+  // Effect untuk initial data load dengan better error handling
+  useEffect(() => {
+    if (!mounted) return;
+
+    const loadData = async () => {
+      setLoading(true);
       try {
-        await Promise.all([fetchChromecasts(), fetchStats()]);
+        // Load data secara sequential untuk better error handling
+        await fetchChromecasts();
+        await fetchStats();
+      } catch (error) {
+        console.error("Error loading initial data:", error);
       } finally {
-        setRefreshing(false);
+        setLoading(false);
       }
-    }, [refreshing, fetchChromecasts, fetchStats]);
-  
-    // Check specific channel status dengan better error handling
-    const checkChromecastStatus = useCallback(async (deviceName: string) => {
-      if (!deviceName) return;
-  
-      try {
-        const response = await fetch(
-          `https://iptv-monitor-backend-production.up.railway.app/api/chromecast/${deviceName}/check`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-          }
-        );
-  
-        if (response.status === 401 || response.status === 403) {
-          console.error("Authentication failed for Chromecast check");
-          return;
-        }
-  
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-  
-        const result = await response.json();
-  
-        if (result.success && result.data) {
+    };
+
+    loadData();
+
+    // Set up auto-refresh every 2 minutes
+    const interval = setInterval(() => {
+      // Cek visibility dan authentication state
+      if (document.visibilityState === "visible") {
+        fetchChromecasts();
+        fetchStats();
+      }
+    }, 120000);
+
+    return () => clearInterval(interval);
+  }, [mounted, fetchChromecasts, fetchStats]);
+
+  // Manual refresh dengan loading state
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchChromecasts(), fetchStats()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, fetchChromecasts, fetchStats]);
+
+  // Check specific channel status dengan better error handling
+  const checkChromecastStatus = useCallback(async (deviceName: string) => {
+    if (!deviceName) return;
+
+    try {
+      const response = await fetch(`/api/chromecast/${deviceName}/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        console.error("Authentication failed for Chromecast check");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
         setChromecasts((prev) =>
           prev.map((device) =>
-            device.deviceName === deviceName ? { ...device, ...result.data } : device
+            device.deviceName === deviceName
+              ? { ...device, ...result.data }
+              : device
           )
         );
       }
     } catch (error) {
-        console.error("Error checking channel status:", error);
-      }
-    }, []);
+      console.error("Error checking chromecast status:", error);
+    }
+  }, []);
 
   // Filtered Chromecasts
   const filteredChromecasts = useMemo(() => {
@@ -270,7 +257,10 @@ export default function ChromecastPage() {
       totalPages,
       startIndex,
       paginatedChromecasts,
-      endIndex: Math.min(startIndex + ITEMS_PER_PAGE, filteredChromecasts.length),
+      endIndex: Math.min(
+        startIndex + ITEMS_PER_PAGE,
+        filteredChromecasts.length
+      ),
     };
   }, [filteredChromecasts, currentPage]);
 
@@ -289,9 +279,7 @@ export default function ChromecastPage() {
       <div className="flex flex-col gap-1">
         <span
           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            isOnline
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+            isOnline ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
           }`}
         >
           <div
@@ -316,62 +304,62 @@ export default function ChromecastPage() {
   );
 
   // Signal level component
-  const SignalLevel = useCallback(
-    ({ level }: { level: number }) => {
-      const getSignalColor = (level: number) => {
-        if (level >= -64 && level <= -1) return "text-green-600";
-        else if (level >= -70 && level < -64) return "text-yellow-600";
-        else return "text-red-600";
-      };
+  const SignalLevel = useCallback(({ level }: { level: number }) => {
+    const getSignalColor = (level: number) => {
+      if (level >= -64 && level <= -1) return "text-green-600";
+      else if (level >= -70 && level < -64) return "text-yellow-600";
+      else return "text-red-600";
+    };
 
-      const getSignalBg = (level: number) => {
-        if (level >= -64 && level <= -1) return "bg-green-100";
-        else if (level >= -70 && level < -64) return "bg-yellow-100";
-        else return "bg-red-100";
-      };
+    const getSignalBg = (level: number) => {
+      if (level >= -64 && level <= -1) return "bg-green-100";
+      else if (level >= -70 && level < -64) return "bg-yellow-100";
+      else return "bg-red-100";
+    };
 
-      return (
-        <div className="flex items-center gap-2">
-          <div className={`p-1 rounded ${getSignalBg(level)}`}>
-            <SignalIcon className={`w-4 h-4 ${getSignalColor(level)}`} />
-          </div>
-          <span className={`text-sm font-medium ${getSignalColor(level)}`}>
-            {level}
-          </span>
+    return (
+      <div className="flex items-center gap-2">
+        <div className={`p-1 rounded ${getSignalBg(level)}`}>
+          <SignalIcon className={`w-4 h-4 ${getSignalColor(level)}`} />
         </div>
-      );
-    },
-    []
-  );
+        <span className={`text-sm font-medium ${getSignalColor(level)}`}>
+          {level}
+        </span>
+      </div>
+    );
+  }, []);
 
   // Speed component
-  const SpeedIndicator = useCallback(
-    ({ speed }: { speed: number }) => {
-      const getSpeedColor = (speed: number) => {
-        if (speed >= 80) return "text-green-600 bg-green-100";
-        if (speed >= 50) return "text-yellow-600 bg-yellow-100";
-        if (speed >= 25) return "text-orange-600 bg-orange-100";
-        return "text-red-600 bg-red-100";
-      };
+  const SpeedIndicator = useCallback(({ speed }: { speed: number }) => {
+    const getSpeedColor = (speed: number) => {
+      if (speed >= 80) return "text-green-600 bg-green-100";
+      if (speed >= 50) return "text-yellow-600 bg-yellow-100";
+      if (speed >= 25) return "text-orange-600 bg-orange-100";
+      return "text-red-600 bg-red-100";
+    };
 
-      return (
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSpeedColor(speed)}`}>
-            <WifiIcon className="w-3 h-3 mr-1" />
-            {speed} Mbps
-          </div>
+    return (
+      <div className="flex items-center gap-2">
+        <div
+          className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSpeedColor(
+            speed
+          )}`}
+        >
+          <WifiIcon className="w-3 h-3 mr-1" />
+          {speed} Mbps
         </div>
-      );
-    },
-    []
-  );
+      </div>
+    );
+  }, []);
 
   if (!router || !mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading Chromecast devices...</span>
+          <span className="ml-3 text-gray-600">
+            Loading Chromecast devices...
+          </span>
         </div>
       </div>
     );
@@ -382,10 +370,12 @@ export default function ChromecastPage() {
       {/* Header Stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Devices</p>
+                <p className="text-sm text-gray-600 font-medium">
+                  Total Devices
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {stats.totalDevices || 0}
                 </p>
@@ -396,7 +386,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Online</p>
@@ -410,7 +400,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Offline</p>
@@ -424,7 +414,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Avg Signal</p>
@@ -438,7 +428,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm  hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Avg Speed</p>
@@ -455,7 +445,7 @@ export default function ChromecastPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border mb-6">
+      <div className="bg-white rounded-lg p-4 shadow-sm  mb-6">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           {/* Search */}
           <div className="relative w-full lg:w-96">
@@ -552,7 +542,7 @@ export default function ChromecastPage() {
                   className="hover:bg-blue-50/50 transition-colors"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border-indigo-200">
                       {device.type || "Chromecast"}
                     </span>
                   </td>
@@ -634,7 +624,7 @@ export default function ChromecastPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm border">
+        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Showing{" "}
@@ -642,7 +632,9 @@ export default function ChromecastPage() {
                 {paginationData.startIndex + 1}
               </span>{" "}
               to <span className="font-medium">{paginationData.endIndex}</span>{" "}
-              of <span className="font-medium">{filteredChromecasts.length}</span> devices
+              of{" "}
+              <span className="font-medium">{filteredChromecasts.length}</span>{" "}
+              devices
             </div>
             <div className="flex items-center gap-2">
               <Button

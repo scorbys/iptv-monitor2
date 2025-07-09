@@ -71,62 +71,61 @@ export default function ChannelsPage() {
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
-  if (!mounted) return;
+    if (!mounted) return;
 
-  console.log('🔍 Fetching channels...'); // Debug log
-  
-  try {
-    const response = await fetch("/api/channels", {
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
-      },
-    });
+    console.log("Fetching channels..."); // Debug log
 
-    console.log('📡 Response status:', response.status); // Debug log
-    console.log('📡 Response headers:', Object.fromEntries(response.headers)); // Debug log
+    try {
+      const response = await fetch("/api/channels", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+      });
 
-    if (response.status === 401 || response.status === 403) {
-      console.error("Authentication failed, but let middleware handle redirect");
-      return;
-    }
+      console.log("Response status:", response.status); // Debug log
+      console.log("Response headers:", Object.fromEntries(response.headers)); // Debug log
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      if (response.status === 401 || response.status === 403) {
+        console.error(
+          "Authentication failed, but let middleware handle redirect"
+        );
+        return;
+      }
 
-    const result = await response.json();
-    console.log('📊 API Result:', result); // Debug log
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    if (result.success && Array.isArray(result.data)) {
-      setChannels(result.data);
-      console.log(`✅ Loaded ${result.data.length} channels`);
-    } else {
-      console.error("❌ Invalid channels data format:", result);
+      const result = await response.json();
+      console.log("API Result:", result); // Debug log
+
+      if (result.success && Array.isArray(result.data)) {
+        setChannels(result.data);
+        console.log(`Loaded ${result.data.length} channels`);
+      } else {
+        console.error("Invalid channels data format:", result);
+        setChannels([]);
+      }
+    } catch (error) {
+      console.error("Error fetching channels:", error);
       setChannels([]);
     }
-  } catch (error) {
-    console.error("❌ Error fetching channels:", error);
-    setChannels([]);
-  }
-}, [mounted]);
+  }, [mounted]);
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
     if (!mounted) return;
 
     try {
-      const response = await fetch(
-        "/api/channels/dashboard/stats",
-        {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache", // Prevent caching issues
-          },
-        }
-      );
+      const response = await fetch("/api/channels/dashboard/stats", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache", // Prevent caching issues
+        },
+      });
 
       // Handle 401/403 dengan lebih baik
       if (response.status === 401 || response.status === 403) {
@@ -203,16 +202,13 @@ export default function ChannelsPage() {
     if (!channelId) return;
 
     try {
-      const response = await fetch(
-        `/api/channels/${channelId}/check`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`/api/channels/${channelId}/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
 
       if (response.status === 401 || response.status === 403) {
         console.error("Authentication failed for channel check");
@@ -343,7 +339,7 @@ export default function ChannelsPage() {
       {/* Header Stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">
@@ -359,7 +355,7 @@ export default function ChannelsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Online</p>
@@ -373,7 +369,7 @@ export default function ChannelsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Offline</p>
@@ -387,7 +383,7 @@ export default function ChannelsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">
@@ -424,7 +420,7 @@ export default function ChannelsPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border mb-6">
+      <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           {/* Left - Search */}
           <div className="relative w-full lg:w-96">
@@ -554,7 +550,7 @@ export default function ChannelsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       {channel.logo && (
-                        <div className="h-10 w-20 relative bg-gray-50 rounded-lg border overflow-hidden">
+                        <div className="h-10 w-20 relative bg-gray-50 rounded-lg overflow-hidden">
                           {channel.logo && isValidUrl(channel.logo) ? (
                             <Image
                               src={channel.logo}
@@ -584,7 +580,7 @@ export default function ChannelsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border-blue-200">
                       {channel.category || "Uncategorized"}
                     </span>
                   </td>
@@ -651,7 +647,7 @@ export default function ChannelsPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm border">
+        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
               Showing{" "}
