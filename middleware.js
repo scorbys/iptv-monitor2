@@ -1,39 +1,39 @@
-import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode('Pec@tu2024++');
+const JWT_SECRET = new TextEncoder().encode("Pec@tu2024++");
 
 // Configuration for different path types
 const ROUTE_CONFIG = {
   // Public routes that don't require authentication
   public: [
-    '/login',
-    '/register',
-    '/api/auth/login',
-    '/api/auth/register',
-    '/api/health'
+    "/login",
+    "/register",
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/health",
   ],
-  
+
   // Protected routes that require authentication
   protected: [
-    '/dashboard',
-    '/channel',
-    '/hospitality',
-    '/chromecast',
-    '/api/channels',
-    '/api/hospitality',
-    '/api/chromecast',
-    '/api/config'
+    "/dashboard",
+    "/channel",
+    "/hospitality",
+    "/chromecast",
+    "/api/channels",
+    "/api/hospitality",
+    "/api/chromecast",
+    "/api/config",
   ],
-  
+
   // Static files and Next.js internals
   static: [
-    '/_next/',
-    '/static/',
-    '/favicon.ico',
-    '/robots.txt',
-    '/sitemap.xml'
-  ]
+    "/_next/",
+    "/static/",
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml",
+  ],
 };
 
 /**
@@ -49,11 +49,11 @@ async function verifyAuthToken(token) {
       user: {
         id: payload.userId,
         username: payload.username,
-        email: payload.email
-      }
+        email: payload.email,
+      },
     };
   } catch (error) {
-    console.error('Token verification failed:', error.message);
+    console.error("Token verification failed:", error.message);
     return { isValid: false, user: null };
   }
 }
@@ -65,11 +65,11 @@ async function verifyAuthToken(token) {
  * @returns {boolean}
  */
 function matchesRoutes(pathname, routes) {
-  return routes.some(route => {
-    if (route.endsWith('/')) {
+  return routes.some((route) => {
+    if (route.endsWith("/")) {
       return pathname.startsWith(route);
     }
-    return pathname === route || pathname.startsWith(route + '/');
+    return pathname === route || pathname.startsWith(route + "/");
   });
 }
 
@@ -81,8 +81,8 @@ function matchesRoutes(pathname, routes) {
 function isStaticFile(pathname) {
   return (
     matchesRoutes(pathname, ROUTE_CONFIG.static) ||
-    pathname.includes('.') ||
-    pathname.startsWith('/_next/')
+    pathname.includes(".") ||
+    pathname.startsWith("/_next/")
   );
 }
 
@@ -94,21 +94,28 @@ function isStaticFile(pathname) {
  * @param {string} reason - Reason for redirect (for logging)
  * @returns {NextResponse}
  */
-function createRedirect(request, destination, clearCookie = false, reason = '') {
-  console.log(`Redirecting to ${destination}: ${reason} (from: ${request.nextUrl.pathname})`);
-  
+function createRedirect(
+  request,
+  destination,
+  clearCookie = false,
+  reason = ""
+) {
+  console.log(
+    `Redirecting to ${destination}: ${reason} (from: ${request.nextUrl.pathname})`
+  );
+
   const response = NextResponse.redirect(new URL(destination, request.url));
-  
+
   if (clearCookie) {
-    response.cookies.set('token', '', {
+    response.cookies.set("token", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 0,
-      path: '/'
+      path: "/",
     });
   }
-  
+
   return response;
 }
 
@@ -119,15 +126,14 @@ function createRedirect(request, destination, clearCookie = false, reason = '') 
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
-  
-  // Skip middleware for static files and Next.js internals
+
+  // Skip middleware untuk static files dan Next.js internals
   if (isStaticFile(pathname)) {
     return NextResponse.next();
   }
-
   // Get token from cookies
-  const token = request.cookies.get('token')?.value;
-  
+  const token = request.cookies.get("token")?.value;
+
   // Verify token if present
   let authResult = { isValid: false, user: null };
   if (token) {
@@ -136,25 +142,43 @@ export async function middleware(request) {
     console.log(`Token verification for ${pathname}:`, {
       hasToken: !!token,
       isValid: authResult.isValid,
-      user: authResult.user?.username
+      user: authResult.user?.username,
     });
   }
 
   // Handle public routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.public)) {
     // If user is authenticated and trying to access login/register, redirect to dashboard
-    if (authResult.isValid && (pathname === '/login' || pathname === '/register')) {
-      return createRedirect(request, '/dashboard', false, 'Authenticated user accessing auth pages');
+    if (
+      authResult.isValid &&
+      (pathname === "/login" || pathname === "/register")
+    ) {
+      return createRedirect(
+        request,
+        "/dashboard",
+        false,
+        "Authenticated user accessing auth pages"
+      );
     }
     return NextResponse.next();
   }
 
   // Handle root path
-  if (pathname === '/') {
+  if (pathname === "/") {
     if (authResult.isValid) {
-      return createRedirect(request, '/dashboard', false, 'Authenticated user accessing root');
+      return createRedirect(
+        request,
+        "/dashboard",
+        false,
+        "Authenticated user accessing root"
+      );
     } else {
-      return createRedirect(request, '/login', true, 'Unauthenticated user accessing root');
+      return createRedirect(
+        request,
+        "/login",
+        true,
+        "Unauthenticated user accessing root"
+      );
     }
   }
 
@@ -163,23 +187,30 @@ export async function middleware(request) {
     if (!authResult.isValid) {
       // Hanya clear cookie jika token ada tapi tidak valid
       const shouldClearCookie = !!token && !authResult.isValid;
-      return createRedirect(request, '/login', shouldClearCookie, `Unauthenticated access to protected route (token: ${!!token}, valid: ${authResult.isValid})`);
+      return createRedirect(
+        request,
+        "/login",
+        shouldClearCookie,
+        `Unauthenticated access to protected route (token: ${!!token}, valid: ${
+          authResult.isValid
+        })`
+      );
     }
 
     // Tambahkan header user info untuk client-side
     const response = NextResponse.next();
     if (authResult.user) {
-      response.headers.set('x-user-id', authResult.user.id);
-      response.headers.set('x-user-username', authResult.user.username);
+      response.headers.set("x-user-id", authResult.user.id);
+      response.headers.set("x-user-username", authResult.user.username);
     }
     return response;
   }
 
   // Handle API routes that aren't explicitly configured
-  if (pathname.startsWith('/api/')) {
+  if (pathname.startsWith("/api/")) {
     if (!authResult.isValid) {
       return NextResponse.json(
-        { success: false, error: 'Authentication required' },
+        { success: false, error: "Authentication required" },
         { status: 401 }
       );
     }
@@ -187,8 +218,8 @@ export async function middleware(request) {
     // Tambahkan user info ke request headers untuk API
     const response = NextResponse.next();
     if (authResult.user) {
-      response.headers.set('x-user-id', authResult.user.id);
-      response.headers.set('x-user-username', authResult.user.username);
+      response.headers.set("x-user-id", authResult.user.id);
+      response.headers.set("x-user-username", authResult.user.username);
     }
     return NextResponse.next();
   }
@@ -196,7 +227,12 @@ export async function middleware(request) {
   // Default behavior for other routes
   if (!authResult.isValid) {
     const shouldClearCookie = !!token && !authResult.isValid;
-    return createRedirect(request, '/login', shouldClearCookie, 'Unauthenticated access to unspecified route');
+    return createRedirect(
+      request,
+      "/login",
+      shouldClearCookie,
+      "Unauthenticated access to unspecified route"
+    );
   }
 
   return NextResponse.next();
@@ -211,6 +247,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    "/((?!api/|_next/static|_next/image|favicon.ico).*)",
   ],
 };

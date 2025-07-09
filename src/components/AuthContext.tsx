@@ -47,13 +47,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
-        // Gunakan URL yang konsisten
-        const API_BASE_URL =
-          process.env.NEXT_PUBLIC_API_URL ||
-          "https://iptv-monitor-backend-production.up.railway.app";
-        const url = endpoint.startsWith("http")
-          ? endpoint
-          : `${API_BASE_URL}${endpoint}`;
+        // Gunakan relative URL karena ada rewrites di next.config.ts
+        const url =
+          endpoint.startsWith("http://") || endpoint.startsWith("https://")
+            ? endpoint
+            : endpoint;
 
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
@@ -62,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             Accept: "application/json",
           },
           body: data ? JSON.stringify(data) : undefined,
-          credentials: "include", // Penting untuk cookies
+          credentials: "include",
         });
 
         // Handle 401/403 tanpa redirect otomatis
