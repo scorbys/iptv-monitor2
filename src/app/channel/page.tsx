@@ -6,13 +6,13 @@ import ChannelsPage from '@/pages/ChannelsPage'
 
 export default function Channel() {
   return (
-    <div className="flex-1 flex flex-col bg-gray-50">
+    <div className="layout-wrapper">
       <Topbar />
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1">
-            <ChannelsPage />
-        </main>
+      <Sidebar />
+      <div className="scrollable-content">
+        <div className="flex-1">
+          <ChannelsPage />
+        </div>
       </div>
     </div>
   )

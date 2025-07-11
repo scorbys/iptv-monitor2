@@ -1,65 +1,162 @@
 'use client'
 
-import React from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import * as Tooltip from '@radix-ui/react-tooltip'
-import { ArchiveBoxIcon, SignalIcon, TvIcon, WindowIcon } from '@heroicons/react/24/outline'
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import {
+  IconHome2,
+  IconBroadcast,
+  IconCast,
+  IconDeviceTv,
+  IconLogout,
+  IconUser,
+} from '@tabler/icons-react';
+import { Stack, Tooltip, UnstyledButton } from '@mantine/core';
+import classes from '../app/NavbarMinimalColored.module.css';
 
-const Sidebar = () => {
-  const pathname = usePathname()
+// Custom hook for scroll direction
+const useScrollDirection = () => {
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null);
+  const [isVisible, setIsVisible] = useState(true);
 
-  const menuItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: ArchiveBoxIcon },
-    // { name: 'Devices', href: '/devices', icon: DeviceTabletIcon },
-    { name: 'TV Hospitality', href: '/hospitality', icon: TvIcon },
-    { name: 'Chromecast', href: '/chromecast', icon: WindowIcon },
-    { name: 'Channel', href: '/channel', icon: SignalIcon },
-  ]
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
 
-  return (
-    <Tooltip.Provider delayDuration={300}>
-      <div className="w-12 bg-sky-500 border-r border-gray-200 flex flex-col">
-        {/* Navigation Menu */}
-        <div className="flex flex-col py-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
-            
-            return (
-              <Tooltip.Root key={item.name}>
-                <Tooltip.Trigger asChild>
-                  <Link 
-                    href={item.href}
-                    className={`
-                      flex items-center justify-center w-12 h-12 transition-colors rounded-lg
-                      ${isActive 
-                        ? 'text-zinc-800 bg-inherit' 
-                        : 'text-white hover:text-gray-700 hover:bg-gray-100'
-                      }
-                    `}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </Link>
-                </Tooltip.Trigger>
-                
-                <Tooltip.Portal>
-                  <Tooltip.Content
-                    side="right"
-                    sideOffset={8}
-                    className="px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg z-50"
-                  >
-                    {item.name}
-                    <Tooltip.Arrow className="fill-gray-900" />
-                  </Tooltip.Content>
-                </Tooltip.Portal>
-              </Tooltip.Root>
-            )
-          })}
-        </div>
-      </div>
-    </Tooltip.Provider>
-  )
+    const updateScrollDirection = () => {
+      const scrollY = window.scrollY;
+      
+      if (Math.abs(scrollY - lastScrollY) < 5) {
+        ticking = false;
+        return;
+      }
+      
+      const direction = scrollY > lastScrollY ? 'down' : 'up';
+      setScrollDirection(direction);
+      
+      if (direction === 'down' && scrollY > 50) {
+        setIsVisible(false);
+      } else if (direction === 'up') {
+        setIsVisible(true);
+      }
+      
+      lastScrollY = scrollY > 0 ? scrollY : 0;
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(updateScrollDirection);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return { scrollDirection, isVisible };
+};
+
+interface NavbarLinkProps {
+  icon: typeof IconHome2;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+  className?: string;
 }
 
-export default Sidebar
+function NavbarLink({ icon: Icon, label, active, onClick, className }: NavbarLinkProps) {
+  return (
+    <Tooltip label={label} position="right" transitionProps={{ duration: 0 }}>
+      <UnstyledButton 
+        onClick={onClick} 
+        className={`${classes.link} ${className || ''}`} 
+        data-active={active || undefined}
+      >
+        <Icon size={20} stroke={1.5} />
+      </UnstyledButton>
+    </Tooltip>
+  );
+}
+
+const mockdata = [
+  { name: 'Dashboard', href: '/dashboard', icon: IconHome2 },
+  { name: 'Channel', href: '/channel', icon: IconBroadcast },
+  { name: 'Chromecast', href: '/chromecast', icon: IconCast },
+  { name: 'Hospitality', href: '/hospitality', icon: IconDeviceTv },
+  { name: 'Account', href: '/account', icon: IconUser },
+];
+
+export function NavbarMinimalColored() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isMobile, setIsMobile] = useState(false);
+  const { isVisible } = useScrollDirection();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleLogout = () => {
+    // Remove user data from memory instead of localStorage
+    // localStorage.removeItem("user");
+    // For demo purposes, we'll just navigate to login
+    router.push("/login");
+  };
+
+  const links = mockdata.map((link) => (
+    <NavbarLink
+      icon={link.icon}
+      label={link.name}
+      key={link.name}
+      active={pathname === link.href}
+      onClick={() => router.push(link.href)}
+    />
+  ));
+
+  const navbarClasses = `${classes.navbar} ${!isVisible && isMobile ? classes.hidden : ''}`;
+
+  return (
+    <nav className={navbarClasses}>
+      <div className={classes.navbarMain}>
+        {isMobile ? (
+          <div className={classes.mainLinks}>
+            {links}
+          </div>
+        ) : (
+          <Stack justify="center" gap={0}>
+            {links}
+          </Stack>
+        )}
+      </div>
+
+      <div className={classes.navbarActions}>
+        {isMobile ? (
+          <>
+            <NavbarLink 
+              icon={IconLogout} 
+              label="Logout" 
+              onClick={handleLogout}
+            />
+          </>
+        ) : (
+          <Stack justify="center" gap={0}>
+            <NavbarLink 
+              icon={IconLogout} 
+              label="Logout" 
+              onClick={handleLogout}
+            />
+          </Stack>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+export default NavbarMinimalColored;

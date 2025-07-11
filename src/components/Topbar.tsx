@@ -1,16 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
-import { BellIcon } from "@heroicons/react/24/outline";
-import { AvatarIcon, GearIcon, ExitIcon } from "@radix-ui/react-icons";
+import { IconBell } from "@tabler/icons-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 
 export default function Topbar() {
-  const router = useRouter();
   const [notificationOpen, setNotificationOpen] = useState(false);
 
   // Sample notifications
@@ -38,15 +34,8 @@ export default function Topbar() {
     },
   ];
 
-  const handleLogout = () => {
-    // Hapus data user dari localStorage
-    localStorage.removeItem("user");
-    // Redirect ke halaman login
-    router.push("/login");
-  };
-
   return (
-    <header className="w-full h-[50px] bg-sky-900 flex items-center justify-between px-6">
+    <header className="fixed top-0 left-0 right-0 w-full h-[60px] bg-sky-900 flex items-center justify-between px-6 z-50">
       {/* Left Section - Brand */}
       <div className="flex items-center gap-3">
         <Image
@@ -54,7 +43,7 @@ export default function Topbar() {
           alt="Logo"
           width={480}
           height={480}
-          className="w-22 h-22 object-contain"
+          className="w-25 h-25 object-contain"
         />
         {/* <h1 className="text-lg font-medium text-white">
           IPTV System Monitoring
@@ -75,7 +64,7 @@ export default function Topbar() {
                 size="2"
                 className="relative p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               >
-                <BellIcon className="w-5 h-5 text-white" />
+                <IconBell className="w-5 h-5 text-white" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               </Button>
             </div>
@@ -129,48 +118,6 @@ export default function Topbar() {
               </div>
 
               <DropdownMenu.Arrow className="fill-white dark:fill-slate-800" />
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-
-        {/* Profile Dropdown */}
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gray-200">
-                <AvatarIcon className="w-4 h-4 text-gray-600" />
-              </div>
-              <span className="text-sm font-medium text-gray-50">Admin</span>
-            </button>
-          </DropdownMenu.Trigger>
-
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              className="min-w-48 bg-white rounded-lg shadow-lg border border-gray-200 p-1 z-50"
-              sideOffset={5}
-              align="end"
-            >
-              <DropdownMenu.Item asChild>
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer"
-                >
-                  <GearIcon className="w-4 h-4" />
-                  Settings
-                </Link>
-              </DropdownMenu.Item>
-
-              <DropdownMenu.Separator className="h-px bg-gray-200 my-1" />
-
-              <DropdownMenu.Item asChild>
-                <button
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded cursor-pointer"
-                  onClick={handleLogout}
-                >
-                  <ExitIcon className="w-4 h-4" />
-                  Sign Out
-                </button>
-              </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

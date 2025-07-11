@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import Topbar from '@/components/Topbar'
-import Sidebar from '@/components/Sidebar'
-import ChromecastPage from '@/pages/ChromecastPage'
+import Topbar from "@/components/Topbar";
+import Sidebar from "@/components/Sidebar";
+import ChromecastPage from "@/pages/ChromecastPage";
 
 export default function Chromecast() {
   return (
-    <div className="flex-1 flex flex-col bg-gray-50">
+    <div className="layout-wrapper">
       <Topbar />
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1">
+      <Sidebar />
+      <div className="scrollable-content">
+        <div className="flex-1">
           <ChromecastPage />
-        </main>
+        </div>
       </div>
     </div>
-  )
+  );
 }

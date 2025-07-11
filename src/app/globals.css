@@ -23,4 +23,112 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Main content adjustments for desktop */
+@media (min-width: 641px) {
+  .main-content {
+    margin-left: 80px; /* Space for sidebar */
+    margin-top: 60px;  /* Space for topbar */
+    padding: 20px;
+    min-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 768px) {
+  .main-content {
+    margin-left: 70px; /* Adjusted for tablet sidebar width */
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  .main-content {
+    margin-left: 0;
+    margin-top: 60px;  /* Space for topbar */
+    padding: 20px;
+    padding-bottom: 120px; /* Space for bottom navigation */
+    min-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+  
+  /* Prevent horizontal scroll on mobile */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+}
+
+/* Smooth scrolling for better user experience */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Smooth transitions for all interactive elements */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button,
+a {
+  transition: all 0.2s ease;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+  outline-offset: 2px;
+}
+
+/* Safe area for devices with notches */
+@supports (padding: max(0px)) {
+  @media (max-width: 640px) {
+    .main-content {
+      padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom)));
+    }
+  }
+}
+
+/* Layout wrapper for proper positioning */
+.layout-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Scrollable content area */
+.scrollable-content {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (min-width: 641px) {
+  .scrollable-content {
+    left: 80px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .scrollable-content {
+    left: 70px;
+  }
+}
+
+@media (max-width: 640px) {
+  .scrollable-content {
+    bottom: 90px; /* Space for bottom navigation */
+  }
 }
