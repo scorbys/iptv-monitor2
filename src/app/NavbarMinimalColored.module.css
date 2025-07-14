@@ -72,11 +72,13 @@
     transform: translateY(0);
     padding: var(--mantine-spacing-sm);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
-    backdrop-filter: blur(10px);
-    background-color: rgba(59, 130, 246, 0.95);
+    background-color: var(--mantine-color-blue-filled);
     border-radius: var(--mantine-radius-lg);
     align-items: center;
     justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 1000;
   }
 
   .navbar.hidden {
@@ -103,6 +105,21 @@
     height: 45px;
     margin-bottom: 0;
     margin-right: 8px;
+    color: var(--mantine-color-white);
+    background-color: transparent;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    &[data-active] {
+      &,
+      &:hover {
+        box-shadow: var(--mantine-shadow-sm);
+        background-color: var(--mantine-color-white);
+        color: var(--mantine-color-blue-6);
+      }
+    }
   }
 
   .link:last-child {
@@ -131,6 +148,8 @@
     bottom: 10px;
     height: 65px;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    background-color: var(--mantine-color-blue-filled);
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
   }
 
   .link {
