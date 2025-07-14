@@ -54,12 +54,24 @@ body {
     padding-bottom: 120px; /* Space for bottom navigation */
     min-height: calc(100vh - 60px);
     overflow-y: auto;
+    background: transparent;
   }
   
   /* Prevent horizontal scroll on mobile */
   html, body {
     overflow-x: hidden;
     width: 100%;
+  }
+
+  /* Pastikan body background konsisten */
+  body {
+    background: var(--background);
+  }
+  
+  /* Area di belakang navbar tetap menggunakan background yang sama */
+  .scrollable-content {
+    background: var(--background);
+    bottom: 0px;
   }
 }
 
