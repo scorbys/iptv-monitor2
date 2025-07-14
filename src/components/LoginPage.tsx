@@ -7,10 +7,10 @@ import {
   Mail,
   Lock,
   User,
-  ArrowRight,
   Loader2,
   CheckCircle,
   XCircle,
+  Building,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
@@ -21,6 +21,9 @@ interface FormData {
   username: string;
   password: string;
   confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  company: string;
 }
 
 interface Errors {
@@ -28,6 +31,9 @@ interface Errors {
   username?: string;
   password?: string;
   confirmPassword?: string;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
   general?: string;
 }
 
@@ -41,6 +47,8 @@ const LoginPageContent = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordTyping, setIsPasswordTyping] = useState(false);
+  const [isConfirmPasswordTyping, setIsConfirmPasswordTyping] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<Notification>({
     show: false,
@@ -52,6 +60,9 @@ const LoginPageContent = () => {
     username: "",
     password: "",
     confirmPassword: "",
+    firstName: "",
+    lastName: "",
+    company: "",
   });
   const [errors, setErrors] = useState<Errors>({});
 
@@ -67,9 +78,18 @@ const LoginPageContent = () => {
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+    
+    // Track typing untuk password fields
+    if (field === 'password') {
+      setIsPasswordTyping(value.length > 0);
+    }
+    if (field === 'confirmPassword') {
+      setIsConfirmPasswordTyping(value.length > 0);
     }
   };
 
@@ -79,13 +99,21 @@ const LoginPageContent = () => {
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email";
+      newErrors.email = "Please enter a valid email address";
     }
 
-    if (isSignUp && !formData.username) {
-      newErrors.username = "Username is required";
-    } else if (isSignUp && formData.username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
+    if (isSignUp) {
+      if (!formData.firstName) {
+        newErrors.firstName = "First name is required";
+      }
+      if (!formData.lastName) {
+        newErrors.lastName = "Last name is required";
+      }
+      if (!formData.username) {
+        newErrors.username = "Username is required";
+      } else if (formData.username.length < 3) {
+        newErrors.username = "Username must be at least 3 characters";
+      }
     }
 
     if (!formData.password) {
@@ -123,11 +151,11 @@ const LoginPageContent = () => {
         if (result.success) {
           showNotification(
             "success",
-            "Account created successfully! Redirecting to dashboard..."
+            "Account created successfully! Please check your email to verify your account."
           );
           setTimeout(() => {
             router.push("/dashboard");
-          }, 1000);
+          }, 2000);
         } else {
           setErrors({ general: result.error || "Registration failed" });
           showNotification("error", result.error || "Registration failed");
@@ -137,10 +165,7 @@ const LoginPageContent = () => {
           const result = await login(formData.email, formData.password);
 
           if (result.success) {
-            showNotification(
-              "success",
-              "Login successful! Redirecting to dashboard..."
-            );
+            showNotification("success", "Login successful! Redirecting...");
             setTimeout(() => {
               router.push("/dashboard");
             }, 1000);
@@ -174,7 +199,15 @@ const LoginPageContent = () => {
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
-    setFormData({ email: "", username: "", password: "", confirmPassword: "" });
+    setFormData({
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: "",
+      company: "",
+    });
     setErrors({});
     setNotification({ show: false, type: "", message: "" });
   };
@@ -185,15 +218,23 @@ const LoginPageContent = () => {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword((prev) => !prev);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Notification */}
       {notification.show && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center space-x-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${
+          className={`fixed top-4 right-4 z-50 flex items-center space-x-3 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
             notification.type === "success"
-              ? "bg-green-500/20 border border-green-500/30 text-green-300"
-              : "bg-red-500/20 border border-red-500/30 text-red-300"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-700"
           }`}
         >
           {notification.type === "success" ? (
@@ -205,228 +246,222 @@ const LoginPageContent = () => {
         </div>
       )}
 
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(76,29,149,0.3),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,76,231,0.1)_50%,transparent_75%)]"></div>
-      </div>
-
-      {/* Login Card */}
-      <div className="relative w-full max-w-md" onKeyPress={handleKeyPress}>
-        {/* Glowing border effect */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-2xl blur opacity-30 group-hover:opacity-40 transition duration-1000"></div>
-
-        <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-2xl">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <User className="w-8 h-8 text-white" />
+      <div className="max-w-md w-full space-y-8 relative z-10" onKeyPress={handleKeyPress}>
+        {/* Logo and Header */}
+        <div className="text-center">
+          <div className="flex justify-center">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Building className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              {isSignUp ? "Create Account" : "Welcome Back"}
-            </h1>
-            <p className="text-gray-300">
-              {isSignUp
-                ? "Sign up to get started with your account"
-                : "Please sign in to your account"}
-            </p>
           </div>
+          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+            {isSignUp ? "Sign up" : "Login"}
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            {isSignUp
+              ? "Enter your details to create your account"
+              : "Enter your credentials to access your account"}
+          </p>
+        </div>
 
-          {/* Form */}
+        {/* Form */}
+        <div className="bg-white py-8 px-6 shadow-sm rounded-lg border border-gray-200">
           <div className="space-y-6">
-            {/* Email Field */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200">Email</label>
+            {/* Email */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Email Address
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
+                  id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your email"
+                  className="appearance-none relative block w-full pl-10 pr-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="john@example.com"
                   disabled={loading}
-                  autoComplete="email"
                 />
               </div>
               {errors.email && (
-                <p className="text-red-400 text-sm flex items-center space-x-1">
-                  <XCircle className="w-4 h-4" />
-                  <span>{errors.email}</span>
-                </p>
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
 
-            {/* Username Field (Sign Up Only) */}
+            {/* Username (Sign Up Only) */}
             {isSignUp && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-200">
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Username
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input
+                    id="username"
+                    name="username"
                     type="text"
                     value={formData.username}
                     onChange={(e) =>
                       handleInputChange("username", e.target.value)
                     }
-                    className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Choose a username"
+                    className="appearance-none relative block w-full pl-10 pr-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="johndoe"
                     disabled={loading}
-                    autoComplete="username"
                   />
                 </div>
                 {errors.username && (
-                  <p className="text-red-400 text-sm flex items-center space-x-1">
-                    <XCircle className="w-4 h-4" />
-                    <span>{errors.username}</span>
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.username}</p>
                 )}
               </div>
             )}
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200">
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  className="w-full pl-11 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter your password"
-                  disabled={loading}
-                  autoComplete={isSignUp ? "new-password" : "current-password"}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  disabled={loading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
+                    value={formData.password}
+                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    className="appearance-none block w-full pl-10 pr-12 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                  {/* Icon hanya muncul saat user mengetik */}
+                  {isPasswordTyping && (
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      className="absolute top-1/2 right-3 -translate-y-1/2 z-20 focus:outline-none"
+                      disabled={loading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                      )}
+                    </button>
                   )}
-                </button>
               </div>
               {errors.password && (
-                <p className="text-red-400 text-sm flex items-center space-x-1">
-                  <XCircle className="w-4 h-4" />
-                  <span>{errors.password}</span>
-                </p>
+                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
               )}
             </div>
 
-            {/* Confirm Password Field (Sign Up Only) */}
+            {/* Confirm Password (Sign Up Only) */}
             {isSignUp && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-200">
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      handleInputChange("confirmPassword", e.target.value)
-                    }
-                    className="w-full pl-11 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Confirm your password"
-                    disabled={loading}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                    disabled={loading}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      className="appearance-none block w-full pl-10 pr-12 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="••••••••"
+                      disabled={loading}
+                    />
+                    {/* Icon hanya muncul saat user mengetik */}
+                    {isConfirmPasswordTyping && (
+                      <button
+                        type="button"
+                        onClick={toggleConfirmPasswordVisibility}
+                        className="absolute top-1/2 right-3 -translate-y-1/2 z-20 focus:outline-none"
+                        disabled={loading}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                        ) : (
+                          <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                        )}
+                      </button>
                     )}
-                  </button>
                 </div>
                 {errors.confirmPassword && (
-                  <p className="text-red-400 text-sm flex items-center space-x-1">
-                    <XCircle className="w-4 h-4" />
-                    <span>{errors.confirmPassword}</span>
-                  </p>
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
                 )}
               </div>
             )}
 
             {/* General Error */}
             {errors.general && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                <p className="text-red-400 text-sm text-center flex items-center justify-center space-x-2">
-                  <XCircle className="w-4 h-4" />
-                  <span>{errors.general}</span>
-                </p>
-              </div>
-            )}
-
-            {/* Forgot Password Link (Sign In Only) */}
-            {!isSignUp && (
-              <div className="text-right">
-                <button
-                  type="button"
-                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
-                  disabled={loading}
-                >
-                  Forgot password?
-                </button>
+              <div className="rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <XCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{errors.general}</p>
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Submit Button */}
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>
-                    {isSignUp ? "Creating Account..." : "Signing In..."}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>{isSignUp ? "Create Account" : "Sign In"}</span>
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            {/* Mode Toggle */}
-            <div className="text-center pt-4 border-t border-white/10">
-              <p className="text-gray-300">
-                {isSignUp
-                  ? "Already have an account?"
-                  : "Don't have an account?"}
-                <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="ml-2 text-purple-400 hover:text-purple-300 font-semibold transition-colors"
-                  disabled={loading}
-                >
-                  {isSignUp ? "Sign In" : "Sign Up"}
-                </button>
-              </p>
+            <div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
+                    {isSignUp ? "Creating account..." : "Signing in..."}
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    {isSignUp ? "Create Account" : "Login"}
+                  </div>
+                )}
+              </button>
             </div>
           </div>
+        </div>
+
+        {/* Toggle Mode */}
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="ml-2 font-medium text-blue-600 hover:text-blue-500"
+              disabled={loading}
+            >
+              {isSignUp ? "Login" : "Sign up"}
+            </button>
+          </p>
         </div>
       </div>
     </div>
