@@ -73,8 +73,6 @@ export default function ChannelsPage() {
   const fetchChannels = useCallback(async () => {
     if (!mounted) return;
 
-    console.log("Fetching channels..."); // Debug log
-
     try {
       const response = await fetch("/api/channels", {
         credentials: "include",
@@ -84,13 +82,9 @@ export default function ChannelsPage() {
         },
       });
 
-      console.log("Response status:", response.status); // Debug log
-      console.log("Response headers:", Object.fromEntries(response.headers)); // Debug log
-
-      if (response.status === 401 || response.status === 403) {
-        console.error(
-          "Authentication failed, but let middleware handle redirect"
-        );
+      if (response.status === 401) {
+        // Token expired atau invalid, redirect ke login
+        window.location.href = "/login";
         return;
       }
 
@@ -99,11 +93,9 @@ export default function ChannelsPage() {
       }
 
       const result = await response.json();
-      console.log("API Result:", result); // Debug log
 
       if (result.success && Array.isArray(result.data)) {
         setChannels(result.data);
-        console.log(`Loaded ${result.data.length} channels`);
       } else {
         console.error("Invalid channels data format:", result);
         setChannels([]);
@@ -123,15 +115,13 @@ export default function ChannelsPage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-cache", // Prevent caching issues
+          "Cache-Control": "no-cache",
         },
       });
 
-      // Handle 401/403 dengan lebih baik
-      if (response.status === 401 || response.status === 403) {
-        console.error(
-          "Authentication failed for stats, but let middleware handle redirect"
-        );
+      if (response.status === 401) {
+        // Token expired atau invalid, redirect ke login
+        window.location.href = "/login";
         return;
       }
 
@@ -143,7 +133,6 @@ export default function ChannelsPage() {
 
       if (result.success && result.data) {
         setStats(result.data);
-        console.log("Stats loaded successfully");
       } else {
         console.error("Invalid stats data format:", result);
         setStats(null);
@@ -210,8 +199,8 @@ export default function ChannelsPage() {
         credentials: "include",
       });
 
-      if (response.status === 401 || response.status === 403) {
-        console.error("Authentication failed for channel check");
+      if (response.status === 401) {
+        window.location.href = "/login";
         return;
       }
 

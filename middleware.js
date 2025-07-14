@@ -38,8 +38,6 @@ const ROUTE_CONFIG = {
 
 /**
  * Verify JWT token and return user data
- * @param {string} token - JWT token to verify
- * @returns {Promise<{isValid: boolean, user: any}>}
  */
 async function verifyAuthToken(token) {
   try {
@@ -60,9 +58,6 @@ async function verifyAuthToken(token) {
 
 /**
  * Check if pathname matches any route in the given array
- * @param {string} pathname - Request pathname
- * @param {string[]} routes - Array of route patterns
- * @returns {boolean}
  */
 function matchesRoutes(pathname, routes) {
   return routes.some((route) => {
@@ -75,8 +70,6 @@ function matchesRoutes(pathname, routes) {
 
 /**
  * Check if the request is for static files
- * @param {string} pathname - Request pathname
- * @returns {boolean}
  */
 function isStaticFile(pathname) {
   return (
@@ -88,18 +81,8 @@ function isStaticFile(pathname) {
 
 /**
  * Create a redirect response with optional cookie clearing
- * @param {Request} request - Next.js request object
- * @param {string} destination - Redirect destination
- * @param {boolean} clearCookie - Whether to clear the auth cookie
- * @param {string} reason - Reason for redirect (for logging)
- * @returns {NextResponse}
  */
-function createRedirect(
-  request,
-  destination,
-  clearCookie = false,
-  reason = ""
-) {
+function createRedirect(request, destination, clearCookie = false, reason = "") {
   console.log(
     `Redirecting to ${destination}: ${reason} (from: ${request.nextUrl.pathname})`
   );
@@ -121,8 +104,6 @@ function createRedirect(
 
 /**
  * Main middleware function
- * @param {Request} request - Next.js request object
- * @returns {Promise<NextResponse>}
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -131,6 +112,7 @@ export async function middleware(request) {
   if (isStaticFile(pathname)) {
     return NextResponse.next();
   }
+
   // Get token from cookies
   const token = request.cookies.get("token")?.value;
 
@@ -138,17 +120,10 @@ export async function middleware(request) {
   let authResult = { isValid: false, user: null };
   if (token) {
     authResult = await verifyAuthToken(token);
-
-    console.log(`Token verification for ${pathname}:`, {
-      hasToken: !!token,
-      isValid: authResult.isValid,
-      user: authResult.user?.username,
-    });
   }
 
   // Handle public routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.public)) {
-    // If user is authenticated and trying to access login/register, redirect to dashboard
     if (
       authResult.isValid &&
       (pathname === "/login" || pathname === "/register")
@@ -182,31 +157,7 @@ export async function middleware(request) {
     }
   }
 
-  // Handle protected routes
-  if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
-    if (!authResult.isValid) {
-      // Hanya clear cookie jika token ada tapi tidak valid
-      const shouldClearCookie = !!token && !authResult.isValid;
-      return createRedirect(
-        request,
-        "/login",
-        shouldClearCookie,
-        `Unauthenticated access to protected route (token: ${!!token}, valid: ${
-          authResult.isValid
-        })`
-      );
-    }
-
-    // Tambahkan header user info untuk client-side
-    const response = NextResponse.next();
-    if (authResult.user) {
-      response.headers.set("x-user-id", authResult.user.id);
-      response.headers.set("x-user-username", authResult.user.username);
-    }
-    return response;
-  }
-
-  // Handle API routes that aren't explicitly configured
+  // Handle protected API routes
   if (pathname.startsWith("/api/")) {
     if (!authResult.isValid) {
       return NextResponse.json(
@@ -215,13 +166,36 @@ export async function middleware(request) {
       );
     }
 
-    // Tambahkan user info ke request headers untuk API
+    // Add user info to request headers for API
     const response = NextResponse.next();
     if (authResult.user) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
+      response.headers.set("x-user-email", authResult.user.email);
     }
-    return NextResponse.next();
+    return response;
+  }
+
+  // Handle protected page routes
+  if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
+    if (!authResult.isValid) {
+      const shouldClearCookie = !!token && !authResult.isValid;
+      return createRedirect(
+        request,
+        "/login",
+        shouldClearCookie,
+        `Unauthenticated access to protected route`
+      );
+    }
+
+    // Add user info headers for protected pages
+    const response = NextResponse.next();
+    if (authResult.user) {
+      response.headers.set("x-user-id", authResult.user.id);
+      response.headers.set("x-user-username", authResult.user.username);
+      response.headers.set("x-user-email", authResult.user.email);
+    }
+    return response;
   }
 
   // Default behavior for other routes
@@ -240,13 +214,6 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api/|_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

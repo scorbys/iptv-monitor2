@@ -49,8 +49,6 @@ export default function TvPage() {
   const fetchTVs = useCallback(async () => {
     if (!mounted) return;
 
-    console.log("Fetching TVs..."); // Debug log
-
     try {
       const response = await fetch("/api/hospitality/tvs", {
         credentials: "include",
@@ -60,13 +58,9 @@ export default function TvPage() {
         },
       });
 
-      console.log("Response status:", response.status); // Debug log
-      console.log("Response headers:", Object.fromEntries(response.headers)); // Debug log
-
-      if (response.status === 401 || response.status === 403) {
-        console.error(
-          "Authentication failed, but let middleware handle redirect"
-        );
+      if (response.status === 401) {
+        // Token expired atau invalid, redirect ke login
+        window.location.href = "/login";
         return;
       }
 
@@ -75,11 +69,9 @@ export default function TvPage() {
       }
 
       const result = await response.json();
-      console.log("API Result:", result); // Debug log
 
       if (result.success && Array.isArray(result.data)) {
         setTvs(result.data);
-        console.log(`Loaded ${result.data.length} TVs`);
       } else {
         console.error("Invalid TVs data format:", result);
         setTvs([]);
@@ -99,15 +91,13 @@ export default function TvPage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-cache", // Prevent caching issues
+          "Cache-Control": "no-cache",
         },
       });
 
-      // Handle 401/403 dengan lebih baik
-      if (response.status === 401 || response.status === 403) {
-        console.error(
-          "Authentication failed for stats, but let middleware handle redirect"
-        );
+      if (response.status === 401) {
+        // Token expired atau invalid, redirect ke login
+        window.location.href = "/login";
         return;
       }
 
@@ -119,7 +109,6 @@ export default function TvPage() {
 
       if (result.success && result.data) {
         setStats(result.data);
-        console.log("Stats loaded successfully");
       } else {
         console.error("Invalid stats data format:", result);
         setStats(null);
@@ -186,6 +175,11 @@ export default function TvPage() {
         credentials: "include",
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -200,7 +194,7 @@ export default function TvPage() {
         );
       }
     } catch (error) {
-      console.error("Error checking TV status:", error);
+      console.error("Error checking channel status:", error);
     }
   }, []);
 
