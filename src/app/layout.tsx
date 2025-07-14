@@ -22,9 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <SpeedInsights />
         <AuthProvider>
           <MantineProvider>{children}</MantineProvider>
-          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
