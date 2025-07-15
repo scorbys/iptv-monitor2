@@ -11,7 +11,6 @@ import {
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
-import { Button } from "@radix-ui/themes";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
 import { useRouter } from "next/navigation";
@@ -277,24 +276,29 @@ export default function ChannelsPage() {
 
   // Status badge component untuk konsistensi
   const StatusBadge = useCallback(
-    ({ status }: { status: string }) => (
+    ({ status, responseTime }: { status: string; responseTime?: number }) => (
       <div>
         <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
             status === "online"
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+              ? "bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200"
+              : "bg-gradient-to-r from-red-100 to-pink-100 text-red-800 border border-red-200"
           }`}
         >
           <div
-            className={`w-1.5 h-1.5 rounded-full mr-1 ${
-              status === "online" ? "bg-green-500" : "bg-red-500"
+            className={`w-2 h-2 rounded-full mr-2 ${
+              status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
             }`}
           ></div>
           {status
             ? status.charAt(0).toUpperCase() + status.slice(1)
             : "Unknown"}
         </span>
+        {responseTime && (
+          <div className="text-xs text-gray-500 mt-1 ml-1">
+            {responseTime}ms
+          </div>
+        )}
       </div>
     ),
     []
@@ -327,73 +331,75 @@ export default function ChannelsPage() {
     <div className="p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">
+                <p className="text-sm text-gray-600 font-medium mb-1">
                   Total Channels
                 </p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-3xl font-bold text-gray-900">
                   {stats.totalChannels || 0}
                 </p>
               </div>
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <SignalIcon className="w-6 h-6 text-blue-500" />
+              <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                <SignalIcon className="w-8 h-8 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Online</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-gray-600 font-medium mb-1">Online</p>
+                <p className="text-3xl font-bold text-green-600">
                   {stats.onlineChannels || 0}
                 </p>
               </div>
-              <div className="p-2 bg-green-50 rounded-lg">
-                <CheckCircleIcon className="w-6 h-6 text-green-500" />
+              <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                <CheckCircleIcon className="w-8 h-8 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Offline</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-sm text-gray-600 font-medium mb-1">
+                  Offline
+                </p>
+                <p className="text-3xl font-bold text-red-600">
                   {stats.offlineChannels || 0}
                 </p>
               </div>
-              <div className="p-2 bg-red-50 rounded-lg">
-                <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />
+              <div className="p-3 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl">
+                <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">
+                <p className="text-sm text-gray-600 font-medium mb-1">
                   System Uptime
                 </p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-3xl font-bold text-blue-600">
                   {stats.uptime || "0"}%
                 </p>
               </div>
-              <div className="p-2 bg-gray-50 rounded-lg">
+              <div className="p-3 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl">
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
                     parseFloat(stats.uptime || "0") >= 95
-                      ? "bg-green-100"
+                      ? "bg-gradient-to-br from-green-100 to-emerald-100"
                       : parseFloat(stats.uptime || "0") >= 80
-                      ? "bg-yellow-100"
-                      : "bg-red-100"
+                      ? "bg-gradient-to-br from-yellow-100 to-orange-100"
+                      : "bg-gradient-to-br from-red-100 to-pink-100"
                   }`}
                 >
                   <div
-                    className={`w-3 h-3 rounded-full ${
+                    className={`w-4 h-4 rounded-full ${
                       parseFloat(stats.uptime || "0") >= 95
                         ? "bg-green-500"
                         : parseFloat(stats.uptime || "0") >= 80
@@ -409,77 +415,96 @@ export default function ChannelsPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          {/* Left - Search */}
-          <div className="relative w-full lg:w-96">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col space-y-4">
+          {/* Search Bar - Full width on mobile */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name or channel number..."
+              placeholder="Search channels, categories, or numbers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2.5 w-full bg-gray-50 text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all"
+              className="pl-12 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
             />
           </div>
 
-          {/* Right - Filters and Actions */}
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-            {/* Category Filter */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-gray-300 transition-all min-w-32">
-                  <span className="text-sm text-gray-700 font-medium">
-                    {categoryFilter}
-                  </span>
-                  <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content className="min-w-48 bg-white rounded-lg shadow-lg border border-gray-200 p-1 z-50">
-                  {categories.map((category) => (
-                    <DropdownMenu.Item
-                      key={`category-${category}`}
-                      className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded cursor-pointer outline-none transition-colors"
-                      onClick={() => setCategoryFilter(category)}
-                    >
-                      {category}
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+          {/* Filters and Actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Filter Row */}
+            <div className="flex flex-1 gap-3">
+              {/* Category Filter */}
+              <div className="flex-1 sm:flex-none">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="flex items-center justify-between w-full sm:w-auto gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md group">
+                      <span className="text-sm text-blue-700 font-medium">
+                        {categoryFilter === "All"
+                          ? "All Categories"
+                          : categoryFilter}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="min-w-48 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                      {categories.map((category) => (
+                        <DropdownMenu.Item
+                          key={`category-${category}`}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                          onClick={() => setCategoryFilter(category)}
+                        >
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          {category}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
 
-            {/* Status Filter */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-gray-300 transition-all min-w-24">
-                  <span className="text-sm text-gray-700 font-medium">
-                    {statusFilter}
-                  </span>
-                  <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content className="min-w-32 bg-white rounded-lg shadow-lg border border-gray-200 p-1 z-50">
-                  {["All", "Online", "Offline"].map((status) => (
-                    <DropdownMenu.Item
-                      key={`status-${status}`}
-                      className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded cursor-pointer outline-none transition-colors"
-                      onClick={() => setStatusFilter(status)}
-                    >
-                      {status}
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+              {/* Status Filter */}
+              <div className="flex-1 sm:flex-none">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="flex items-center justify-between w-full sm:w-auto gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group">
+                      <span className="text-sm text-green-700 font-medium">
+                        {statusFilter === "All" ? "All Status" : statusFilter}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-green-500 group-hover:text-green-600 transition-colors" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                      {["All", "Online", "Offline"].map((status) => (
+                        <DropdownMenu.Item
+                          key={`status-${status}`}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                          onClick={() => setStatusFilter(status)}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mr-3 ${
+                              status === "Online"
+                                ? "bg-green-500"
+                                : status === "Offline"
+                                ? "bg-red-500"
+                                : "bg-gray-400"
+                            } opacity-0 group-hover:opacity-100 transition-opacity`}
+                          ></div>
+                          {status}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
+            </div>
 
             {/* Refresh Button */}
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
             >
               <ArrowPathIcon
                 className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
@@ -493,30 +518,30 @@ export default function ChannelsPage() {
       </div>
 
       {/* Channels Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Channel
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Name & Logo
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="hidden sm:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="hidden lg:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   IP Multicast
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Last Checked
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -525,21 +550,21 @@ export default function ChannelsPage() {
               {paginationData.paginatedChannels.map((channel, index) => (
                 <tr
                   key={`channel-${channel.id || index}`}
-                  className="hover:bg-blue-50/50 transition-colors"
+                  className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shadow-sm">
-                        <span className="text-sm font-bold text-blue-700">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-200 transform group-hover:scale-105">
+                        <span className="text-sm font-bold text-white">
                           {channel.channelNumber || "-"}
                         </span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       {channel.logo && (
-                        <div className="h-10 w-20 relative bg-gray-50 rounded-lg overflow-hidden">
+                        <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-200">
                           {channel.logo && isValidUrl(channel.logo) ? (
                             <Image
                               src={channel.logo}
@@ -547,10 +572,10 @@ export default function ChannelsPage() {
                               fill
                               className="object-contain p-1"
                               sizes="80px"
-                              unoptimized // Tambahkan jika ada masalah dengan optimisasi
+                              unoptimized
                             />
                           ) : (
-                            <div className="h-10 w-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
                               <span className="text-xs text-gray-500">
                                 No Logo
                               </span>
@@ -558,43 +583,43 @@ export default function ChannelsPage() {
                           )}
                         </div>
                       )}
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">
                           {channel.channelName || "Unknown Channel"}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          CH {channel.channelNumber}
+                        <div className="text-xs text-gray-500 sm:hidden">
+                          {channel.category || "Uncategorized"}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border-blue-200">
+                  <td className="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200">
                       {channel.category || "Uncategorized"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <code className="text-sm text-gray-900 px-2 py-1 font-mono">
+                  <td className="hidden lg:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <code className="text-sm text-gray-900 px-2 py-1 bg-gray-100 rounded-lg font-mono">
                       {channel.ipMulticast || "N/A"}
                     </code>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={channel.status} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
                       date={channel.lastChecked}
-                      fallback="Never checked"
+                      fallback="Never"
                       className="text-xs"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => checkChannelStatus(channel.id)}
                       disabled={!channel.id}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all"
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
-                      Check Now
+                      Check
                     </button>
                   </td>
                 </tr>
@@ -603,15 +628,92 @@ export default function ChannelsPage() {
           </table>
         </div>
 
-        {filteredChannels.length === 0 && (
-          <div className="text-center py-16">
-            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <SignalIcon className="w-12 h-12 text-gray-400" />
+        {/* Mobile Card Layout */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {paginationData.paginatedChannels.map((channel, index) => (
+            <div
+              key={`mobile-tv-${channel.id || index}`}
+              className="p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm">
+                    {channel.logo && (
+                      <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-200">
+                        {channel.logo && isValidUrl(channel.logo) ? (
+                          <Image
+                            src={channel.logo}
+                            alt={channel.channelName || "Channel logo"}
+                            fill
+                            className="object-contain p-1"
+                            sizes="80px"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
+                            <span className="text-xs text-gray-500">
+                              No Logo
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">
+                      {channel.channelName || "Unknown Channel"}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {channel.channelNumber || "Uncategorized"}
+                    </p>
+                  </div>
+                </div>
+                <StatusBadge
+                  status={channel.status}
+                  responseTime={channel.responseTime}
+                />
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">IP Address:</span>
+                  <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
+                    {channel.ipMulticast || "N/A"}
+                  </code>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Last Checked:</span>
+                  <DateFormatter
+                    date={channel.lastChecked}
+                    fallback="Never checked"
+                    className="text-xs text-gray-600"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => checkChannelStatus(channel.id)}
+                  disabled={!channel.id}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  Check Now
+                </button>
+              </div>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+          ))}
+        </div>
+
+        {/* Mobile-friendly empty state */}
+        {filteredChannels.length === 0 && (
+          <div className="text-center py-12 px-4">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+              <SignalIcon className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No channels found
             </h3>
-            <p className="text-gray-500 mb-4">
+            <p className="text-gray-500 mb-4 text-sm">
               {searchTerm
                 ? `No channels match "${searchTerm}"`
                 : "No channels available with current filters"}
@@ -625,7 +727,7 @@ export default function ChannelsPage() {
                   setCategoryFilter("All");
                   setStatusFilter("All");
                 }}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all duration-200 transform hover:scale-105 active:scale-95"
               >
                 Clear all filters
               </button>
@@ -636,123 +738,128 @@ export default function ChannelsPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-gray-600">
+            {/* Info Text */}
+            <div className="text-sm text-gray-600 order-2 sm:order-1">
               Showing{" "}
-              <span className="font-medium">
+              <span className="font-semibold text-gray-900">
                 {paginationData.startIndex + 1}
               </span>{" "}
-              to <span className="font-medium">{paginationData.endIndex}</span>{" "}
-              of <span className="font-medium">{filteredChannels.length}</span>{" "}
+              to{" "}
+              <span className="font-semibold text-gray-900">
+                {paginationData.endIndex}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-gray-900">
+                {filteredChannels.length}
+              </span>{" "}
               channels
             </div>
-            <div className="flex items-center gap-2">
-              <Button
+
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                variant="soft"
-                size="2"
-                className="disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
-                Previous
-              </Button>
+                <span className="hidden sm:inline">Previous</span>
+              </button>
 
-              {/* Smart pagination */}
-              {(() => {
-                const { totalPages } = paginationData;
-                const maxVisiblePages = 5;
-                let startPage = Math.max(
-                  1,
-                  currentPage - Math.floor(maxVisiblePages / 2)
-                );
-                const endPage = Math.min(
-                  totalPages,
-                  startPage + maxVisiblePages - 1
-                );
-
-                if (endPage - startPage < maxVisiblePages - 1) {
-                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                }
-
-                const pages = [];
-
-                if (startPage > 1) {
-                  pages.push(
-                    <Button
-                      key="page-1"
-                      onClick={() => handlePageChange(1)}
-                      variant="soft"
-                      size="2"
-                    >
-                      1
-                    </Button>
+              {/* Page Numbers - Mobile optimized */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const { totalPages } = paginationData;
+                  const maxVisiblePages = window.innerWidth < 640 ? 3 : 5;
+                  let startPage = Math.max(
+                    1,
+                    currentPage - Math.floor(maxVisiblePages / 2)
                   );
-                  if (startPage > 2) {
+                  const endPage = Math.min(
+                    totalPages,
+                    startPage + maxVisiblePages - 1
+                  );
+
+                  if (endPage - startPage < maxVisiblePages - 1) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                  }
+
+                  const pages = [];
+
+                  if (startPage > 1) {
                     pages.push(
-                      <span
-                        key="ellipsis-start"
-                        className="px-2 py-1 text-gray-400"
+                      <button
+                        key="page-1"
+                        onClick={() => handlePageChange(1)}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
-                        ...
-                      </span>
+                        1
+                      </button>
+                    );
+                    if (startPage > 2) {
+                      pages.push(
+                        <span
+                          key="ellipsis-start"
+                          className="px-2 py-2 text-gray-400"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={`page-${i}`}
+                        onClick={() => handlePageChange(i)}
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === i
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {i}
+                      </button>
                     );
                   }
-                }
 
-                for (let i = startPage; i <= endPage; i++) {
-                  pages.push(
-                    <button
-                      key={`page-${i}`}
-                      onClick={() => handlePageChange(i)}
-                      className={
-                        currentPage === i
-                          ? "text-gray-600 font-semibold bg-gray-100 px-3 py-1 rounded"
-                          : "text-gray-400 px-3 py-1 rounded"
-                      }
-                    >
-                      {i}
-                    </button>
-                  );
-                }
-
-                if (endPage < totalPages) {
-                  if (endPage < totalPages - 1) {
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(
+                        <span
+                          key="ellipsis-end"
+                          className="px-2 py-2 text-gray-400"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
                     pages.push(
-                      <span
-                        key="ellipsis-end"
-                        className="px-2 py-1 text-gray-400"
+                      <button
+                        key={`page-${totalPages}`}
+                        onClick={() => handlePageChange(totalPages)}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
                       >
-                        ...
-                      </span>
+                        {totalPages}
+                      </button>
                     );
                   }
-                  pages.push(
-                    <Button
-                      key={`page-${totalPages}`}
-                      onClick={() => handlePageChange(totalPages)}
-                      variant="soft"
-                      size="2"
-                    >
-                      {totalPages}
-                    </Button>
-                  );
-                }
 
-                return pages;
-              })()}
+                  return pages;
+                })()}
+              </div>
 
-              <Button
+              <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                variant="soft"
-                size="2"
-                className="disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRightIcon className="w-4 h-4" />
-              </Button>
+              </button>
             </div>
           </div>
         </div>

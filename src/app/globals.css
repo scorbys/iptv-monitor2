@@ -31,7 +31,7 @@ body {
 @media (min-width: 641px) {
   .main-content {
     margin-left: 80px; /* Space for sidebar */
-    margin-top: 60px;  /* Space for topbar */
+    margin-top: 60px; /* Space for topbar */
     padding: 20px;
     min-height: calc(100vh - 60px);
     overflow-y: auto;
@@ -49,16 +49,17 @@ body {
 @media (max-width: 640px) {
   .main-content {
     margin-left: 0;
-    margin-top: 60px;  /* Space for topbar */
+    margin-top: 60px; /* Space for topbar */
     padding: 20px;
     padding-bottom: 120px; /* Space for bottom navigation */
     min-height: calc(100vh - 60px);
     overflow-y: auto;
     background: transparent;
   }
-  
+
   /* Prevent horizontal scroll on mobile */
-  html, body {
+  html,
+  body {
     overflow-x: hidden;
     width: 100%;
   }
@@ -67,7 +68,7 @@ body {
   body {
     background: var(--background);
   }
-  
+
   /* Area di belakang navbar tetap menggunakan background yang sama */
   .scrollable-content {
     background: var(--background);
@@ -155,4 +156,45 @@ a:focus-visible {
     display: none !important;
     appearance: none !important;
   }
+}
+
+@media (max-width: 640px) {
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+  
+  .table-responsive td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .table-responsive th {
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+/* Enhanced backdrop blur */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+/* Smooth animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Enhanced focus states */
+.focus-ring:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
