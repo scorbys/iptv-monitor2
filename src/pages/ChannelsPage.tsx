@@ -518,30 +518,30 @@ export default function ChannelsPage() {
       </div>
 
       {/* Channels Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200/50 overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
               <tr>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Channel
                 </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Name & Logo
                 </th>
-                <th className="hidden sm:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="hidden sm:table-cell px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="hidden lg:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="hidden lg:table-cell px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   IP Multicast
                 </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="hidden md:table-cell px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="hidden md:table-cell px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Last Checked
                 </th>
-                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -552,7 +552,7 @@ export default function ChannelsPage() {
                   key={`channel-${channel.id || index}`}
                   className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group"
                 >
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-200 transform group-hover:scale-105">
                         <span className="text-sm font-bold text-white">
@@ -561,7 +561,7 @@ export default function ChannelsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       {channel.logo && (
                         <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-200">
@@ -593,32 +593,33 @@ export default function ChannelsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <td className="hidden sm:table-cell px-4 sm:px-4 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200">
                       {channel.category || "Uncategorized"}
                     </span>
                   </td>
-                  <td className="hidden lg:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <td className="hidden lg:table-cell px-4 sm:px-4 py-4 whitespace-nowrap">
                     <code className="text-sm text-gray-900 px-2 py-1 bg-gray-100 rounded-lg font-mono">
                       {channel.ipMulticast || "N/A"}
                     </code>
                   </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <StatusBadge status={channel.status} />
                   </td>
-                  <td className="hidden md:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="hidden md:table-cell px-4 sm:px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
                       date={channel.lastChecked}
                       fallback="Never"
                       className="text-xs"
                     />
                   </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <button
                       onClick={() => checkChannelStatus(channel.id)}
                       disabled={!channel.id}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
+                      <ArrowPathIcon className="w-3 h-3 mr-1" />
                       Check
                     </button>
                   </td>

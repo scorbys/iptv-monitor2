@@ -438,28 +438,28 @@ export default function TvPage() {
       </div>
 
       {/* TVs Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200/50 overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Room
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   IP Address
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Model
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Last Checked
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -470,7 +470,7 @@ export default function TvPage() {
                   key={`tv-${tv.id || index}`}
                   className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
                         <span className="text-sm font-bold text-white">
@@ -479,37 +479,38 @@ export default function TvPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <code className="text-sm text-gray-900 bg-gray-100 px-3 py-1 rounded-lg font-mono border">
                         {tv.ipAddress || "N/A"}
                       </code>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200">
                       {tv.model || "Samsung Hospitality"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <StatusBadge
                       status={tv.status}
                       responseTime={tv.responseTime}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
                       date={tv.lastChecked}
                       fallback="Never checked"
                       className="text-xs"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <button
                       onClick={() => checkTVStatus(tv.roomNo)}
                       disabled={!tv.roomNo}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     >
+                      <ArrowPathIcon className="w-3 h-3 mr-1" />
                       Check
                     </button>
                   </td>
