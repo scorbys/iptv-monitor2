@@ -7,17 +7,13 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
 } from "recharts";
 import {
   ChartBarIcon,
   SignalIcon,
-  CpuChipIcon,
   ClockIcon,
-  ServerIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ArrowUpIcon,
