@@ -104,11 +104,11 @@ export function NavbarMinimalColored() {
   }, []);
 
   const handleLogout = () => {
-    // Remove user data from memory instead of localStorage
-    // localStorage.removeItem("user");
-    // For demo purposes, we'll just navigate to login
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     router.push("/login");
   };
+
 
   const links = mockdata.map((link) => (
     <NavbarLink

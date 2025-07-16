@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import Topbar from '@/components/Topbar'
-import Sidebar from '@/components/Sidebar'
-import DevicesPage from '@/pages/DevicesPage'
+import Topbar from "@/components/Topbar";
+import Sidebar from "@/components/Sidebar";
+import DashboardPage from "@/pages/DashboardPage";
 
 export default function Dashboard() {
   return (
@@ -11,9 +11,9 @@ export default function Dashboard() {
       <Sidebar />
       <div className="scrollable-content">
         <div className="flex-1">
-          <DevicesPage />
+          <DashboardPage />
         </div>
       </div>
     </div>
-  )
+  );
 }

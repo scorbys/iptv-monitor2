@@ -1,306 +1,622 @@
-'use client'
-
-import React, { useState, useEffect } from 'react'
-import { 
-  SignalIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+} from "recharts";
+import {
   ChartBarIcon,
-  TvIcon
-} from "@heroicons/react/24/outline"
+  SignalIcon,
+  CpuChipIcon,
+  ClockIcon,
+  ServerIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+} from "@heroicons/react/24/outline";
 
-interface Channel {
-  id: number;
-  channelNumber: number;
-  channelName: string;
-  category: string;
-  ipMulticast: string;
-  status: 'online' | 'offline';
-  lastChecked: string;
-  responseTime?: number;
-}
+export default function NetworkTrafficDashboard() {
+  const [selectedTimeRange, setSelectedTimeRange] = useState("1h");
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [trafficData, setTrafficData] = useState([]);
+  const [currentStats, setCurrentStats] = useState({
+    channels: { requests: 0, responseTime: 0, errorRate: 0, throughput: 0 },
+    hospitality: { requests: 0, responseTime: 0, errorRate: 0, throughput: 0 },
+    chromecast: { requests: 0, responseTime: 0, errorRate: 0, throughput: 0 },
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-interface DashboardStats {
-  totalChannels: number;
-  onlineChannels: number;
-  offlineChannels: number;
-  uptime: string;
-  categoryStats: Record<string, { total: number; online: number; offline: number }>;
-  lastUpdated: string;
-}
-
-export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [channels, setChannels] = useState<Channel[]>([])
-  const [loading, setLoading] = useState(true)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
-
-  // Fetch dashboard data
-  const fetchDashboardData = async () => {
+  // Fetch current stats from API
+  const fetchCurrentStats = useCallback(async () => {
     try {
-      const [statsResponse, channelsResponse] = await Promise.all([
-        fetch('http://localhost:3001/api/dashboard/stats'),
-        fetch('http://localhost:3001/api/channels')
-      ])
-      
-      const statsResult = await statsResponse.json()
-      const channelsResult = await channelsResponse.json()
-      
-      if (statsResult.success) {
-        setStats(statsResult.data)
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await fetch("/api/network/traffic/stats", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch stats");
       }
-      
-      if (channelsResult.success) {
-        setChannels(channelsResult.data)
+
+      const result = await response.json();
+      console.log("Fetched stats result:", result);
+
+      // Fungsi validasi struktur data
+      const isValidStatsData = (data) => {
+        const keys = ["channels", "hospitality", "chromecast"];
+        return (
+          data &&
+          keys.every(
+            (key) =>
+              typeof data[key] === "object" &&
+              typeof data[key].requests === "number" &&
+              typeof data[key].responseTime === "number" &&
+              typeof data[key].errorRate === "number" &&
+              typeof data[key].throughput === "number"
+          )
+        );
+      };
+
+      // Validasi dan update state
+      if (result.success && isValidStatsData(result.data)) {
+        setCurrentStats(result.data);
+        setError(null);
+      } else {
+        // fallback jika struktur salah
+        setCurrentStats({
+          channels: {
+            requests: 0,
+            responseTime: 0,
+            errorRate: 0,
+            throughput: 0,
+          },
+          hospitality: {
+            requests: 0,
+            responseTime: 0,
+            errorRate: 0,
+            throughput: 0,
+          },
+          chromecast: {
+            requests: 0,
+            responseTime: 0,
+            errorRate: 0,
+            throughput: 0,
+          },
+        });
+        throw new Error("Invalid data structure from stats API");
       }
-      
-      setLastRefresh(new Date())
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setLoading(false)
+    } catch (err) {
+      console.error("Error fetching current stats:", err);
+      setError(err.message);
     }
-  }
+  }, []);
 
+  // Fetch historical traffic data from API
+  const fetchTrafficData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token =
+        localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await fetch(
+        `/api/network/traffic/history?timeRange=${selectedTimeRange}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch traffic data");
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setTrafficData(result.data);
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Error fetching traffic data:", err);
+      setError(err.message);
+      // Fallback to dummy data if API fails
+      setTrafficData(generateFallbackData());
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTimeRange]);
+
+  // Fallback data generator (kept as backup)
+  const generateFallbackData = () => {
+    const now = new Date();
+    const data = [];
+
+    let intervalMs, points;
+
+    switch (selectedTimeRange) {
+      case "1h":
+        intervalMs = 60000;
+        points = 60;
+        break;
+      case "6h":
+        intervalMs = 300000;
+        points = 72;
+        break;
+      case "24h":
+        intervalMs = 1800000;
+        points = 48;
+        break;
+      default:
+        intervalMs = 60000;
+        points = 60;
+    }
+
+    // Helper function to format time
+    const pad2 = (n) => String(n).padStart(2, "0");
+
+    const formatTime = (date) => {
+      const h = pad2(date.getHours());
+      const m = pad2(date.getMinutes());
+
+      if (selectedTimeRange === "24h") {
+        const d = pad2(date.getDate());
+        const mo = pad2(date.getMonth() + 1);
+        return `${mo}/${d} ${h}:${m}`;
+      }
+
+      return `${h}:${m}`;
+    };
+
+    // Generate data points
+    for (let i = points - 1; i >= 0; i--) {
+      const time = new Date(now.getTime() - i * intervalMs);
+      const timeStr = formatTime(time);
+
+      data.push({
+        time: timeStr,
+        timestamp: time,
+        channel: Math.floor(Math.random() * 150) + 50,
+        hospitality: Math.floor(Math.random() * 100) + 30,
+        chromecast: Math.floor(Math.random() * 80) + 20,
+      });
+    }
+
+    return data;
+  };
+
+  // Initial data load and setup intervals
   useEffect(() => {
-    fetchDashboardData()
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000)
-    
-    return () => clearInterval(interval)
-  }, [])
+    const updateData = async () => {
+      setCurrentTime(new Date());
+      await Promise.all([fetchCurrentStats(), fetchTrafficData()]);
+    };
 
-  // Get recent offline channels
-  const recentOfflineChannels = channels
-    .filter(ch => ch.status === 'offline')
-    .sort((a, b) => new Date(b.lastChecked).getTime() - new Date(a.lastChecked).getTime())
-    .slice(0, 5)
+    // Initial load
+    updateData();
 
-  // Get channels by category
-  // const channelsByCategory = channels.reduce((acc, channel) => {
-  //   if (!acc[channel.category]) {
-  //     acc[channel.category] = []
-  //   }
-  //   acc[channel.category].push(channel)
-  //   return acc
-  // }, {} as Record<string, Channel[]>)
+    // Setup intervals
+    const statsInterval = setInterval(fetchCurrentStats, 30000); // Update stats every 30 seconds
+    const trafficInterval = setInterval(fetchTrafficData, 60000); // Update traffic data every minute
 
-  if (loading) {
-    return (
-      <div className="p-6 bg-gray-50 min-h-screen">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading dashboard...</span>
+    return () => {
+      clearInterval(statsInterval);
+      clearInterval(trafficInterval);
+    };
+  }, [fetchCurrentStats, fetchTrafficData]);
+
+  // Update data when time range changes
+  useEffect(() => {
+    fetchTrafficData();
+  }, [selectedTimeRange, fetchTrafficData]);
+
+  const StatCard = ({
+    title,
+    value,
+    unit,
+    icon: Icon,
+    trend,
+    color = "blue",
+  }) => (
+    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className={`text-2xl font-bold text-${color}-600`}>
+            {typeof value === "number" ? value.toFixed(1) : value}
+            <span className="text-sm font-normal text-gray-500 ml-1">
+              {unit}
+            </span>
+          </p>
+        </div>
+        <div className={`p-3 rounded-full bg-${color}-100`}>
+          <Icon className={`w-6 h-6 text-${color}-600`} />
         </div>
       </div>
-    )
-  }
+      {trend && (
+        <div className="flex items-center mt-2">
+          {trend > 0 ? (
+            <ArrowUpIcon className="w-4 h-4 text-green-500 mr-1" />
+          ) : (
+            <ArrowDownIcon className="w-4 h-4 text-red-500 mr-1" />
+          )}
+          <span
+            className={`text-sm ${
+              trend > 0 ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            {Math.abs(trend)}%
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900 mb-2">{label}</p>
+          {payload.map((entry, index) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {entry.value} req/s
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
+      {/* Header - tetap sama */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">IPTV System Dashboard</h1>
-        <p className="text-gray-600">
-          Real-time monitoring of IPTV channels and system status
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Last updated: {lastRefresh.toLocaleString()}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              IPTV Monitoring Dashboard
+            </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  error ? "bg-red-500" : "bg-green-500"
+                } ${!error ? "animate-pulse" : ""}`}
+              ></div>
+              {error ? "Error" : "Live"} • {currentTime.toLocaleTimeString()}
+            </div>
+            <select
+              value={selectedTimeRange}
+              onChange={(e) => setSelectedTimeRange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="1h">Last 1 Hour</option>
+              <option value="6h">Last 6 Hours</option>
+              <option value="24h">Last 24 Hours</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      {/* Main Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Channels</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.totalChannels}</p>
-                <p className="text-sm text-gray-500 mt-1">Active monitoring</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <TvIcon className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Online Channels</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats.onlineChannels}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {((stats.onlineChannels / stats.totalChannels) * 100).toFixed(1)}% of total
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <CheckCircleIcon className="w-8 h-8 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Offline Channels</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{stats.offlineChannels}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {((stats.offlineChannels / stats.totalChannels) * 100).toFixed(1)}% of total
-                </p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-full">
-                <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">System Uptime</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.uptime}%</p>
-                <p className={`text-sm mt-1 ${
-                  parseFloat(stats.uptime) >= 95 ? 'text-green-600' : 
-                  parseFloat(stats.uptime) >= 80 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {parseFloat(stats.uptime) >= 95 ? 'Excellent' : 
-                   parseFloat(stats.uptime) >= 80 ? 'Good' : 'Needs attention'}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <SignalIcon className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-500 mr-2" />
+            <p className="text-red-700">Error loading data: {error}</p>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Category Breakdown */}
-        <div className="xl:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Channel Categories</h2>
-              <ChartBarIcon className="w-5 h-5 text-gray-400" />
+      {/* Loading Indicator */}
+      {loading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+            <p className="text-blue-700">Loading traffic data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Chart - tambahkan loading state */}
+      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Request Completion Rate
+          </h2>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">/channels</span>
             </div>
-            
-            <div className="space-y-4">
-              {stats && Object.entries(stats.categoryStats).map(([category, data]) => (
-                <div key={category} className="border border-gray-100 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-gray-900">{category}</h3>
-                    <span className="text-sm text-gray-500">{data.total} channels</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4 mb-2">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600">Online: {data.online}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600">Offline: {data.offline}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(data.online / data.total) * 100}%` }}
-                    ></div>
-                  </div>
-                  
-                  <div className="text-right mt-1">
-                    <span className="text-sm font-medium text-gray-700">
-                      {((data.online / data.total) * 100).toFixed(1)}% uptime
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">/hospitality</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">/chromecast</span>
             </div>
           </div>
         </div>
 
-        {/* Recent Issues */}
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Issues</h2>
-              <ExclamationTriangleIcon className="w-5 h-5 text-gray-400" />
+        <div className="h-80">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-            
-            {recentOfflineChannels.length > 0 ? (
-              <div className="space-y-3">
-                {recentOfflineChannels.map((channel) => (
-                  <div key={channel.id} className="flex items-start space-x-3 p-3 bg-red-50 rounded-lg border border-red-100">
-                    <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {channel.channelName}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Channel {channel.channelNumber} • {channel.category}
-                      </p>
-                      <p className="text-xs text-red-600 mt-1">
-                        Offline since {new Date(channel.lastChecked).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                <p className="text-sm text-gray-600">All channels are online!</p>
-                <p className="text-xs text-gray-500 mt-1">No recent issues detected</p>
-              </div>
-            )}
-          </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trafficData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="time"
+                  stroke="#6b7280"
+                  fontSize={12}
+                  tickLine={false}
+                />
+                <YAxis
+                  stroke="#6b7280"
+                  fontSize={12}
+                  tickLine={false}
+                  label={{
+                    value: "Requests per second",
+                    angle: -90,
+                    position: "insideLeft",
+                  }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="channels"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={false}
+                  name="/channels"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="hospitality"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={false}
+                  name="/hospitality"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="chromecast"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  dot={false}
+                  name="/chromecast"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="space-y-3">
-              <button 
-                onClick={fetchDashboardData}
-                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <ClockIcon className="w-4 h-4 mr-2" />
-                Refresh Data
-              </button>
-              <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                <ChartBarIcon className="w-4 h-4 mr-2" />
-                View Reports
-              </button>
-              <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                <TvIcon className="w-4 h-4 mr-2" />
-                Manage Channels
-              </button>
+      {/* Stats Grid - menggunakan data real */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Total Requests"
+          value={
+            currentStats.channels.requests +
+            currentStats.hospitality.requests +
+            currentStats.chromecast.requests
+          }
+          unit="req/s"
+          icon={ChartBarIcon}
+          color="blue"
+        />
+        <StatCard
+          title="Avg Response Time"
+          value={
+            (currentStats.channels.responseTime +
+              currentStats.hospitality.responseTime +
+              currentStats.chromecast.responseTime) /
+            3
+          }
+          unit="ms"
+          icon={ClockIcon}
+          color="green"
+        />
+        <StatCard
+          title="Error Rate"
+          value={
+            (currentStats.channels.errorRate +
+              currentStats.hospitality.errorRate +
+              currentStats.chromecast.errorRate) /
+            3
+          }
+          unit="%"
+          icon={ExclamationTriangleIcon}
+          color="yellow"
+        />
+        <StatCard
+          title="Throughput"
+          value={
+            currentStats.channels.throughput +
+            currentStats.hospitality.throughput +
+            currentStats.chromecast.throughput
+          }
+          unit="MB/s"
+          icon={SignalIcon}
+          color="purple"
+        />
+      </div>
+
+      {/* Service Details - menggunakan data real */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Channel Service */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">/channels</h3>
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="w-5 h-5 text-green-500" />
+              <span className="text-sm text-green-600">Healthy</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Requests/sec</span>
+              <span className="text-sm font-medium">
+                {currentStats.channels.requests}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Response Time</span>
+              <span className="text-sm font-medium">
+                {currentStats.channels.responseTime}ms
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Error Rate</span>
+              <span className="text-sm font-medium">
+                {currentStats.channels.errorRate}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Throughput</span>
+              <span className="text-sm font-medium">
+                {currentStats.channels.throughput} MB/s
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Hospitality Service */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              /hospitality
+            </h3>
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="w-5 h-5 text-green-500" />
+              <span className="text-sm text-green-600">Healthy</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Requests/sec</span>
+              <span className="text-sm font-medium">
+                {currentStats.hospitality.requests}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Response Time</span>
+              <span className="text-sm font-medium">
+                {currentStats.hospitality.responseTime}ms
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Error Rate</span>
+              <span className="text-sm font-medium">
+                {currentStats.hospitality.errorRate}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Throughput</span>
+              <span className="text-sm font-medium">
+                {currentStats.hospitality.throughput} MB/s
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Chromecast Service */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">/chromecast</h3>
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="w-5 h-5 text-green-500" />
+              <span className="text-sm text-green-600">Healthy</span>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Requests/sec</span>
+              <span className="text-sm font-medium">
+                {currentStats.chromecast.requests}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Response Time</span>
+              <span className="text-sm font-medium">
+                {currentStats.chromecast.responseTime}ms
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Error Rate</span>
+              <span className="text-sm font-medium">
+                {currentStats.chromecast.errorRate}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Throughput</span>
+              <span className="text-sm font-medium">
+                {currentStats.chromecast.throughput} MB/s
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* System Status Footer */}
-      <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-              <span className="text-sm text-gray-600">System Status: Operational</span>
-            </div>
-            <div className="text-sm text-gray-500">
-              Monitoring {channels.length} channels across {stats ? Object.keys(stats.categoryStats).length : 0} categories
-            </div>
-          </div>
-          <div className="text-xs text-gray-400">
-            Auto-refresh every 30 seconds
-          </div>
+      {/* Response Time Chart - menggunakan data real */}
+      <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Response Time Distribution
+        </h3>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={[
+                {
+                  name: "/channels",
+                  value: currentStats.channels.responseTime,
+                },
+                {
+                  name: "/hospitality",
+                  value: currentStats.hospitality.responseTime,
+                },
+                {
+                  name: "/chromecast",
+                  value: currentStats.chromecast.responseTime,
+                },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+              <YAxis
+                stroke="#6b7280"
+                fontSize={12}
+                label={{
+                  value: "Response Time (ms)",
+                  angle: -90,
+                  position: "insideLeft",
+                }}
+              />
+              <Tooltip />
+              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
-  )
+  );
 }
