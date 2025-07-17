@@ -53,6 +53,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ? endpoint
             : endpoint;
 
+        console.log(`Making API call to: ${url}`); // Debug log
+
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
           headers: {
@@ -62,6 +64,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           body: data ? JSON.stringify(data) : undefined,
           credentials: "include",
         });
+
+        console.log(`API Response status: ${response.status}`); // Debug log
 
         // Handle 401/403 tanpa redirect otomatis
         if (response.status === 401 || response.status === 403) {
@@ -82,6 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         const result = await response.json();
+        console.log("API Response:", result); // Debug log
         return result;
       } catch (error) {
         console.error("API call error:", error);
@@ -132,17 +137,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [apiCall]);
 
-  // Login function yang lebih robust
+  // Login function
   const login = async (email: string, password: string) => {
     try {
+      console.log("Attempting login with:", { email }); // Debug log
+
       const result = await apiCall("/api/auth/login", {
         identifier: email,
         password: password,
       });
 
+      console.log("Login result:", result); // Debug log
+
       if (result.success && result.user) {
         setUser({
-          id: result.user.userId,
+          id: result.user.userId, // Pastikan menggunakan userId
           username: result.user.username,
           email: result.user.email,
         });
@@ -157,27 +166,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
+      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
     }
   };
 
+  // Register function
   const register = async (
     username: string,
     email: string,
     password: string
   ) => {
     try {
+      console.log("Attempting registration with:", { username, email }); // Debug log
+
       const result = await apiCall("/api/auth/register", {
         username,
         email,
         password,
       });
 
+      console.log("Registration result:", result); // Debug log
+
       if (result.success && result.user) {
         setUser({
-          id: result.user.userId,
+          id: result.user.userId, // Pastikan menggunakan userId
           username: result.user.username,
           email: result.user.email,
         });
@@ -186,6 +201,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: result.error || "Registration failed" };
       }
     } catch (error) {
+      console.error("Registration error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };

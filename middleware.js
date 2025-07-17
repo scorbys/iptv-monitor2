@@ -45,10 +45,17 @@ async function verifyAuthToken(token) {
       return { isValid: false, user: null };
     }
 
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    // Tambahkan timeout untuk JWT verification
+    const verifyPromise = jwtVerify(token, JWT_SECRET);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('JWT verification timeout')), 5000); // 5 detik timeout
+    });
+
+    const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
 
     // Validasi payload
     if (!payload || !payload.userId || !payload.username || !payload.email) {
+      console.log("Invalid payload structure:", payload);
       return { isValid: false, user: null };
     }
 
@@ -214,6 +221,7 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    "/((?!api/health|_next/static|_next/image|favicon.ico|.*\\.).*)",
+    // Exclude specific paths that don't need middleware
+    "/((?!api/health|api/auth/login|api/auth/register|_next/static|_next/image|favicon.ico|.*\\.).*)",
   ],
 };
