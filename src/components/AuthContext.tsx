@@ -65,6 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             throw new Error("Authentication failed");
           }
 
+          // Handle 502 Bad Gateway
+          if (response.status === 502) {
+            throw new Error(
+              "Server temporarily unavailable. Please try again later."
+            );
+          }
+
           let errorMessage = `HTTP ${response.status}`;
           try {
             const errorData = await response.json();
@@ -102,18 +109,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      const result = await apiCall("/api/auth/verify");
+      // Tambahkan retry logic
+      let retryCount = 0;
+      const maxRetries = 3;
 
-      if (result.success && result.user) {
-        setUser({
-          id: result.user.userId || result.user.id,
-          username: result.user.username,
-          email: result.user.email,
-        });
-        console.log("Auth check successful:", result.user.username);
-      } else {
-        console.log("Auth check failed:", result);
-        setUser(null);
+      while (retryCount < maxRetries) {
+        try {
+          const result = await apiCall("/api/auth/verify");
+
+          if (result.success && result.user) {
+            setUser({
+              id: result.user.userId || result.user.id,
+              username: result.user.username,
+              email: result.user.email,
+            });
+            console.log("Auth check successful:", result.user.username);
+            return;
+          } else {
+            console.log("Auth check failed:", result);
+            setUser(null);
+            return;
+          }
+        } catch (error) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw error;
+          }
+          // Wait before retry
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * retryCount)
+          );
+        }
       }
     } catch (error) {
       console.error("Auth check failed:", error);

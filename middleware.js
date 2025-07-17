@@ -127,12 +127,21 @@ export async function middleware(request) {
   }
 
   // Handle public routes
-  if (matchesRoutes(pathname, ROUTE_CONFIG.public)) {
-    if (authResult.isValid && (pathname === "/login" || pathname === "/register")) {
-      console.log(`[MIDDLEWARE] Redirecting authenticated user from ${pathname} to /dashboard`);
-      return createRedirect(request, "/dashboard", false, "Authenticated user accessing auth pages");
+  if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
+    if (!authResult.isValid) {
+      console.log(`[MIDDLEWARE] Blocking protected page access: ${pathname}`);
+      const shouldClearCookie = !!token && !authResult.isValid;
+      return createRedirect(request, "/login", shouldClearCookie, "Unauthenticated access to protected route");
     }
-    return NextResponse.next();
+
+    // Add user info headers for protected pages
+    const response = NextResponse.next();
+    if (authResult.user) {
+      response.headers.set("x-user-id", authResult.user.id);
+      response.headers.set("x-user-username", authResult.user.username);
+      response.headers.set("x-user-email", authResult.user.email); // Perbaiki: user.user.email -> user.email
+    }
+    return response;
   }
 
   // Handle root path

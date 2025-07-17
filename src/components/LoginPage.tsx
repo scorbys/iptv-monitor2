@@ -135,10 +135,8 @@ const LoginPageContent = () => {
 
         if (result.success) {
           showNotification("success", "Account created successfully!");
-          // Tunggu sebentar sebelum redirect
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 1500);
+          // Redirect langsung tanpa delay
+          router.push("/dashboard");
         } else {
           setErrors({ general: result.error || "Registration failed" });
           showNotification("error", result.error || "Registration failed");
@@ -148,10 +146,8 @@ const LoginPageContent = () => {
 
         if (result.success) {
           showNotification("success", "Login successful! Redirecting...");
-          // Tunggu sebentar sebelum redirect
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 1000);
+          // Redirect langsung tanpa delay
+          router.push("/dashboard");
         } else {
           setErrors({ general: result.error || "Login failed" });
           showNotification("error", result.error || "Login failed");
