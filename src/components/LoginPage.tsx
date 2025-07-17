@@ -12,7 +12,6 @@ import {
   XCircle,
   Building,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { AuthGuard } from "./AuthGuard";
 
@@ -57,15 +56,14 @@ const LoginPageContent = () => {
   });
   const [errors, setErrors] = useState<Errors>({});
 
-  const router = useRouter();
   const { login, register } = useAuth();
 
   const showNotification = (type: "success" | "error", message: string) => {
-    setNotification({ show: true, type, message });
-    setTimeout(() => {
-      setNotification({ show: false, type: "", message: "" });
-    }, 5000);
-  };
+  setNotification({ show: true, type, message });
+  setTimeout(() => {
+    setNotification({ show: false, type: "", message: "" });
+  }, type === "success" ? 2000 : 5000); // 2 seconds for success, 5 seconds for error
+};
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -120,67 +118,50 @@ const LoginPageContent = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    setLoading(true);
-    setErrors({});
+  setLoading(true);
+  setErrors({});
 
-    try {
-      if (isSignUp) {
-        const result = await register(
-          formData.username,
-          formData.email,
-          formData.password
+  try {
+    if (isSignUp) {
+      const result = await register(
+        formData.username,
+        formData.email,
+        formData.password
+      );
+
+      if (result.success) {
+        showNotification(
+          "success",
+          "Account created successfully! Please check your email to verify your account."
         );
-
-        if (result.success) {
-          showNotification(
-            "success",
-            "Account created successfully! Please check your email to verify your account."
-          );
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 2000);
-        } else {
-          setErrors({ general: result.error || "Registration failed" });
-          showNotification("error", result.error || "Registration failed");
-        }
+        // Redirect akan dihandle oleh AuthGuard
       } else {
-        try {
-          const result = await login(formData.email, formData.password);
-
-          if (result.success) {
-            showNotification("success", "Login successful! Redirecting...");
-            setTimeout(() => {
-              router.push("/dashboard");
-            }, 1000);
-          } else {
-            setErrors({ general: result.error || "Login failed" });
-            showNotification("error", result.error || "Login failed");
-          }
-        } catch (error) {
-          console.error("Network error:", error);
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Network connection failed";
-          setErrors({ general: errorMessage });
-          showNotification(
-            "error",
-            "Unable to connect to server. Please check your connection."
-          );
-        }
+        setErrors({ general: result.error || "Registration failed" });
+        showNotification("error", result.error || "Registration failed");
       }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unexpected error occurred";
-      setErrors({ general: errorMessage });
-      showNotification("error", errorMessage);
-      console.error("Auth error:", error);
-    } finally {
-      setLoading(false);
+    } else {
+      const result = await login(formData.email, formData.password);
+
+      if (result.success) {
+        showNotification("success", "Login successful!");
+        // Redirect akan dihandle oleh AuthGuard
+      } else {
+        setErrors({ general: result.error || "Login failed" });
+        showNotification("error", result.error || "Login failed");
+      }
     }
-  };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "An unexpected error occurred";
+    setErrors({ general: errorMessage });
+    showNotification("error", errorMessage);
+    console.error("Auth error:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);

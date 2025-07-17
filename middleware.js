@@ -41,7 +41,17 @@ const ROUTE_CONFIG = {
  */
 async function verifyAuthToken(token) {
   try {
+    if (!token || typeof token !== 'string') {
+      return { isValid: false, user: null };
+    }
+
     const { payload } = await jwtVerify(token, JWT_SECRET);
+
+    // Validasi payload
+    if (!payload || !payload.userId || !payload.username || !payload.email) {
+      return { isValid: false, user: null };
+    }
+
     return {
       isValid: true,
       user: {
@@ -141,19 +151,9 @@ export async function middleware(request) {
   // Handle root path
   if (pathname === "/") {
     if (authResult.isValid) {
-      return createRedirect(
-        request,
-        "/dashboard",
-        false,
-        "Authenticated user accessing root"
-      );
+      return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
     } else {
-      return createRedirect(
-        request,
-        "/login",
-        true,
-        "Unauthenticated user accessing root"
-      );
+      return createRedirect(request, "/login", true, "Unauthenticated user accessing root");
     }
   }
 
@@ -214,6 +214,6 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/health|_next/static|_next/image|favicon.ico|.*\\.).*)",
   ],
 };

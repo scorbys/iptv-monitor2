@@ -47,11 +47,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
-        // Gunakan relative URL karena ada rewrites di next.config.ts
-        const url =
-          endpoint.startsWith("http://") || endpoint.startsWith("https://")
-            ? endpoint
-            : endpoint;
+        // Pastikan endpoint dimulai dengan / untuk relative URL
+        const url = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
 
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
@@ -63,25 +60,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           credentials: "include",
         });
 
-        // Handle 401/403 tanpa redirect otomatis
-        if (response.status === 401 || response.status === 403) {
-          // Hanya clear user state, biarkan middleware handle redirect
-          setUser(null);
-          throw new Error("Authentication failed");
-        }
-
-        if (!response.ok) {
-          let errorMessage = `HTTP ${response.status}`;
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch {
-            errorMessage = (await response.text()) || errorMessage;
-          }
-          throw new Error(errorMessage);
-        }
+        // Tambahkan timeout handling
+        const timeoutId = setTimeout(() => {
+          throw new Error("Request timeout");
+        }, 10000);
 
         const result = await response.json();
+        clearTimeout(timeoutId);
+
         return result;
       } catch (error) {
         console.error("API call error:", error);
@@ -95,12 +81,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      // Cek apakah ada cookie token terlebih dahulu
-      const hasCookie = document.cookie.includes("token=");
+      // Cek cookie dengan cara yang lebih robust
+      const hasCookie = document.cookie
+        .split(";")
+        .some(
+          (cookie) =>
+            cookie.trim().startsWith("token=") && cookie.trim().length > 6
+        );
+
       if (!hasCookie) {
         console.log("No auth cookie found");
         setUser(null);
-        setLoading(false);
         return;
       }
 
@@ -147,11 +138,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: result.user.email,
         });
 
-        // Force refresh auth state setelah login
-        setTimeout(() => {
-          checkAuth();
-        }, 100);
-
+        // Tidak perlu checkAuth lagi setelah login berhasil
         return { success: true };
       } else {
         return { success: false, error: result.error || "Login failed" };
