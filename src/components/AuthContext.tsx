@@ -47,11 +47,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
-        // Pastikan base URL konsisten
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-        const url = `${baseUrl}${
-          endpoint.startsWith("/") ? endpoint : `/${endpoint}`
-        }`;
+        // Gunakan relative URL karena ada rewrites di next.config.ts
+        const url =
+          endpoint.startsWith("http://") || endpoint.startsWith("https://")
+            ? endpoint
+            : endpoint;
 
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
@@ -63,8 +63,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           credentials: "include",
         });
 
+        // Handle 401/403 tanpa redirect otomatis
+        if (response.status === 401 || response.status === 403) {
+          // Hanya clear user state, biarkan middleware handle redirect
+          setUser(null);
+          throw new Error("Authentication failed");
+        }
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            errorMessage = (await response.text()) || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
@@ -80,6 +94,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuth = React.useCallback(async () => {
     try {
       setLoading(true);
+
+      // Cek apakah ada cookie token terlebih dahulu
+      const hasCookie = document.cookie.includes("token=");
+      if (!hasCookie) {
+        console.log("No auth cookie found");
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
       const result = await apiCall("/api/auth/verify");
 
@@ -97,6 +120,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Auth check failed:", error);
       setUser(null);
+
+      // Jika error bukan karena network, clear cookie
+      if (error instanceof Error && !error.message.includes("fetch")) {
+        // Clear cookie di client side jika verification gagal
+        document.cookie =
+          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+      }
     } finally {
       setLoading(false);
     }
@@ -110,44 +140,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password: password,
       });
 
-      console.log("Login response:", result); // DEBUG LOG
-
       if (result.success && result.user) {
-        const userId = result.user.userId || result.user.id;
-        const username = result.user.username;
-        const userEmail = result.user.email;
-
-        if (!userId || !username || !userEmail) {
-          console.warn("Login response missing required fields", result.user);
-          return {
-            success: false,
-            error: "Invalid user data received from server",
-          };
-        }
-
         setUser({
-          id: userId,
-          username: username,
-          email: userEmail,
+          id: result.user.userId,
+          username: result.user.username,
+          email: result.user.email,
         });
+
+        // Force refresh auth state setelah login
+        setTimeout(() => {
+          checkAuth();
+        }, 100);
 
         return { success: true };
       } else {
-        console.warn("Login failed:", result);
-        return {
-          success: false,
-          error: result.error || "Login failed",
-        };
+        return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
-      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
     }
   };
 
-  // Register function yang lebih robust
   const register = async (
     username: string,
     email: string,
@@ -160,40 +175,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password,
       });
 
-      console.log("Register response:", result); // DEBUG LOG
-
       if (result.success && result.user) {
-        const userId = result.user.userId || result.user.id;
-        const userEmail = result.user.email;
-        const userName = result.user.username;
-
-        if (!userId || !userName || !userEmail) {
-          console.warn(
-            "Registration response missing required fields",
-            result.user
-          );
-          return {
-            success: false,
-            error: "Invalid user data received from server",
-          };
-        }
-
         setUser({
-          id: userId,
-          username: userName,
-          email: userEmail,
+          id: result.user.userId,
+          username: result.user.username,
+          email: result.user.email,
         });
-
         return { success: true };
       } else {
-        console.warn("Registration failed:", result);
-        return {
-          success: false,
-          error: result.error || "Registration failed",
-        };
+        return { success: false, error: result.error || "Registration failed" };
       }
     } catch (error) {
-      console.error("Registration error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
