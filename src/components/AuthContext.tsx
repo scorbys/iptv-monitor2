@@ -48,11 +48,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
         // Pastikan base URL konsisten
-        const baseUrl =
-          process.env.NEXT_PUBLIC_API_URL;
-        const url = endpoint.startsWith("/")
-          ? `${baseUrl}${endpoint}`
-          : `${baseUrl}/${endpoint}`;
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+        const url = `${baseUrl}${
+          endpoint.startsWith("/") ? endpoint : `/${endpoint}`
+        }`;
 
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
@@ -82,20 +81,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      // Cek cookie dengan cara yang lebih robust
-      const hasCookie = document.cookie
-        .split(";")
-        .some(
-          (cookie) =>
-            cookie.trim().startsWith("token=") && cookie.trim().length > 6
-        );
-
-      if (!hasCookie) {
-        console.log("No auth cookie found");
-        setUser(null);
-        return;
-      }
-
       const result = await apiCall("/api/auth/verify");
 
       if (result.success && result.user) {
@@ -112,13 +97,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error("Auth check failed:", error);
       setUser(null);
-
-      // Jika error bukan karena network, clear cookie
-      if (error instanceof Error && !error.message.includes("fetch")) {
-        // Clear cookie di client side jika verification gagal
-        document.cookie =
-          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-      }
     } finally {
       setLoading(false);
     }
