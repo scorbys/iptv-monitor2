@@ -47,13 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
-        // Gunakan relative URL karena ada rewrites di next.config.ts
-        const url =
-          endpoint.startsWith("http://") || endpoint.startsWith("https://")
-            ? endpoint
-            : endpoint;
-
-        const response = await fetch(url, {
+        const response = await fetch(endpoint, {
           method: data ? "POST" : "GET",
           headers: {
             "Content-Type": "application/json",
@@ -63,20 +57,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           credentials: "include",
         });
 
-        // Handle 401/403 tanpa redirect otomatis
-        if (response.status === 401 || response.status === 403) {
-          // Hanya clear user state, biarkan middleware handle redirect
-          setUser(null);
-          throw new Error("Authentication failed");
-        }
-
+        // Perbaikan: Cek response.ok terlebih dahulu
         if (!response.ok) {
+          // Handle 401/403 khusus
+          if (response.status === 401 || response.status === 403) {
+            setUser(null);
+            throw new Error("Authentication failed");
+          }
+
           let errorMessage = `HTTP ${response.status}`;
           try {
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
           } catch {
-            errorMessage = (await response.text()) || errorMessage;
+            errorMessage = response.statusText || errorMessage;
           }
           throw new Error(errorMessage);
         }
@@ -95,12 +89,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      // Cek apakah ada cookie token terlebih dahulu
-      const hasCookie = document.cookie.includes("token=");
-      if (!hasCookie) {
-        console.log("No auth cookie found");
+      // Cek cookie dengan cara yang lebih reliable
+      const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        acc[key] = value;
+        return acc;
+      }, {} as Record<string, string>);
+
+      if (!cookies.token) {
+        console.log("No auth token found");
         setUser(null);
-        setLoading(false);
         return;
       }
 
@@ -121,45 +119,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error("Auth check failed:", error);
       setUser(null);
 
-      // Jika error bukan karena network, clear cookie
-      if (error instanceof Error && !error.message.includes("fetch")) {
-        // Clear cookie di client side jika verification gagal
-        document.cookie =
-          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-      }
+      // Clear cookie jika verification gagal
+      document.cookie =
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax";
     } finally {
       setLoading(false);
     }
   }, [apiCall]);
 
-  // Login function yang lebih robust
+  // Login function
   const login = async (email: string, password: string) => {
     try {
+      setLoading(true); // Tambahkan loading state
+
       const result = await apiCall("/api/auth/login", {
         identifier: email,
         password: password,
       });
 
       if (result.success && result.user) {
-        setUser({
-          id: result.user.userId,
+        const userData = {
+          id: result.user.userId || result.user.id,
           username: result.user.username,
           email: result.user.email,
-        });
+        };
 
-        // Force refresh auth state setelah login
-        setTimeout(() => {
-          checkAuth();
-        }, 100);
+        setUser(userData);
+        console.log("Login successful:", userData.username);
 
         return { success: true };
       } else {
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
+      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,6 +167,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     password: string
   ) => {
     try {
+      setLoading(true); // Tambahkan loading state
+
       const result = await apiCall("/api/auth/register", {
         username,
         email,
@@ -176,33 +176,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (result.success && result.user) {
-        setUser({
-          id: result.user.userId,
+        const userData = {
+          id: result.user.userId || result.user.id,
           username: result.user.username,
           email: result.user.email,
-        });
+        };
+
+        setUser(userData);
+        console.log("Registration successful:", userData.username);
+
         return { success: true };
       } else {
         return { success: false, error: result.error || "Registration failed" };
       }
     } catch (error) {
+      console.error("Registration error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
   // Logout function
   const logout = async () => {
     try {
+      setLoading(true);
       await apiCall("/api/auth/logout");
     } catch (error) {
       console.error("Logout API call failed:", error);
     } finally {
       setUser(null);
-      // Clear cookie di client side
+      setLoading(false);
+
+      // Clear cookie dengan cara yang lebih reliable
       document.cookie =
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax";
       router.push("/login");
     }
   };

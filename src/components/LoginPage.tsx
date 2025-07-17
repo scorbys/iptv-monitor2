@@ -134,49 +134,35 @@ const LoginPageContent = () => {
         );
 
         if (result.success) {
-          showNotification(
-            "success",
-            "Account created successfully! Please check your email to verify your account."
-          );
+          showNotification("success", "Account created successfully!");
+          // Tunggu sebentar sebelum redirect
           setTimeout(() => {
             router.push("/dashboard");
-          }, 2000);
+          }, 1500);
         } else {
           setErrors({ general: result.error || "Registration failed" });
           showNotification("error", result.error || "Registration failed");
         }
       } else {
-        try {
-          const result = await login(formData.email, formData.password);
+        const result = await login(formData.email, formData.password);
 
-          if (result.success) {
-            showNotification("success", "Login successful! Redirecting...");
-            setTimeout(() => {
-              router.push("/dashboard");
-            }, 1000);
-          } else {
-            setErrors({ general: result.error || "Login failed" });
-            showNotification("error", result.error || "Login failed");
-          }
-        } catch (error) {
-          console.error("Network error:", error);
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Network connection failed";
-          setErrors({ general: errorMessage });
-          showNotification(
-            "error",
-            "Unable to connect to server. Please check your connection."
-          );
+        if (result.success) {
+          showNotification("success", "Login successful! Redirecting...");
+          // Tunggu sebentar sebelum redirect
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 1000);
+        } else {
+          setErrors({ general: result.error || "Login failed" });
+          showNotification("error", result.error || "Login failed");
         }
       }
     } catch (error) {
+      console.error("Auth error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
       setErrors({ general: errorMessage });
       showNotification("error", errorMessage);
-      console.error("Auth error:", error);
     } finally {
       setLoading(false);
     }

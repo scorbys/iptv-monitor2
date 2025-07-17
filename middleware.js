@@ -107,6 +107,8 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  
+  console.log(`[MIDDLEWARE] Processing: ${pathname}`);
 
   // Skip middleware untuk static files dan Next.js internals
   if (isStaticFile(pathname)) {
@@ -115,25 +117,20 @@ export async function middleware(request) {
 
   // Get token from cookies
   const token = request.cookies.get("token")?.value;
+  console.log(`[MIDDLEWARE] Token present: ${!!token}`);
 
   // Verify token if present
   let authResult = { isValid: false, user: null };
   if (token) {
     authResult = await verifyAuthToken(token);
+    console.log(`[MIDDLEWARE] Token valid: ${authResult.isValid}`);
   }
 
   // Handle public routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.public)) {
-    if (
-      authResult.isValid &&
-      (pathname === "/login" || pathname === "/register")
-    ) {
-      return createRedirect(
-        request,
-        "/dashboard",
-        false,
-        "Authenticated user accessing auth pages"
-      );
+    if (authResult.isValid && (pathname === "/login" || pathname === "/register")) {
+      console.log(`[MIDDLEWARE] Redirecting authenticated user from ${pathname} to /dashboard`);
+      return createRedirect(request, "/dashboard", false, "Authenticated user accessing auth pages");
     }
     return NextResponse.next();
   }
@@ -141,25 +138,23 @@ export async function middleware(request) {
   // Handle root path
   if (pathname === "/") {
     if (authResult.isValid) {
-      return createRedirect(
-        request,
-        "/dashboard",
-        false,
-        "Authenticated user accessing root"
-      );
+      console.log(`[MIDDLEWARE] Redirecting authenticated user from / to /dashboard`);
+      return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
     } else {
-      return createRedirect(
-        request,
-        "/login",
-        true,
-        "Unauthenticated user accessing root"
-      );
+      console.log(`[MIDDLEWARE] Redirecting unauthenticated user from / to /login`);
+      return createRedirect(request, "/login", true, "Unauthenticated user accessing root");
     }
   }
 
   // Handle protected API routes
   if (pathname.startsWith("/api/")) {
+    // Allow auth endpoints
+    if (pathname.startsWith("/api/auth/")) {
+      return NextResponse.next();
+    }
+    
     if (!authResult.isValid) {
+      console.log(`[MIDDLEWARE] Blocking API access: ${pathname}`);
       return NextResponse.json(
         { success: false, error: "Authentication required" },
         { status: 401 }
@@ -179,13 +174,9 @@ export async function middleware(request) {
   // Handle protected page routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
     if (!authResult.isValid) {
+      console.log(`[MIDDLEWARE] Blocking protected page access: ${pathname}`);
       const shouldClearCookie = !!token && !authResult.isValid;
-      return createRedirect(
-        request,
-        "/login",
-        shouldClearCookie,
-        `Unauthenticated access to protected route`
-      );
+      return createRedirect(request, "/login", shouldClearCookie, "Unauthenticated access to protected route");
     }
 
     // Add user info headers for protected pages
@@ -193,27 +184,25 @@ export async function middleware(request) {
     if (authResult.user) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
-      response.headers.set("x-user-email", authResult.user.email);
+      response.headers.set("x-user-email", authResult.user.user.email);
     }
     return response;
   }
 
   // Default behavior for other routes
-  if (!authResult.isValid) {
-    const shouldClearCookie = !!token && !authResult.isValid;
-    return createRedirect(
-      request,
-      "/login",
-      shouldClearCookie,
-      "Unauthenticated access to unspecified route"
-    );
-  }
-
+  console.log(`[MIDDLEWARE] Default handling for: ${pathname}`);
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
