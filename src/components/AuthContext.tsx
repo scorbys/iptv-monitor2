@@ -46,14 +46,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 detik timeout
-      
       try {
-        // Pastikan endpoint format yang benar
-        const url = endpoint.startsWith("http") ? endpoint : endpoint;
-
-        console.log(`Making API call to: ${url}`);
+        // Gunakan relative URL karena ada rewrites di next.config.ts
+        const url =
+          endpoint.startsWith("http://") || endpoint.startsWith("https://")
+            ? endpoint
+            : endpoint;
 
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
@@ -63,29 +61,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
           body: data ? JSON.stringify(data) : undefined,
           credentials: "include",
-          signal: controller.signal,
         });
 
-        clearTimeout(timeoutId);
-        
-        console.log(`API Response status: ${response.status}`);
-
-        // Handle different HTTP status codes
-        if (response.status === 408) {
-          throw new Error("Request timeout. Please try again.");
-        }
-
+        // Handle 401/403 tanpa redirect otomatis
         if (response.status === 401 || response.status === 403) {
+          // Hanya clear user state, biarkan middleware handle redirect
           setUser(null);
           throw new Error("Authentication failed");
-        }
-
-        if (response.status === 502) {
-          throw new Error("Server is temporarily unavailable. Please try again.");
-        }
-
-        if (response.status === 500) {
-          throw new Error("Internal server error. Please try again later.");
         }
 
         if (!response.ok) {
@@ -94,25 +76,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
           } catch {
-            errorMessage = `Server error (${response.status})`;
+            errorMessage = (await response.text()) || errorMessage;
           }
           throw new Error(errorMessage);
         }
 
         const result = await response.json();
-        console.log("API Response:", result);
         return result;
       } catch (error) {
-        clearTimeout(timeoutId);
-        
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          throw new Error("Request timeout. Please try again.");
-        }
-        
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          throw new Error("Network error. Please check your connection.");
-        }
-        
         console.error("API call error:", error);
         throw error;
       }
@@ -133,45 +104,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      // Tambahkan retry logic untuk check auth
-      let retryCount = 0;
-      const maxRetries = 2;
-      
-      while (retryCount < maxRetries) {
-        try {
-          const result = await apiCall("/api/auth/verify");
+      const result = await apiCall("/api/auth/verify");
 
-          if (result.success && result.user) {
-            setUser({
-              id: result.user.userId || result.user.id,
-              username: result.user.username,
-              email: result.user.email,
-            });
-            console.log("Auth check successful:", result.user.username);
-            return;
-          } else {
-            console.log("Auth check failed:", result);
-            setUser(null);
-            return;
-          }
-        } catch (error) {
-          console.error(`Auth check attempt ${retryCount + 1} failed:`, error);
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            throw error;
-          }
-        }
+      if (result.success && result.user) {
+        setUser({
+          id: result.user.userId || result.user.id,
+          username: result.user.username,
+          email: result.user.email,
+        });
+        console.log("Auth check successful:", result.user.username);
+      } else {
+        console.log("Auth check failed:", result);
+        setUser(null);
       }
     } catch (error) {
-      console.error("Auth check failed after retries:", error);
+      console.error("Auth check failed:", error);
       setUser(null);
 
-      // Clear cookie jika verification gagal
-      if (error instanceof Error && !error.message.includes("Network error")) {
+      // Jika error bukan karena network, clear cookie
+      if (error instanceof Error && !error.message.includes("fetch")) {
+        // Clear cookie di client side jika verification gagal
         document.cookie =
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
       }
@@ -180,17 +132,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [apiCall]);
 
-  // Login function dengan improved error handling
+  // Login function yang lebih robust
   const login = async (email: string, password: string) => {
     try {
-      console.log("Attempting login with:", { email });
-
       const result = await apiCall("/api/auth/login", {
         identifier: email,
         password: password,
       });
-
-      console.log("Login result:", result);
 
       if (result.success && result.user) {
         setUser({
@@ -199,51 +147,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: result.user.email,
         });
 
-        // Force refresh auth state setelah login dengan delay
+        // Force refresh auth state setelah login
         setTimeout(() => {
           checkAuth();
-        }, 500);
+        }, 100);
 
         return { success: true };
       } else {
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
-      console.error("Login error:", error);
-      let errorMessage = "Login failed";
-      
-      if (error instanceof Error) {
-        if (error.message.includes("timeout")) {
-          errorMessage = "Login request timed out. Please try again.";
-        } else if (error.message.includes("Network error")) {
-          errorMessage = "Network error. Please check your connection.";
-        } else if (error.message.includes("502")) {
-          errorMessage = "Server is temporarily unavailable. Please try again.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
     }
   };
 
-  // Register function dengan improved error handling
   const register = async (
     username: string,
     email: string,
     password: string
   ) => {
     try {
-      console.log("Attempting registration with:", { username, email });
-
       const result = await apiCall("/api/auth/register", {
         username,
         email,
         password,
       });
-
-      console.log("Registration result:", result);
 
       if (result.success && result.user) {
         setUser({
@@ -256,32 +186,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: result.error || "Registration failed" };
       }
     } catch (error) {
-      console.error("Registration error:", error);
-      let errorMessage = "Registration failed";
-      
-      if (error instanceof Error) {
-        if (error.message.includes("timeout")) {
-          errorMessage = "Registration request timed out. Please try again.";
-        } else if (error.message.includes("Network error")) {
-          errorMessage = "Network error. Please check your connection.";
-        } else if (error.message.includes("502")) {
-          errorMessage = "Server is temporarily unavailable. Please try again.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
     }
   };
 
-  // Logout function dengan improved error handling
+  // Logout function
   const logout = async () => {
     try {
       await apiCall("/api/auth/logout");
     } catch (error) {
       console.error("Logout API call failed:", error);
-      // Continue with logout even if API call fails
     } finally {
       setUser(null);
       // Clear cookie di client side
