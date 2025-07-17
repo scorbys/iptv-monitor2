@@ -47,8 +47,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
-        // Pastikan endpoint dimulai dengan / untuk relative URL
-        const url = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+        // Pastikan base URL konsisten
+        const baseUrl =
+          process.env.NEXT_PUBLIC_API_URL;
+        const url = endpoint.startsWith("/")
+          ? `${baseUrl}${endpoint}`
+          : `${baseUrl}/${endpoint}`;
 
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
@@ -60,14 +64,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           credentials: "include",
         });
 
-        // Tambahkan timeout handling
-        const timeoutId = setTimeout(() => {
-          throw new Error("Request timeout");
-        }, 10000);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const result = await response.json();
-        clearTimeout(timeoutId);
-
         return result;
       } catch (error) {
         console.error("API call error:", error);
