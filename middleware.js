@@ -42,21 +42,43 @@ const ROUTE_CONFIG = {
 async function verifyAuthToken(token) {
   try {
     if (!token || typeof token !== 'string') {
-      return { isValid: false, user: null };
+      return { isValid: false, user: null, error: "No token provided" };
     }
 
-    // Tambahkan timeout untuk JWT verification
+    // Validate JWT_SECRET
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET not configured in middleware");
+      return { isValid: false, user: null, error: "Server configuration error" };
+    }
+
+    // Tambahkan timeout untuk JWT verification dengan lebih pendek
     const verifyPromise = jwtVerify(token, JWT_SECRET);
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('JWT verification timeout')), 5000); // 5 detik timeout
+      setTimeout(() => reject(new Error('JWT verification timeout')), 3000); // 3 detik
     });
 
     const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
 
-    // Validasi payload
-    if (!payload || !payload.userId || !payload.username || !payload.email) {
-      console.log("Invalid payload structure:", payload);
-      return { isValid: false, user: null };
+    // Validasi payload dengan lebih ketat
+    if (!payload || typeof payload !== 'object') {
+      console.log("Invalid payload type:", typeof payload);
+      return { isValid: false, user: null, error: "Invalid token structure" };
+    }
+
+    if (!payload.userId || !payload.username || !payload.email) {
+      console.log("Missing required fields in payload:", {
+        hasUserId: !!payload.userId,
+        hasUsername: !!payload.username,
+        hasEmail: !!payload.email
+      });
+      return { isValid: false, user: null, error: "Invalid token payload" };
+    }
+
+    // Check token expiration
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < currentTime) {
+      console.log("Token expired:", { exp: payload.exp, now: currentTime });
+      return { isValid: false, user: null, error: "Token expired" };
     }
 
     return {
@@ -66,10 +88,26 @@ async function verifyAuthToken(token) {
         username: payload.username,
         email: payload.email,
       },
+      error: null
     };
   } catch (error) {
-    console.error("Token verification failed:", error.message);
-    return { isValid: false, user: null };
+    console.error("Token verification failed:", {
+      message: error.message,
+      name: error.name,
+      tokenLength: token?.length || 0
+    });
+    
+    let errorMessage = "Token verification failed";
+    
+    if (error.message === 'JWT verification timeout') {
+      errorMessage = "Token verification timeout";
+    } else if (error.name === 'JWTExpired') {
+      errorMessage = "Token expired";
+    } else if (error.name === 'JWTInvalid') {
+      errorMessage = "Invalid token format";
+    }
+    
+    return { isValid: false, user: null, error: errorMessage };
   }
 }
 
@@ -123,100 +161,165 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
  * Main middleware function
  */
 export async function middleware(request) {
+  const startTime = Date.now();
   const { pathname } = request.nextUrl;
 
-  // Skip middleware untuk static files dan Next.js internals
-  if (isStaticFile(pathname)) {
-    return NextResponse.next();
-  }
-
-  // Get token from cookies
-  const token = request.cookies.get("token")?.value;
-
-  // Verify token if present
-  let authResult = { isValid: false, user: null };
-  if (token) {
-    authResult = await verifyAuthToken(token);
-  }
-
-  // Handle public routes
-  if (matchesRoutes(pathname, ROUTE_CONFIG.public)) {
-    if (
-      authResult.isValid &&
-      (pathname === "/login" || pathname === "/register")
-    ) {
-      return createRedirect(
-        request,
-        "/dashboard",
-        false,
-        "Authenticated user accessing auth pages"
-      );
-    }
-    return NextResponse.next();
-  }
-
-  // Handle root path
-  if (pathname === "/") {
-    if (authResult.isValid) {
-      return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
-    } else {
-      return createRedirect(request, "/login", true, "Unauthenticated user accessing root");
-    }
-  }
-
-  // Handle protected API routes
-  if (pathname.startsWith("/api/")) {
-    if (!authResult.isValid) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 }
-      );
+  try {
+    // Skip middleware untuk static files dan Next.js internals
+    if (isStaticFile(pathname)) {
+      return NextResponse.next();
     }
 
-    // Add user info to request headers for API
-    const response = NextResponse.next();
-    if (authResult.user) {
-      response.headers.set("x-user-id", authResult.user.id);
-      response.headers.set("x-user-username", authResult.user.username);
-      response.headers.set("x-user-email", authResult.user.email);
-    }
-    return response;
-  }
+    // Get token from cookies
+    const token = request.cookies.get("token")?.value;
 
-  // Handle protected page routes
-  if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
+    // Verify token if present dengan timeout
+    let authResult = { isValid: false, user: null, error: null };
+    if (token) {
+      try {
+        authResult = await verifyAuthToken(token);
+      } catch (verifyError) {
+        console.error("Auth verification error:", verifyError);
+        authResult = { isValid: false, user: null, error: "Verification failed" };
+      }
+    }
+
+    // Handle public routes
+    if (matchesRoutes(pathname, ROUTE_CONFIG.public)) {
+      if (
+        authResult.isValid &&
+        (pathname === "/login" || pathname === "/register")
+      ) {
+        return createRedirect(
+          request,
+          "/dashboard",
+          false,
+          "Authenticated user accessing auth pages"
+        );
+      }
+      return NextResponse.next();
+    }
+
+    // Handle root path
+    if (pathname === "/") {
+      if (authResult.isValid) {
+        return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
+      } else {
+        return createRedirect(request, "/login", true, "Unauthenticated user accessing root");
+      }
+    }
+
+    // Handle protected API routes dengan improved error response
+    if (pathname.startsWith("/api/")) {
+      if (!authResult.isValid) {
+        console.log("API access denied:", {
+          path: pathname,
+          hasToken: !!token,
+          error: authResult.error,
+          duration: Date.now() - startTime
+        });
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: authResult.error || "Authentication required",
+            code: "AUTH_REQUIRED"
+          },
+          { status: 401 }
+        );
+      }
+
+      // Add user info to request headers for API dengan error handling
+      try {
+        const response = NextResponse.next();
+        if (authResult.user) {
+          response.headers.set("x-user-id", authResult.user.id);
+          response.headers.set("x-user-username", authResult.user.username);
+          response.headers.set("x-user-email", authResult.user.email);
+        }
+        return response;
+      } catch (headerError) {
+        console.error("Error setting headers:", headerError);
+        return NextResponse.next(); // Continue tanpa headers
+      }
+    }
+
+    // Handle protected page routes
+    if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
+      if (!authResult.isValid) {
+        const shouldClearCookie = !!token && !authResult.isValid;
+        console.log("Protected page access denied:", {
+          path: pathname,
+          hasToken: !!token,
+          shouldClearCookie,
+          error: authResult.error,
+          duration: Date.now() - startTime
+        });
+        
+        return createRedirect(
+          request,
+          "/login",
+          shouldClearCookie,
+          `Unauthenticated access: ${authResult.error || 'No valid token'}`
+        );
+      }
+
+      // Add user info headers for protected pages dengan error handling
+      try {
+        const response = NextResponse.next();
+        if (authResult.user) {
+          response.headers.set("x-user-id", authResult.user.id);
+          response.headers.set("x-user-username", authResult.user.username);
+          response.headers.set("x-user-email", authResult.user.email);
+        }
+        return response;
+      } catch (headerError) {
+        console.error("Error setting headers for protected page:", headerError);
+        return NextResponse.next(); // Continue tanpa headers
+      }
+    }
+
+    // Default behavior untuk routes lain
     if (!authResult.isValid) {
       const shouldClearCookie = !!token && !authResult.isValid;
       return createRedirect(
         request,
         "/login",
         shouldClearCookie,
-        `Unauthenticated access to protected route`
+        "Unauthenticated access to unspecified route"
       );
     }
 
-    // Add user info headers for protected pages
-    const response = NextResponse.next();
-    if (authResult.user) {
-      response.headers.set("x-user-id", authResult.user.id);
-      response.headers.set("x-user-username", authResult.user.username);
-      response.headers.set("x-user-email", authResult.user.email);
+    return NextResponse.next();
+    
+  } catch (error) {
+    console.error("Middleware error:", {
+      message: error.message,
+      stack: error.stack,
+      pathname,
+      duration: Date.now() - startTime
+    });
+    
+    // Fallback behavior pada error
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "Middleware error",
+          code: "MIDDLEWARE_ERROR"
+        },
+        { status: 500 }
+      );
     }
-    return response;
-  }
-
-  // Default behavior for other routes
-  if (!authResult.isValid) {
-    const shouldClearCookie = !!token && !authResult.isValid;
+    
+    // Untuk page routes, redirect ke login
     return createRedirect(
       request,
       "/login",
-      shouldClearCookie,
-      "Unauthenticated access to unspecified route"
+      true,
+      "Middleware error - redirecting to login"
     );
   }
-
-  return NextResponse.next();
 }
 
 export const config = {
