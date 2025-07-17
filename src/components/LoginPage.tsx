@@ -36,6 +36,20 @@ interface Notification {
   message: string;
 }
 
+const getPasswordStrength = (
+  password: string
+): "weak" | "medium" | "strong" => {
+  if (password.length < 6) return "weak";
+  if (
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[!@#$%^&*]/.test(password)
+  ) {
+    return "strong";
+  }
+  return "medium";
+};
+
 const LoginPageContent = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -59,11 +73,14 @@ const LoginPageContent = () => {
   const { login, register } = useAuth();
 
   const showNotification = (type: "success" | "error", message: string) => {
-  setNotification({ show: true, type, message });
-  setTimeout(() => {
-    setNotification({ show: false, type: "", message: "" });
-  }, type === "success" ? 2000 : 5000); // 2 seconds for success, 5 seconds for error
-};
+    setNotification({ show: true, type, message });
+    setTimeout(
+      () => {
+        setNotification({ show: false, type: "", message: "" });
+      },
+      type === "success" ? 2000 : 5000
+    ); // 2 seconds for success, 5 seconds for error
+  };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -101,7 +118,7 @@ const LoginPageContent = () => {
 
     if (!formData.password) {
       newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
+    } else if (isSignUp && formData.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
 
@@ -118,50 +135,50 @@ const LoginPageContent = () => {
   };
 
   const handleSubmit = async () => {
-  if (!validateForm()) return;
+    if (!validateForm()) return;
 
-  setLoading(true);
-  setErrors({});
+    setLoading(true);
+    setErrors({});
 
-  try {
-    if (isSignUp) {
-      const result = await register(
-        formData.username,
-        formData.email,
-        formData.password
-      );
-
-      if (result.success) {
-        showNotification(
-          "success",
-          "Account created successfully! Please check your email to verify your account."
+    try {
+      if (isSignUp) {
+        const result = await register(
+          formData.username,
+          formData.email,
+          formData.password
         );
-        // Redirect akan dihandle oleh AuthGuard
-      } else {
-        setErrors({ general: result.error || "Registration failed" });
-        showNotification("error", result.error || "Registration failed");
-      }
-    } else {
-      const result = await login(formData.email, formData.password);
 
-      if (result.success) {
-        showNotification("success", "Login successful!");
-        // Redirect akan dihandle oleh AuthGuard
+        if (result.success) {
+          showNotification(
+            "success",
+            "Account created successfully! Please check your email to verify your account."
+          );
+          // Redirect akan dihandle oleh AuthGuard
+        } else {
+          setErrors({ general: result.error || "Registration failed" });
+          showNotification("error", result.error || "Registration failed");
+        }
       } else {
-        setErrors({ general: result.error || "Login failed" });
-        showNotification("error", result.error || "Login failed");
+        const result = await login(formData.email, formData.password);
+
+        if (result.success) {
+          showNotification("success", "Login successful!");
+          // Redirect akan dihandle oleh AuthGuard
+        } else {
+          setErrors({ general: result.error || "Login failed" });
+          showNotification("error", result.error || "Login failed");
+        }
       }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
+      setErrors({ general: errorMessage });
+      showNotification("error", errorMessage);
+      console.error("Auth error:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "An unexpected error occurred";
-    setErrors({ general: errorMessage });
-    showNotification("error", errorMessage);
-    console.error("Auth error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
@@ -334,6 +351,38 @@ const LoginPageContent = () => {
                   placeholder="••••••••"
                   disabled={loading}
                 />
+                {errors.password && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <XCircle className="w-4 h-4 mr-1" />
+                    {errors.password}
+                  </p>
+                )}
+
+                {isSignUp &&
+                  formData.password.length > 0 &&
+                  formData.password.length < 6 && (
+                    <p className="mt-1 text-xs text-yellow-600">
+                      Password should be at least 6 characters
+                    </p>
+                  )}
+
+                {isSignUp && formData.password.length >= 6 && (
+                  <p className="mt-1 text-xs">
+                    Password strength:{" "}
+                    <span
+                      className={
+                        getPasswordStrength(formData.password) === "strong"
+                          ? "text-green-600"
+                          : getPasswordStrength(formData.password) === "medium"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {getPasswordStrength(formData.password)}
+                    </span>
+                  </p>
+                )}
+
                 {isPasswordTyping && (
                   <button
                     type="button"
@@ -383,6 +432,21 @@ const LoginPageContent = () => {
                     placeholder="••••••••"
                     disabled={loading}
                   />
+                  {errors.confirmPassword && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center">
+                      <XCircle className="w-4 h-4 mr-1" />
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+
+                  {isSignUp &&
+                    formData.confirmPassword.length > 0 &&
+                    formData.password !== formData.confirmPassword && (
+                      <p className="mt-1 text-xs text-yellow-600">
+                        Confirmation does not match password
+                      </p>
+                    )}
+
                   {isConfirmPasswordTyping && (
                     <button
                       type="button"

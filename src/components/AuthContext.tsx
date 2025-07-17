@@ -131,25 +131,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password: password,
       });
 
+      console.log("Login response:", result); // DEBUG LOG
+
       if (result.success && result.user) {
+        const userId = result.user.userId || result.user.id;
+        const username = result.user.username;
+        const userEmail = result.user.email;
+
+        if (!userId || !username || !userEmail) {
+          console.warn("Login response missing required fields", result.user);
+          return {
+            success: false,
+            error: "Invalid user data received from server",
+          };
+        }
+
         setUser({
-          id: result.user.userId,
-          username: result.user.username,
-          email: result.user.email,
+          id: userId,
+          username: username,
+          email: userEmail,
         });
 
-        // Tidak perlu checkAuth lagi setelah login berhasil
         return { success: true };
       } else {
-        return { success: false, error: result.error || "Login failed" };
+        console.warn("Login failed:", result);
+        return {
+          success: false,
+          error: result.error || "Login failed",
+        };
       }
     } catch (error) {
+      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
     }
   };
 
+  // Register function yang lebih robust
   const register = async (
     username: string,
     email: string,
@@ -162,17 +181,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password,
       });
 
+      console.log("Register response:", result); // DEBUG LOG
+
       if (result.success && result.user) {
+        const userId = result.user.userId || result.user.id;
+        const userEmail = result.user.email;
+        const userName = result.user.username;
+
+        if (!userId || !userName || !userEmail) {
+          console.warn(
+            "Registration response missing required fields",
+            result.user
+          );
+          return {
+            success: false,
+            error: "Invalid user data received from server",
+          };
+        }
+
         setUser({
-          id: result.user.userId,
-          username: result.user.username,
-          email: result.user.email,
+          id: userId,
+          username: userName,
+          email: userEmail,
         });
+
         return { success: true };
       } else {
-        return { success: false, error: result.error || "Registration failed" };
+        console.warn("Registration failed:", result);
+        return {
+          success: false,
+          error: result.error || "Registration failed",
+        };
       }
     } catch (error) {
+      console.error("Registration error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
