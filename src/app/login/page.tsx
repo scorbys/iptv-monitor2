@@ -1,9 +1,19 @@
 'use client'
 
-import LoginPage from '@/components/LoginPage';
+import { useState } from "react"
+import { LoginComponent } from "@/components/LoginComponent"
+import { RegisterComponent } from "@/components/RegisterPage"
 
-export default function Login() {
+export default function LoginOrRegisterPage() {
+  const [isRegistering, setIsRegistering] = useState(false)
+
   return (
-    <LoginPage />
+    <>
+      {isRegistering ? (
+        <RegisterComponent onSwitchToLogin={() => setIsRegistering(false)} />
+      ) : (
+        <LoginComponent onSwitchToRegister={() => setIsRegistering(true)} />
+      )}
+    </>
   )
 }

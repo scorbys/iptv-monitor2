@@ -16,6 +16,7 @@ interface AuthContextType {
     email: string,
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
+  loginWithGmail: () => Promise<{ success: boolean; error?: string }>;
   register: (
     username: string,
     email: string,
@@ -187,13 +188,82 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithGmail = async () => {
+    try {
+      setLoading(true);
+
+      const popup = window.open(
+        "https://iptv-monitor-backend-production.up.railway.app/api/auth/google",
+        "google-login",
+        "width=500,height=600,scrollbars=yes,resizable=yes"
+      );
+
+      if (!popup) {
+        throw new Error("Popup blocked. Please allow popups for this site.");
+      }
+
+      return new Promise<{ success: boolean; error?: string }>((resolve) => {
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            resolve({ success: false, error: "Login cancelled" });
+          }
+        }, 1000);
+
+        const messageHandler = (event: MessageEvent) => {
+          const allowedOrigins = [
+            "https://iptv-monitor-backend-production.up.railway.app",
+            "http://localhost:3001",
+          ];
+          if (!allowedOrigins.includes(event.origin)) return;
+
+          if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
+            clearInterval(checkClosed);
+            popup.close();
+            window.removeEventListener("message", messageHandler);
+
+            const userData = {
+              id: event.data.user.userId || event.data.user.id,
+              username: event.data.user.username,
+              email: event.data.user.email,
+            };
+
+            setUser(userData);
+            console.log("Google login successful:", userData.username);
+            resolve({ success: true });
+          } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
+            clearInterval(checkClosed);
+            popup.close();
+            window.removeEventListener("message", messageHandler);
+            resolve({ success: false, error: event.data.error });
+          }
+        };
+
+        window.addEventListener("message", messageHandler);
+      });
+    } catch (error) {
+      console.error("Gmail login error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Gmail login failed";
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const register = async (
     username: string,
     email: string,
     password: string
   ) => {
     try {
-      setLoading(true); // Tambahkan loading state
+      setLoading(true);
+
+      // Validasi password di frontend juga
+      if (password.length < 6) {
+        return { success: false, error: "Password must be at least 6 characters long" };
+      }
 
       const result = await apiCall("/api/auth/register", {
         username,
@@ -210,7 +280,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         setUser(userData);
         console.log("Registration successful:", userData.username);
-
         return { success: true };
       } else {
         return { success: false, error: result.error || "Registration failed" };
@@ -252,6 +321,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     login,
+    loginWithGmail,
     register,
     logout,
     checkAuth,

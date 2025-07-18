@@ -139,7 +139,7 @@ export async function middleware(request) {
     if (authResult.user) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
-      response.headers.set("x-user-email", authResult.user.email); // Perbaiki: user.user.email -> user.email
+      response.headers.set("x-user-email", authResult.user.email); // removed duplicate .user
     }
     return response;
   }
