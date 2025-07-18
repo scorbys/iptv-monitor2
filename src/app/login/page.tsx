@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { LoginComponent } from "@/components/LoginComponent"
-import { RegisterComponent } from "@/components/RegisterPage"
+import { RegisterComponent } from "@/components/RegisterComponent"
 
 export default function LoginOrRegisterPage() {
   const [isRegistering, setIsRegistering] = useState(false)

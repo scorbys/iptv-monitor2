@@ -192,10 +192,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
+      // Calculate popup position to center it
+      const left = window.screenX + (window.outerWidth - 500) / 2;
+      const top = window.screenY + (window.outerHeight - 600) / 2;
+
       const popup = window.open(
         "https://iptv-monitor-backend-production.up.railway.app/api/auth/google",
         "google-login",
-        "width=500,height=600,scrollbars=yes,resizable=yes"
+        `width=500,height=600,left=${left},top=${top},scrollbars=yes,resizable=yes`
       );
 
       if (!popup) {
@@ -206,16 +210,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const checkClosed = setInterval(() => {
           if (popup.closed) {
             clearInterval(checkClosed);
+            window.removeEventListener("message", messageHandler);
             resolve({ success: false, error: "Login cancelled" });
           }
         }, 1000);
 
         const messageHandler = (event: MessageEvent) => {
+          // Be more specific about allowed origins
           const allowedOrigins = [
             "https://iptv-monitor-backend-production.up.railway.app",
             "http://localhost:3001",
           ];
-          if (!allowedOrigins.includes(event.origin)) return;
+
+          if (!allowedOrigins.includes(event.origin)) {
+            console.warn(
+              "Received message from unauthorized origin:",
+              event.origin
+            );
+            return;
+          }
 
           if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
             clearInterval(checkClosed);
@@ -230,6 +243,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             setUser(userData);
             console.log("Google login successful:", userData.username);
+
+            // Force a check auth to ensure token is properly set
+            setTimeout(() => {
+              checkAuth();
+            }, 100);
+
             resolve({ success: true });
           } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
             clearInterval(checkClosed);
@@ -240,6 +259,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         window.addEventListener("message", messageHandler);
+
+        // Fallback timeout
+        setTimeout(() => {
+          if (!popup.closed) {
+            clearInterval(checkClosed);
+            popup.close();
+            window.removeEventListener("message", messageHandler);
+            resolve({ success: false, error: "Login timeout" });
+          }
+        }, 30000); // 30 second timeout
       });
     } catch (error) {
       console.error("Gmail login error:", error);
@@ -251,7 +280,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-
   const register = async (
     username: string,
     email: string,
@@ -262,7 +290,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Validasi password di frontend juga
       if (password.length < 6) {
-        return { success: false, error: "Password must be at least 6 characters long" };
+        return {
+          success: false,
+          error: "Password must be at least 6 characters long",
+        };
       }
 
       const result = await apiCall("/api/auth/register", {

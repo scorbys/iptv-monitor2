@@ -107,7 +107,7 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
-  
+
   console.log(`[MIDDLEWARE] Processing: ${pathname}`);
 
   // Skip middleware untuk static files dan Next.js internals
@@ -161,7 +161,7 @@ export async function middleware(request) {
     if (pathname.startsWith("/api/auth/")) {
       return NextResponse.next();
     }
-    
+
     if (!authResult.isValid) {
       console.log(`[MIDDLEWARE] Blocking API access: ${pathname}`);
       return NextResponse.json(
@@ -176,24 +176,6 @@ export async function middleware(request) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email);
-    }
-    return response;
-  }
-
-  // Handle protected page routes
-  if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
-    if (!authResult.isValid) {
-      console.log(`[MIDDLEWARE] Blocking protected page access: ${pathname}`);
-      const shouldClearCookie = !!token && !authResult.isValid;
-      return createRedirect(request, "/login", shouldClearCookie, "Unauthenticated access to protected route");
-    }
-
-    // Add user info headers for protected pages
-    const response = NextResponse.next();
-    if (authResult.user) {
-      response.headers.set("x-user-id", authResult.user.id);
-      response.headers.set("x-user-username", authResult.user.username);
-      response.headers.set("x-user-email", authResult.user.user.email);
     }
     return response;
   }
