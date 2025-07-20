@@ -110,7 +110,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      // Tambahkan retry logic
+      console.log("Token found, verifying..."); // Debug log
+
+      // Tambahkan retry logic dengan delay yang lebih lama
       let retryCount = 0;
       const maxRetries = 3;
 
@@ -133,12 +135,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } catch (error) {
           retryCount++;
+          console.log(`Auth check attempt ${retryCount} failed:`, error);
+
           if (retryCount >= maxRetries) {
             throw error;
           }
-          // Wait before retry
+          // Wait before retry dengan delay yang lebih lama
           await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * retryCount)
+            setTimeout(resolve, 2000 * retryCount)
           );
         }
       }
@@ -146,9 +150,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error("Auth check failed:", error);
       setUser(null);
 
-      // Clear cookie jika verification gagal
-      document.cookie =
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax";
+      // Jangan clear cookie jika error adalah network error
+      if (
+        error instanceof Error &&
+        !error.message.includes("Authentication failed")
+      ) {
+        console.log("Network error, keeping cookie");
+      } else {
+        document.cookie =
+          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax";
+      }
     } finally {
       setLoading(false);
     }
@@ -196,8 +207,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const left = window.screenX + (window.outerWidth - 500) / 2;
       const top = window.screenY + (window.outerHeight - 600) / 2;
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+      console.log("Opening popup to:", `${backendUrl}/api/auth/google`);
+      console.log("Current origin:", window.location.origin);
+
       const popup = window.open(
-        "https://iptv-monitor-backend-production.up.railway.app/api/auth/google",
+        `${backendUrl}/api/auth/google`,
         "google-login",
         `width=500,height=600,left=${left},top=${top},scrollbars=yes,resizable=yes`
       );
@@ -220,6 +236,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const allowedOrigins = [
             "https://iptv-monitor-backend-production.up.railway.app",
             "http://localhost:3001",
+            "http://localhost:3000",
+            window.location.origin, // Tambahkan ini untuk same-origin
           ];
 
           if (!allowedOrigins.includes(event.origin)) {
@@ -230,11 +248,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
 
+          console.log("Received message:", event.data); // Debug log
+
           if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
             clearInterval(checkClosed);
             popup.close();
             window.removeEventListener("message", messageHandler);
 
+            // Set user data
             const userData = {
               id: event.data.user.userId || event.data.user.id,
               username: event.data.user.username,
@@ -244,17 +265,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(userData);
             console.log("Google login successful:", userData.username);
 
-            // Force a check auth to ensure token is properly set
+            // Tambahkan delay lebih lama untuk memastikan cookie terset
             setTimeout(() => {
               checkAuth();
-            }, 100);
+            }, 500);
 
             resolve({ success: true });
           } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
             clearInterval(checkClosed);
             popup.close();
             window.removeEventListener("message", messageHandler);
-            resolve({ success: false, error: event.data.error });
+            console.error("Google login error:", event.data.error);
+            resolve({
+              success: false,
+              error: event.data.error || "Google login failed",
+            });
           }
         };
 
