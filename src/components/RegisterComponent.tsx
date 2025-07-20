@@ -178,12 +178,15 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-pink-400/20 rounded-full blur-3xl"></div>
-      </div>
+    <div
+      className="relative min-h-screen bg-cover bg-center flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8"
+      style={{
+        backgroundImage:
+          "url('https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b6/aa/public-space.jpg?w=1000&h=-1&s=1')",
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40 z-0" />
 
       {/* Notification */}
       {notification.show && (
