@@ -208,14 +208,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const top = window.screenY + (window.outerHeight - 600) / 2;
 
       const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      const redirectUrl = encodeURIComponent(window.location.href);
+      const loginUrl = `${backendUrl}/api/auth/google?state=${redirectUrl}`;
 
       console.log("Opening popup to:", `${backendUrl}/api/auth/google`);
       console.log("Current origin:", window.location.origin);
 
       const popup = window.open(
-        `${backendUrl}/api/auth/google`,
+        loginUrl,
         "google-login",
-        `width=500,height=600,left=${left},top=${top},scrollbars=yes,resizable=yes`
+        `width=500,height=600,left=${left},top=${top},scrollbars=yes,resizable=yes,noopener=false`
       );
 
       if (!popup) {
