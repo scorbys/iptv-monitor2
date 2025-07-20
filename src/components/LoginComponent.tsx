@@ -11,7 +11,6 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  Building,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
@@ -146,13 +145,17 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
   };
 
   return (
-    <div
-      className="relative min-h-screen bg-cover bg-center flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8"
-      style={{
-        backgroundImage:
-          "url('https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b6/aa/public-space.jpg?w=1000&h=-1&s=1')",
-      }}
-    >
+    <div className="relative min-h-screen flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      {/* Background Image + brightness filter */}
+      <div
+        className="absolute inset-0 bg-center bg-cover brightness-50"
+        style={{
+          backgroundImage:
+            "url('https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b6/aa/public-space.jpg?w=1000&h=-1&s=1')",
+          zIndex: 0,
+        }}
+      />
+
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/40 z-0" />
 
@@ -180,15 +183,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
       >
         {/* Header */}
         <div className="text-center">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-200">
-              <Building className="w-8 h-8 text-white" />
-            </div>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <h2 className="mt-6 text-center text-3xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">
             Welcome Back
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-300">
             Sign in to access your dashboard
           </p>
         </div>
@@ -213,7 +211,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-3 py-3 border border-gray-500 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="john@example.com"
                   disabled={loading || gmailLoading}
                 />
@@ -245,7 +243,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                   onChange={(e) =>
                     handleInputChange("password", e.target.value)
                   }
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-500 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="••••••••"
                   disabled={loading || gmailLoading}
                 />
@@ -284,18 +282,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                   Signing in...
                 </div>
               ) : (
-                "Sign In"
+                "Sign in"
               )}
             </button>
 
             {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue</span>
-              </div>
+            <div className="flex items-center w-full">
+              <div className="flex-grow border-t border-black/40" />
+              <span className="mx-4 text-sm text-gray-900">or</span>
+              <div className="flex-grow border-t border-black/40" />
             </div>
 
             {/* Gmail Login Button */}
@@ -328,9 +323,31 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                 </svg>
               )}
               {gmailLoading
-                ? "Signing in with Gmail..."
-                : "Continue with Gmail"}
+                ? "Signing in..."
+                : "Sign in with Google"}
             </button>
+
+            {/* Switch to Register */}
+            <div className="text-center">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 text-gray-500">
+                    Don't have an account?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onSwitchToRegister}
+                    className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200 hover:underline"
+                    disabled={loading || gmailLoading}
+                  >
+                    Create account
+                  </button>
+                </div>
+              </div>
+            </div>
 
             {/* General Error */}
             {errors.general && (
@@ -341,30 +358,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Switch to Register */}
-        <div className="text-center">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-500">
-                Don't have an account?
-              </span>
-            </div>
-          </div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
-              className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200 hover:underline"
-              disabled={loading || gmailLoading}
-            >
-              Create account
-            </button>
           </div>
         </div>
       </div>
