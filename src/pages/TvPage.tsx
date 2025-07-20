@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   XMarkIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -44,6 +45,7 @@ export default function TvPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Fetch TVs data
   const fetchTVs = useCallback(async () => {
@@ -269,6 +271,81 @@ export default function TvPage() {
     []
   );
 
+  // Export to CSV function
+  const exportToCSV = useCallback(() => {
+    if (exportLoading) return;
+
+    setExportLoading(true);
+
+    try {
+      // Header CSV
+      const headers = [
+        "Room Number",
+        "IP Address",
+        "Model",
+        "Status",
+        "Response Time (ms)",
+        "Last Checked",
+        "Error Message",
+      ];
+
+      // Convert filtered data ke CSV format
+      const csvData = filteredTVs.map((tv) => [
+        tv.roomNo || "",
+        tv.ipAddress || "",
+        tv.model || "Samsung Hospitality",
+        tv.status || "",
+        tv.responseTime?.toString() || "",
+        tv.lastChecked ? new Date(tv.lastChecked).toLocaleString() : "",
+        tv.error || "",
+      ]);
+
+      // Gabungkan header dan data
+      const csvContent = [headers, ...csvData]
+        .map((row) =>
+          row
+            .map((field) =>
+              // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
+              typeof field === "string" &&
+              (field.includes(",") ||
+                field.includes('"') ||
+                field.includes("\n"))
+                ? `"${field.replace(/"/g, '""')}"`
+                : field
+            )
+            .join(",")
+        )
+        .join("\n");
+
+      // Buat file dan download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+
+        // Generate filename dengan timestamp
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:-]/g, "");
+        const filename = `hospitality_export_${timestamp}.csv`;
+        link.setAttribute("download", filename);
+
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      // Optional: Tambahkan toast notification untuk error
+    } finally {
+      setExportLoading(false);
+    }
+  }, [filteredTVs, exportLoading]);
+
   if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
@@ -419,19 +496,34 @@ export default function TvPage() {
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
 
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-              >
-                <ArrowPathIcon
-                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                <span className="text-sm font-medium">
-                  {refreshing ? "Refreshing..." : "Refresh"}
-                </span>
-              </button>
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                {/* Export Button */}
+                <button
+                  onClick={exportToCSV}
+                  disabled={exportLoading || filteredTVs.length === 0}
+                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  <span className="text-sm font-medium hidden sm:inline">
+                    {exportLoading ? "Exporting..." : "Export CSV"}
+                  </span>
+                </button>
+
+                {/* Refresh Button */}
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                >
+                  <ArrowPathIcon
+                    className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                  />
+                  <span className="text-sm font-medium">
+                    {refreshing ? "Refreshing..." : "Refresh"}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

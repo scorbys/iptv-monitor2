@@ -7,6 +7,7 @@ import {
   SignalIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -14,7 +15,6 @@ import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
 import { useRouter } from "next/navigation";
-import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
 interface Channel {
   id: number;
@@ -308,80 +308,72 @@ export default function ChannelsPage() {
 
   // Export to CSV function
   const exportToCSV = useCallback(() => {
-    if (exportLoading) return;
+  if (exportLoading) return;
+  
+  setExportLoading(true);
+  
+  try {
+    // Header CSV
+    const headers = [
+      'Channel Number',
+      'Channel Name', 
+      'Category',
+      'IP Multicast',
+      'Status',
+      'Response Time (ms)',
+      'Last Checked',
+      'Logo URL'
+    ];
 
-    setExportLoading(true);
+    // Convert filtered data ke CSV format
+    const csvData = filteredChannels.map(channel => [
+      channel.channelNumber || '',
+      channel.channelName || '',
+      channel.category || '',
+      channel.ipMulticast || '',
+      channel.status || '',
+      channel.responseTime || '',
+      channel.lastChecked || '',
+      channel.logo || ''
+    ]);
 
-    try {
-      // Header CSV
-      const headers = [
-        "Channel Number",
-        "Channel Name",
-        "Category",
-        "IP Multicast",
-        "Status",
-        "Response Time (ms)",
-        "Last Checked",
-        "Logo URL",
-      ];
+    // Gabungkan header dan data
+    const csvContent = [headers, ...csvData]
+      .map(row => 
+        row.map(field => 
+          // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
+          typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n'))
+            ? `"${field.replace(/"/g, '""')}"`
+            : field
+        ).join(',')
+      )
+      .join('\n');
 
-      // Convert filtered data ke CSV format
-      const csvData = filteredChannels.map((channel) => [
-        channel.channelNumber || "",
-        channel.channelName || "",
-        channel.category || "",
-        channel.ipMulticast || "",
-        channel.status || "",
-        channel.responseTime || "",
-        channel.lastChecked || "",
-        channel.logo || "",
-      ]);
-
-      // Gabungkan header dan data
-      const csvContent = [headers, ...csvData]
-        .map((row) =>
-          row
-            .map((field) =>
-              // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
-              typeof field === "string" &&
-              (field.includes(",") ||
-                field.includes('"') ||
-                field.includes("\n"))
-                ? `"${field.replace(/"/g, '""')}"`
-                : field
-            )
-            .join(",")
-        )
-        .join("\n");
-
-      // Buat file dan download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-
-      if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-
-        // Generate filename dengan timestamp
-        const timestamp = new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/[:-]/g, "");
-        const filename = `channels_export_${timestamp}.csv`;
-        link.setAttribute("download", filename);
-
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (error) {
-      console.error("Error exporting CSV:", error);
-      // Optional: Tambahkan toast notification untuk error
-    } finally {
-      setExportLoading(false);
+    // Buat file dan download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      
+      // Generate filename dengan timestamp
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      const filename = `channels_export_${timestamp}.csv`;
+      link.setAttribute('download', filename);
+      
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
-  }, [filteredChannels, exportLoading]);
+  } catch (error) {
+    console.error('Error exporting CSV:', error);
+    // Optional: Tambahkan toast notification untuk error
+  } finally {
+    setExportLoading(false);
+  }
+}, [filteredChannels, exportLoading]);
 
   // Jika belum mounted, return loading state sederhana
   if (!router || !mounted) {
@@ -830,19 +822,6 @@ export default function ChannelsPage() {
           </div>
         )}
       </div>
-      {filteredChannels.length > 0 && (
-        <div className="mt-4 mb-2">
-          <div className="text-sm text-gray-600 bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm">
-            <span className="font-medium">{filteredChannels.length}</span>{" "}
-            channels ready for export
-            {(searchTerm ||
-              categoryFilter !== "All" ||
-              statusFilter !== "All") && (
-              <span className="text-gray-500 ml-2">(filtered results)</span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
