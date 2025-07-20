@@ -6,6 +6,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthContext";
 import { MantineProvider } from "@mantine/core";
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <SpeedInsights />
+        <Analytics />
         <AuthProvider>
           <MantineProvider>{children}</MantineProvider>
         </AuthProvider>

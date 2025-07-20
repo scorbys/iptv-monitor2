@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from './AuthContext';
-import { Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./AuthContext";
+import { Loader2 } from "lucide-react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -20,42 +20,54 @@ const LoadingSpinner = () => (
   </div>
 );
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({ 
-  children, 
+export const AuthGuard: React.FC<AuthGuardProps> = ({
+  children,
   requireAuth = true,
-  redirectTo 
+  redirectTo,
 }) => {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      if (requireAuth && !user) {
-        // User is not authenticated but auth is required
-        router.replace(redirectTo || '/login');
-        return;
+    // PERBAIKAN: Tambahkan delay untuk memastikan auth state sudah stabil
+    const checkAuthWithDelay = setTimeout(() => {
+      if (!loading && !hasRedirected) {
+        if (requireAuth && !user) {
+          // User is not authenticated but auth is required
+          console.log("AuthGuard: Redirecting to login - no user");
+          setHasRedirected(true);
+          router.replace(redirectTo || "/login");
+          return;
+        }
+
+        if (!requireAuth && user) {
+          // User is authenticated but trying to access public route
+          console.log(
+            "AuthGuard: Redirecting to dashboard - user authenticated"
+          );
+          setHasRedirected(true);
+          router.replace("/dashboard");
+          return;
+        }
       }
-      
-      if (!requireAuth && user) {
-        // User is authenticated but trying to access public route (login/register)
-        router.replace('/dashboard');
-        return;
-      }
-    }
-  }, [user, loading, requireAuth, router, redirectTo]);
+    }, 100); // 100ms delay
+
+    return () => clearTimeout(checkAuthWithDelay);
+  }, [user, loading, requireAuth, router, redirectTo, hasRedirected]);
 
   // Show loading spinner while checking authentication
-  if (loading) {
+  if (loading || hasRedirected) {
     return <LoadingSpinner />;
   }
 
-  // Render content based on auth requirements
+  // PERBAIKAN: Double check auth state sebelum render
   if (requireAuth && !user) {
-    return <LoadingSpinner />; // Will redirect, but show loading meanwhile
+    return <LoadingSpinner />;
   }
-  
+
   if (!requireAuth && user) {
-    return <LoadingSpinner />; // Will redirect, but show loading meanwhile
+    return <LoadingSpinner />;
   }
 
   return <>{children}</>;
@@ -67,7 +79,7 @@ export const withAuth = <P extends object>(
   options: { requireAuth?: boolean; redirectTo?: string } = {}
 ) => {
   const { requireAuth = true, redirectTo } = options;
-  
+
   const AuthenticatedComponent = (props: P) => {
     return (
       <AuthGuard requireAuth={requireAuth} redirectTo={redirectTo}>
@@ -76,7 +88,9 @@ export const withAuth = <P extends object>(
     );
   };
 
-  AuthenticatedComponent.displayName = `withAuth(${WrappedComponent.displayName || WrappedComponent.name})`;
-  
+  AuthenticatedComponent.displayName = `withAuth(${
+    WrappedComponent.displayName || WrappedComponent.name
+  })`;
+
   return AuthenticatedComponent;
 };

@@ -210,7 +210,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const loginUrl = `${backendUrl}/api/auth/google?state=${redirectUrl}`;
 
       console.log("Opening popup to:", `${backendUrl}/api/auth/google`);
-      console.log("Current origin:", window.location.origin);
 
       const popup = window.open(
         loginUrl,
@@ -232,12 +231,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }, 1000);
 
         const messageHandler = (event: MessageEvent) => {
-          // Be more specific about allowed origins
           const allowedOrigins = [
             "https://iptv-monitor-backend-production.up.railway.app",
             "http://localhost:3001",
             "http://localhost:3000",
-            window.location.origin, // Tambahkan ini untuk same-origin
+            window.location.origin,
           ];
 
           if (!allowedOrigins.includes(event.origin)) {
@@ -248,12 +246,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
 
-          console.log("Received message:", event.data); // Debug log
+          console.log("Received message:", event.data);
 
           if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
             clearInterval(checkClosed);
-            popup.close();
             window.removeEventListener("message", messageHandler);
+
+            // PERBAIKAN: Tutup popup segera setelah success
+            if (!popup.closed) {
+              popup.close();
+            }
 
             // Set user data
             const userData = {
@@ -265,16 +267,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(userData);
             console.log("Google login successful:", userData.username);
 
-            // Tambahkan delay lebih lama untuk memastikan cookie terset
-            setTimeout(() => {
-              checkAuth();
-            }, 500);
-
+            // PERBAIKAN: Tidak perlu delay, langsung resolve
             resolve({ success: true });
           } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
             clearInterval(checkClosed);
-            popup.close();
             window.removeEventListener("message", messageHandler);
+
+            if (!popup.closed) {
+              popup.close();
+            }
+
             console.error("Google login error:", event.data.error);
             resolve({
               success: false,
@@ -285,7 +287,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         window.addEventListener("message", messageHandler);
 
-        // Fallback timeout
+        // Fallback timeout - lebih pendek
         setTimeout(() => {
           if (!popup.closed) {
             clearInterval(checkClosed);
@@ -293,7 +295,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             window.removeEventListener("message", messageHandler);
             resolve({ success: false, error: "Login timeout" });
           }
-        }, 30000); // 30 second timeout
+        }, 15000); // Kurangi dari 30 detik ke 15 detik
       });
     } catch (error) {
       console.error("Gmail login error:", error);
@@ -354,40 +356,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
+
+      // Clear state immediately terlebih dahulu
+      setUser(null);
+
       try {
         await apiCall("/api/auth/logout");
       } catch (error) {
         console.error("Logout API call failed:", error);
         // Lanjutkan logout meski API gagal
       }
-      // Clear state immediately
-      setUser(null);
-      // Clear semua possible cookies dengan berbagai konfigurasi
-      const cookieConfigs = [
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure",
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax",
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none",
-      ];
 
-      cookieConfigs.forEach((config) => {
-        document.cookie = config;
-      });
+      // PERBAIKAN: Clear cookies dengan lebih comprehensive
+      const clearCookie = (name: string) => {
+        const cookieConfigs = [
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
+          // Tambahan untuk domain dan path variations
+          `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+          `${name}=; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+        ];
 
-      // Clear localStorage dan sessionStorage
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
-      // Force reload untuk clear semua state
-      window.location.href = "/login";
+        cookieConfigs.forEach((config) => {
+          document.cookie = config;
+        });
+      };
+
+      // Clear semua possible cookie names
+      clearCookie("token");
+      clearCookie("auth-token");
+      clearCookie("jwt");
+
+      // Clear storage
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (e) {
+        console.warn("Could not clear storage:", e);
+      }
+
+      // PERBAIKAN: Redirect dengan router push daripada window.location
+      // untuk memastikan React state ter-reset dengan benar
+      console.log("Logout successful, redirecting...");
+
+      // Force reload untuk clear semua state dan redirect
+      window.location.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
       // Force logout bahkan jika ada error
       setUser(null);
-      window.location.href = "/login";
+      // Hard redirect jika ada error
+      window.location.replace("/login");
     } finally {
       setLoading(false);
     }

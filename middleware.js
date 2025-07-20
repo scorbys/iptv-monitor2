@@ -41,6 +41,12 @@ const ROUTE_CONFIG = {
  */
 async function verifyAuthToken(token) {
   try {
+    // PERBAIKAN: Tambahkan validasi token format terlebih dahulu
+    if (!token || typeof token !== 'string' || token.length < 10) {
+      console.error("Invalid token format");
+      return { isValid: false, user: null };
+    }
+
     // Timeout untuk JWT verification
     const verifyPromise = jwtVerify(token, JWT_SECRET);
     const timeoutPromise = new Promise((_, reject) =>
@@ -49,16 +55,28 @@ async function verifyAuthToken(token) {
 
     const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
 
-    // Validasi payload
+    // PERBAIKAN: Validasi payload lebih ketat
     if (!payload || !payload.userId || !payload.username) {
       console.error("Invalid token payload:", payload);
       return { isValid: false, user: null };
     }
 
-    // Check token expiration lebih strict
+    // PERBAIKAN: Check token expiration lebih strict dengan buffer time
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) {
-      console.error("Token expired:", new Date(payload.exp * 1000));
+    const bufferTime = 30; // 30 detik buffer
+
+    if (payload.exp && payload.exp < (now + bufferTime)) {
+      console.error("Token expired or about to expire:", {
+        exp: new Date(payload.exp * 1000),
+        now: new Date(now * 1000),
+        remainingTime: payload.exp - now
+      });
+      return { isValid: false, user: null };
+    }
+
+    // PERBAIKAN: Validasi tambahan untuk issued time
+    if (payload.iat && payload.iat > now) {
+      console.error("Token issued in the future:", new Date(payload.iat * 1000));
       return { isValid: false, user: null };
     }
 
@@ -110,17 +128,25 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
   const response = NextResponse.redirect(new URL(destination, request.url));
 
   if (clearCookie) {
-    // Clear cookie dengan berbagai konfigurasi
+    // PERBAIKAN: Clear cookie dengan lebih banyak variasi
     const cookieConfigs = [
       { httpOnly: true, secure: true, sameSite: "none", maxAge: 0, path: "/" },
       { httpOnly: true, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
       { httpOnly: true, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
-      { maxAge: 0, path: "/" }
+      { httpOnly: false, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
+      { httpOnly: false, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
+      { maxAge: 0, path: "/" },
+      { expires: new Date(0), path: "/" }
     ];
 
     cookieConfigs.forEach(config => {
       response.cookies.set("token", "", config);
     });
+
+    // PERBAIKAN: Tambahan headers untuk memastikan cache tidak menyimpan response
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
   }
 
   return response;
