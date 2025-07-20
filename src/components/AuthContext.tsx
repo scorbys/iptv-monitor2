@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -43,7 +42,6 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
@@ -356,17 +354,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
-      await apiCall("/api/auth/logout");
-    } catch (error) {
-      console.error("Logout API call failed:", error);
-    } finally {
+      try {
+        await apiCall("/api/auth/logout");
+      } catch (error) {
+        console.error("Logout API call failed:", error);
+        // Lanjutkan logout meski API gagal
+      }
+      // Clear state immediately
       setUser(null);
-      setLoading(false);
+      // Clear semua possible cookies dengan berbagai konfigurasi
+      const cookieConfigs = [
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure",
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax",
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
+        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none",
+      ];
 
-      // Clear cookie dengan cara yang lebih reliable
-      document.cookie =
-        "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax";
-      router.push("/login");
+      cookieConfigs.forEach((config) => {
+        document.cookie = config;
+      });
+
+      // Clear localStorage dan sessionStorage
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      // Force reload untuk clear semua state
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force logout bahkan jika ada error
+      setUser(null);
+      window.location.href = "/login";
+    } finally {
+      setLoading(false);
     }
   };
 

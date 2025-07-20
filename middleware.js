@@ -41,7 +41,27 @@ const ROUTE_CONFIG = {
  */
 async function verifyAuthToken(token) {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    // Timeout untuk JWT verification
+    const verifyPromise = jwtVerify(token, JWT_SECRET);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('JWT verification timeout')), 3000)
+    );
+
+    const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
+
+    // Validasi payload
+    if (!payload || !payload.userId || !payload.username) {
+      console.error("Invalid token payload:", payload);
+      return { isValid: false, user: null };
+    }
+
+    // Check token expiration lebih strict
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      console.error("Token expired:", new Date(payload.exp * 1000));
+      return { isValid: false, user: null };
+    }
+
     return {
       isValid: true,
       user: {
@@ -90,12 +110,16 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
   const response = NextResponse.redirect(new URL(destination, request.url));
 
   if (clearCookie) {
-    response.cookies.set("token", "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 0,
-      path: "/",
+    // Clear cookie dengan berbagai konfigurasi
+    const cookieConfigs = [
+      { httpOnly: true, secure: true, sameSite: "none", maxAge: 0, path: "/" },
+      { httpOnly: true, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
+      { httpOnly: true, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
+      { maxAge: 0, path: "/" }
+    ];
+
+    cookieConfigs.forEach(config => {
+      response.cookies.set("token", "", config);
     });
   }
 

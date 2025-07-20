@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   IconHome2,
   IconBroadcast,
@@ -9,13 +9,16 @@ import {
   IconDeviceTv,
   IconLogout,
   IconUser,
-} from '@tabler/icons-react';
-import { Stack, Tooltip, UnstyledButton } from '@mantine/core';
-import classes from '../app/NavbarMinimalColored.module.css';
+} from "@tabler/icons-react";
+import { Stack, Tooltip, UnstyledButton } from "@mantine/core";
+import classes from "../app/NavbarMinimalColored.module.css";
+import { useAuth } from "./AuthContext";
 
 // Custom hook for scroll direction
 const useScrollDirection = () => {
-  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null);
+  const [scrollDirection, setScrollDirection] = useState<"up" | "down" | null>(
+    null
+  );
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -24,21 +27,21 @@ const useScrollDirection = () => {
 
     const updateScrollDirection = () => {
       const scrollY = window.scrollY;
-      
+
       if (Math.abs(scrollY - lastScrollY) < 5) {
         ticking = false;
         return;
       }
-      
-      const direction = scrollY > lastScrollY ? 'down' : 'up';
+
+      const direction = scrollY > lastScrollY ? "down" : "up";
       setScrollDirection(direction);
-      
-      if (direction === 'down' && scrollY > 50) {
+
+      if (direction === "down" && scrollY > 50) {
         setIsVisible(false);
-      } else if (direction === 'up') {
+      } else if (direction === "up") {
         setIsVisible(true);
       }
-      
+
       lastScrollY = scrollY > 0 ? scrollY : 0;
       ticking = false;
     };
@@ -50,8 +53,8 @@ const useScrollDirection = () => {
       }
     };
 
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return { scrollDirection, isVisible };
@@ -65,12 +68,18 @@ interface NavbarLinkProps {
   className?: string;
 }
 
-function NavbarLink({ icon: Icon, label, active, onClick, className }: NavbarLinkProps) {
+function NavbarLink({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+  className,
+}: NavbarLinkProps) {
   return (
     <Tooltip label={label} position="right" transitionProps={{ duration: 0 }}>
-      <UnstyledButton 
-        onClick={onClick} 
-        className={`${classes.link} ${className || ''}`} 
+      <UnstyledButton
+        onClick={onClick}
+        className={`${classes.link} ${className || ""}`}
         data-active={active || undefined}
       >
         <Icon size={20} stroke={1.5} />
@@ -80,11 +89,11 @@ function NavbarLink({ icon: Icon, label, active, onClick, className }: NavbarLin
 }
 
 const mockdata = [
-  { name: 'Dashboard', href: '/dashboard', icon: IconHome2 },
-  { name: 'Channel', href: '/channel', icon: IconBroadcast },
-  { name: 'Chromecast', href: '/chromecast', icon: IconCast },
-  { name: 'Hospitality', href: '/hospitality', icon: IconDeviceTv },
-  { name: 'Account', href: '/account', icon: IconUser },
+  { name: "Dashboard", href: "/dashboard", icon: IconHome2 },
+  { name: "Channel", href: "/channel", icon: IconBroadcast },
+  { name: "Chromecast", href: "/chromecast", icon: IconCast },
+  { name: "Hospitality", href: "/hospitality", icon: IconDeviceTv },
+  { name: "Account", href: "/account", icon: IconUser },
 ];
 
 export function NavbarMinimalColored() {
@@ -92,6 +101,7 @@ export function NavbarMinimalColored() {
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const { isVisible } = useScrollDirection();
+  const { logout } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -99,16 +109,21 @@ export function NavbarMinimalColored() {
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("token");
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await logout(); // Gunakan fungsi logout dari AuthContext
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Fallback: force logout
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      window.location.href = "/login";
+    }
   };
-
 
   const links = mockdata.map((link) => (
     <NavbarLink
@@ -120,15 +135,15 @@ export function NavbarMinimalColored() {
     />
   ));
 
-  const navbarClasses = `${classes.navbar} ${!isVisible && isMobile ? classes.hidden : ''}`;
+  const navbarClasses = `${classes.navbar} ${
+    !isVisible && isMobile ? classes.hidden : ""
+  }`;
 
   return (
     <nav className={navbarClasses}>
       <div className={classes.navbarMain}>
         {isMobile ? (
-          <div className={classes.mainLinks}>
-            {links}
-          </div>
+          <div className={classes.mainLinks}>{links}</div>
         ) : (
           <Stack justify="center" gap={0}>
             {links}
@@ -139,17 +154,17 @@ export function NavbarMinimalColored() {
       <div className={classes.navbarActions}>
         {isMobile ? (
           <>
-            <NavbarLink 
-              icon={IconLogout} 
-              label="Logout" 
+            <NavbarLink
+              icon={IconLogout}
+              label="Logout"
               onClick={handleLogout}
             />
           </>
         ) : (
           <Stack justify="center" gap={0}>
-            <NavbarLink 
-              icon={IconLogout} 
-              label="Logout" 
+            <NavbarLink
+              icon={IconLogout}
+              label="Logout"
               onClick={handleLogout}
             />
           </Stack>
