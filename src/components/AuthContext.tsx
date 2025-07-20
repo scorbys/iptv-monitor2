@@ -15,7 +15,7 @@ interface AuthContextType {
     email: string,
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
-  loginWithGmail: () => Promise<{ success: boolean; error?: string }>;
+  loginWithGmail: () => void; // Ubah return type karena langsung redirect
   register: (
     username: string,
     email: string,
@@ -56,15 +56,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           credentials: "include",
         });
 
-        // Perbaikan: Cek response.ok terlebih dahulu
         if (!response.ok) {
-          // Handle 401/403 khusus
           if (response.status === 401 || response.status === 403) {
             setUser(null);
             throw new Error("Authentication failed");
           }
 
-          // Handle 502 Bad Gateway
           if (response.status === 502) {
             throw new Error(
               "Server temporarily unavailable. Please try again later."
@@ -95,7 +92,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      // Cek cookie dengan cara yang lebih reliable
       const cookies = document.cookie.split(";").reduce((acc, cookie) => {
         const [key, value] = cookie.trim().split("=");
         acc[key] = value;
@@ -108,9 +104,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      console.log("Token found, verifying..."); // Debug log
+      console.log("Token found, verifying...");
 
-      // Tambahkan retry logic dengan delay yang lebih lama
       let retryCount = 0;
       const maxRetries = 3;
 
@@ -138,7 +133,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (retryCount >= maxRetries) {
             throw error;
           }
-          // Wait before retry dengan delay yang lebih lama
           await new Promise((resolve) =>
             setTimeout(resolve, 2000 * retryCount)
           );
@@ -148,7 +142,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error("Auth check failed:", error);
       setUser(null);
 
-      // Jangan clear cookie jika error adalah network error
       if (
         error instanceof Error &&
         !error.message.includes("Authentication failed")
@@ -166,7 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login function
   const login = async (email: string, password: string) => {
     try {
-      setLoading(true); // Tambahkan loading state
+      setLoading(true);
 
       const result = await apiCall("/api/auth/login", {
         identifier: email,
@@ -197,113 +190,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const loginWithGmail = async () => {
+  // Gmail login - langsung redirect ke Google OAuth
+  const loginWithGmail = () => {
     try {
-      setLoading(true);
-
-      // Calculate popup position to center it
-      const left = window.screenX + (window.outerWidth - 500) / 2;
-      const top = window.screenY + (window.outerHeight - 600) / 2;
-
       const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-      const redirectUrl = encodeURIComponent(window.location.href);
-      const loginUrl = `${backendUrl}/api/auth/google?state=${redirectUrl}`;
+      const currentUrl = window.location.href;
 
-      console.log("Opening popup to:", `${backendUrl}/api/auth/google`);
+      // Encode current URL sebagai state untuk redirect setelah login
+      const state = encodeURIComponent(currentUrl);
+      const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
 
-      const popup = window.open(
-        loginUrl,
-        "google-login",
-        `width=500,height=600,left=${left},top=${top},scrollbars=yes,resizable=yes,noopener=false`
-      );
+      console.log("Redirecting to Google OAuth:", googleAuthUrl);
 
-      if (!popup) {
-        throw new Error("Popup blocked. Please allow popups for this site.");
-      }
-
-      return new Promise<{ success: boolean; error?: string }>((resolve) => {
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener("message", messageHandler);
-            resolve({ success: false, error: "Login cancelled" });
-          }
-        }, 1000);
-
-        const messageHandler = (event: MessageEvent) => {
-          const allowedOrigins = [
-            "https://iptv-monitor-backend-production.up.railway.app",
-            "http://localhost:3001",
-            "http://localhost:3000",
-            window.location.origin,
-          ];
-
-          if (!allowedOrigins.includes(event.origin)) {
-            console.warn(
-              "Received message from unauthorized origin:",
-              event.origin
-            );
-            return;
-          }
-
-          console.log("Received message:", event.data);
-
-          if (event.data.type === "GOOGLE_LOGIN_SUCCESS") {
-            clearInterval(checkClosed);
-            window.removeEventListener("message", messageHandler);
-
-            // PERBAIKAN: Tutup popup segera setelah success
-            if (!popup.closed) {
-              popup.close();
-            }
-
-            // Set user data
-            const userData = {
-              id: event.data.user.userId || event.data.user.id,
-              username: event.data.user.username,
-              email: event.data.user.email,
-            };
-
-            setUser(userData);
-            console.log("Google login successful:", userData.username);
-
-            // PERBAIKAN: Tidak perlu delay, langsung resolve
-            resolve({ success: true });
-          } else if (event.data.type === "GOOGLE_LOGIN_ERROR") {
-            clearInterval(checkClosed);
-            window.removeEventListener("message", messageHandler);
-
-            if (!popup.closed) {
-              popup.close();
-            }
-
-            console.error("Google login error:", event.data.error);
-            resolve({
-              success: false,
-              error: event.data.error || "Google login failed",
-            });
-          }
-        };
-
-        window.addEventListener("message", messageHandler);
-
-        // Fallback timeout - lebih pendek
-        setTimeout(() => {
-          if (!popup.closed) {
-            clearInterval(checkClosed);
-            popup.close();
-            window.removeEventListener("message", messageHandler);
-            resolve({ success: false, error: "Login timeout" });
-          }
-        }, 15000); // Kurangi dari 30 detik ke 15 detik
-      });
+      // Langsung redirect ke halaman Google OAuth di tab yang sama
+      window.location.href = googleAuthUrl;
     } catch (error) {
-      console.error("Gmail login error:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Gmail login failed";
-      return { success: false, error: errorMessage };
-    } finally {
-      setLoading(false);
+      console.error("Gmail login redirect error:", error);
     }
   };
 
@@ -315,7 +217,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      // Validasi password di frontend juga
       if (password.length < 6) {
         return {
           success: false,
@@ -357,17 +258,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      // Clear state immediately terlebih dahulu
       setUser(null);
 
       try {
         await apiCall("/api/auth/logout");
       } catch (error) {
         console.error("Logout API call failed:", error);
-        // Lanjutkan logout meski API gagal
       }
 
-      // PERBAIKAN: Clear cookies dengan lebih comprehensive
       const clearCookie = (name: string) => {
         const cookieConfigs = [
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
@@ -376,8 +274,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none`,
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
-          // Tambahan untuk domain dan path variations
-          `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
           `${name}=; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
         ];
 
@@ -386,12 +283,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
       };
 
-      // Clear semua possible cookie names
       clearCookie("token");
       clearCookie("auth-token");
       clearCookie("jwt");
 
-      // Clear storage
       try {
         localStorage.clear();
         sessionStorage.clear();
@@ -399,17 +294,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.warn("Could not clear storage:", e);
       }
 
-      // PERBAIKAN: Redirect dengan router push daripada window.location
-      // untuk memastikan React state ter-reset dengan benar
       console.log("Logout successful, redirecting...");
-
-      // Force reload untuk clear semua state dan redirect
       window.location.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
-      // Force logout bahkan jika ada error
       setUser(null);
-      // Hard redirect jika ada error
       window.location.replace("/login");
     } finally {
       setLoading(false);
@@ -419,6 +308,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check authentication on mount
   useEffect(() => {
     checkAuth();
+  }, [checkAuth]);
+
+  // Handle redirect dari Google OAuth (opsional)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const googleLoginSuccess = urlParams.get("google_login");
+
+    if (googleLoginSuccess === "success") {
+      console.log("Google login detected, checking auth...");
+      // Remove URL parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete("google_login");
+      window.history.replaceState({}, "", url.toString());
+
+      // Recheck auth untuk update user state
+      checkAuth();
+    }
   }, [checkAuth]);
 
   const value: AuthContextType = {

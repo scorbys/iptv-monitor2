@@ -349,7 +349,7 @@ export default function NetworkTrafficDashboard() {
             <select
               value={selectedTimeRange}
               onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
+              className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
             >
               <option value="1h">Last 1 Hour</option>
               <option value="6h">Last 6 Hours</option>
@@ -534,7 +534,7 @@ export default function NetworkTrafficDashboard() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Response Time Distribution
         </h3>
-        <div className="h-48 sm:h-64">
+        <div className="h-48 sm:h-64 text-gray-600">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={[

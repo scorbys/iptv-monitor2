@@ -122,29 +122,22 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
   };
 
   const handleGmailLogin = async () => {
-    setGmailLoading(true);
-    setErrors({});
+  setGmailLoading(true);
+  setErrors({});
 
-    try {
-      const result = await loginWithGmail();
-
-      if (result.success) {
-        showNotification("success", "Gmail login successful! Redirecting...");
-        router.push("/dashboard");
-      } else {
-        setErrors({ general: result.error || "Gmail login failed" });
-        showNotification("error", result.error || "Gmail login failed");
-      }
-    } catch (error) {
-      console.error("Gmail login error:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Gmail login failed";
-      setErrors({ general: errorMessage });
-      showNotification("error", errorMessage);
-    } finally {
-      setGmailLoading(false);
-    }
-  };
+  try {
+    // loginWithGmail sudah melakukan redirect langsung
+    // Tidak perlu menangani result karena akan redirect
+    loginWithGmail();
+  } catch (error) {
+    console.error("Gmail login error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Gmail login failed";
+    setErrors({ general: errorMessage });
+    showNotification("error", errorMessage);
+    setGmailLoading(false);
+  }
+};
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" && !loading && !gmailLoading) {
