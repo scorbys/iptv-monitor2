@@ -157,15 +157,9 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
     setErrors({});
 
     try {
-      const result = await loginWithGmail();
-
-      if (result.success) {
-        showNotification("success", "Gmail login successful! Redirecting...");
-        router.push("/dashboard");
-      } else {
-        setErrors({ general: result.error || "Gmail login failed" });
-        showNotification("error", result.error || "Gmail login failed");
-      }
+      await loginWithGmail();
+      showNotification("success", "Gmail login successful! Redirecting...");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Gmail login error:", error);
       const errorMessage =
