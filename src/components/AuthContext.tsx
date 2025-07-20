@@ -207,7 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const left = window.screenX + (window.outerWidth - 500) / 2;
       const top = window.screenY + (window.outerHeight - 600) / 2;
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
       console.log("Opening popup to:", `${backendUrl}/api/auth/google`);
       console.log("Current origin:", window.location.origin);
