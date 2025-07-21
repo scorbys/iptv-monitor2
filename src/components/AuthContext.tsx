@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
-            setUser(null);
+            if (user !== null) setUser(null);
             throw new Error("Authentication failed");
           }
 
@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw error;
       }
     },
-    []
+    [user]
   );
 
   const checkAuth = React.useCallback(async () => {
@@ -93,14 +93,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
 
       const cookies = document.cookie.split(";").reduce((acc, cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        acc[key] = value;
+        const [key, ...rest] = cookie.trim().split("=");
+        acc[key] = rest.join("="); // untuk token yang mungkin mengandung '='
         return acc;
       }, {} as Record<string, string>);
 
       if (!cookies.token) {
         console.log("No auth token found");
-        setUser(null);
+        if (user !== null) setUser(null);
         return;
       }
 
@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           } else {
             console.log("Auth check failed:", result);
-            setUser(null);
+            if (user !== null) setUser(null);
             return;
           }
         } catch (error) {
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Auth check failed:", error);
-      setUser(null);
+      if (user !== null) setUser(null);
 
       if (
         error instanceof Error &&
@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [apiCall]);
+  }, [apiCall, user]);
 
   // Login function
   const login = async (email: string, password: string) => {
@@ -193,7 +193,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Gmail login - langsung redirect ke Google OAuth
   const loginWithGmail = () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
       const currentUrl = window.location.href;
 
       // Encode current URL sebagai state untuk redirect setelah login
@@ -258,7 +258,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
-      setUser(null);
+      if (user !== null) setUser(null);
 
       try {
         await apiCall("/api/auth/logout");
@@ -298,10 +298,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       window.location.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
-      setUser(null);
-      window.location.replace("/login");
+      if (user !== null) setUser(null);
     } finally {
       setLoading(false);
+      window.location.replace("/login");
     }
   };
 
