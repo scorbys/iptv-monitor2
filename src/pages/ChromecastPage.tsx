@@ -41,7 +41,7 @@ interface ChromecastStats {
   lastUpdated: string;
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 12;
 
 export default function ChromecastPage() {
   const [chromecasts, setChromecasts] = useState<Chromecast[]>([]);
@@ -53,6 +53,7 @@ export default function ChromecastPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -182,6 +183,8 @@ export default function ChromecastPage() {
   const checkChromecastStatus = useCallback(async (deviceName: string) => {
     if (!deviceName) return;
 
+    setCheckingId(deviceName); // ⬅️ mulai loading tombol itu
+
     try {
       const response = await fetch(`/api/chromecast/${deviceName}/check`, {
         method: "POST",
@@ -213,6 +216,8 @@ export default function ChromecastPage() {
       }
     } catch (error) {
       console.error("Error checking channel status:", error);
+    } finally {
+      setCheckingId(null); // ⬅️ selesai loading
     }
   }, []);
 
@@ -717,12 +722,19 @@ export default function ChromecastPage() {
                   {/* Actions Column */}
                   <td className="px-4 py-4">
                     <button
+                      key={device.deviceName}
                       onClick={() => checkChromecastStatus(device.deviceName)}
-                      disabled={!device.deviceName}
+                      disabled={
+                        !device.deviceName || checkingId === device.deviceName
+                      }
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
                     >
-                      <ArrowPathIcon className="w-3 h-3 mr-1" />
-                      Check
+                      <ArrowPathIcon
+                        className={`w-3 h-3 mr-1 ${
+                          checkingId === device.deviceName ? "animate-spin" : ""
+                        }`}
+                      />
+                      {checkingId === device.deviceName ? "Check" : "Check"}
                     </button>
                   </td>
                 </tr>

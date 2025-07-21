@@ -40,7 +40,7 @@ interface ChannelStats {
   lastUpdated: string;
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 12;
 
 const isValidUrl = (string: string) => {
   try {
@@ -62,6 +62,7 @@ export default function ChannelsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [checkingId, setCheckingId] = useState<number | null>(null);
 
   const router = useRouter();
 
@@ -191,6 +192,8 @@ export default function ChannelsPage() {
   const checkChannelStatus = useCallback(async (channelId: number) => {
     if (!channelId) return;
 
+    setCheckingId(channelId); // ⬅️ mulai loading tombol itu
+
     try {
       const response = await fetch(`/api/channels/${channelId}/check`, {
         method: "POST",
@@ -220,6 +223,8 @@ export default function ChannelsPage() {
       }
     } catch (error) {
       console.error("Error checking channel status:", error);
+    } finally {
+      setCheckingId(null); // ⬅️ selesai loading
     }
   }, []);
 
@@ -308,72 +313,80 @@ export default function ChannelsPage() {
 
   // Export to CSV function
   const exportToCSV = useCallback(() => {
-  if (exportLoading) return;
-  
-  setExportLoading(true);
-  
-  try {
-    // Header CSV
-    const headers = [
-      'Channel Number',
-      'Channel Name', 
-      'Category',
-      'IP Multicast',
-      'Status',
-      'Response Time (ms)',
-      'Last Checked',
-      'Logo URL'
-    ];
+    if (exportLoading) return;
 
-    // Convert filtered data ke CSV format
-    const csvData = filteredChannels.map(channel => [
-      channel.channelNumber || '',
-      channel.channelName || '',
-      channel.category || '',
-      channel.ipMulticast || '',
-      channel.status || '',
-      channel.responseTime || '',
-      channel.lastChecked || '',
-      channel.logo || ''
-    ]);
+    setExportLoading(true);
 
-    // Gabungkan header dan data
-    const csvContent = [headers, ...csvData]
-      .map(row => 
-        row.map(field => 
-          // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
-          typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n'))
-            ? `"${field.replace(/"/g, '""')}"`
-            : field
-        ).join(',')
-      )
-      .join('\n');
+    try {
+      // Header CSV
+      const headers = [
+        "Channel Number",
+        "Channel Name",
+        "Category",
+        "IP Multicast",
+        "Status",
+        "Response Time (ms)",
+        "Last Checked",
+        "Logo URL",
+      ];
 
-    // Buat file dan download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      
-      // Generate filename dengan timestamp
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-      const filename = `channels_export_${timestamp}.csv`;
-      link.setAttribute('download', filename);
-      
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Convert filtered data ke CSV format
+      const csvData = filteredChannels.map((channel) => [
+        channel.channelNumber || "",
+        channel.channelName || "",
+        channel.category || "",
+        channel.ipMulticast || "",
+        channel.status || "",
+        channel.responseTime || "",
+        channel.lastChecked || "",
+        channel.logo || "",
+      ]);
+
+      // Gabungkan header dan data
+      const csvContent = [headers, ...csvData]
+        .map((row) =>
+          row
+            .map((field) =>
+              // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
+              typeof field === "string" &&
+              (field.includes(",") ||
+                field.includes('"') ||
+                field.includes("\n"))
+                ? `"${field.replace(/"/g, '""')}"`
+                : field
+            )
+            .join(",")
+        )
+        .join("\n");
+
+      // Buat file dan download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+
+        // Generate filename dengan timestamp
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:-]/g, "");
+        const filename = `channels_export_${timestamp}.csv`;
+        link.setAttribute("download", filename);
+
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      // Optional: Tambahkan toast notification untuk error
+    } finally {
+      setExportLoading(false);
     }
-  } catch (error) {
-    console.error('Error exporting CSV:', error);
-    // Optional: Tambahkan toast notification untuk error
-  } finally {
-    setExportLoading(false);
-  }
-}, [filteredChannels, exportLoading]);
+  }, [filteredChannels, exportLoading]);
 
   // Jika belum mounted, return loading state sederhana
   if (!router || !mounted) {
@@ -701,12 +714,17 @@ export default function ChannelsPage() {
                   </td>
                   <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <button
+                      key={channel.id}
                       onClick={() => checkChannelStatus(channel.id)}
-                      disabled={!channel.id}
+                      disabled={!channel.id || checkingId === channel.id}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
-                      <ArrowPathIcon className="w-3 h-3 mr-1" />
-                      Check
+                      <ArrowPathIcon
+                        className={`w-3 h-3 mr-1 ${
+                          checkingId === channel.id ? "animate-spin" : ""
+                        }`}
+                      />
+                      {checkingId === channel.id ? "Check" : "Check"}
                     </button>
                   </td>
                 </tr>

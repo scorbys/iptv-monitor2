@@ -34,7 +34,7 @@ interface TVStats {
   lastUpdated: string;
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 12;
 
 export default function TvPage() {
   const [tvs, setTvs] = useState<TV[]>([]);
@@ -46,6 +46,7 @@ export default function TvPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
 
   // Fetch TVs data
   const fetchTVs = useCallback(async () => {
@@ -168,6 +169,8 @@ export default function TvPage() {
   const checkTVStatus = useCallback(async (roomNo: string) => {
     if (!roomNo) return;
 
+    setCheckingId(roomNo); // ⬅️ mulai loading tombol itu
+
     try {
       const response = await fetch(`/api/hospitality/tvs/${roomNo}/check`, {
         method: "POST",
@@ -197,6 +200,8 @@ export default function TvPage() {
       }
     } catch (error) {
       console.error("Error checking channel status:", error);
+    } finally {
+      setCheckingId(null); // ⬅️ selesai loading
     }
   }, []);
 
@@ -598,12 +603,17 @@ export default function TvPage() {
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <button
+                      key={tv.roomNo}
                       onClick={() => checkTVStatus(tv.roomNo)}
-                      disabled={!tv.roomNo}
+                      disabled={!tv.roomNo || checkingId === tv.roomNo}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     >
-                      <ArrowPathIcon className="w-3 h-3 mr-1" />
-                      Check
+                      <ArrowPathIcon
+                        className={`w-3 h-3 mr-1 ${
+                          checkingId === tv.roomNo ? "animate-spin" : ""
+                        }`}
+                      />
+                      {checkingId === tv.roomNo ? "Check" : "Check"}
                     </button>
                   </td>
                 </tr>
