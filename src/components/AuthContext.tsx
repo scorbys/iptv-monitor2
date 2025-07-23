@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -15,7 +16,7 @@ interface AuthContextType {
     email: string,
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
-  loginWithGmail: () => void; // Ubah return type karena langsung redirect
+  loginWithGmail: () => void;
   register: (
     username: string,
     email: string,
@@ -88,18 +89,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [user]
   );
 
+  // Enhanced token checking dengan fallback ke localStorage
+  const getAuthToken = React.useCallback(() => {
+    // Cek cookie terlebih dahulu
+    const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+      const [key, ...rest] = cookie.trim().split("=");
+      acc[key] = rest.join("=");
+      return acc;
+    }, {} as Record<string, string>);
+
+    let token = cookies.token;
+    
+    // Jika tidak ada di cookie, cek localStorage sebagai fallback
+    if (!token) {
+      try {
+        token = localStorage.getItem('authToken') || '';
+        console.log('Token retrieved from localStorage as fallback');
+      } catch (e) {
+        console.warn('Could not access localStorage:', e);
+      }
+    }
+
+    return token;
+  }, []);
+
   const checkAuth = React.useCallback(async () => {
     try {
       setLoading(true);
 
-      const cookies = document.cookie.split(";").reduce((acc, cookie) => {
-        const [key, ...rest] = cookie.trim().split("=");
-        acc[key] = rest.join("="); // untuk token yang mungkin mengandung '='
-        return acc;
-      }, {} as Record<string, string>);
+      const token = getAuthToken();
 
-      if (!cookies.token) {
-        console.log("No auth token found");
+      if (!token) {
+        console.log("No auth token found in cookie or localStorage");
         if (user !== null) setUser(null);
         return;
       }
@@ -114,12 +135,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const result = await apiCall("/api/auth/verify");
 
           if (result.success && result.user) {
-            setUser({
+            const userData = {
               id: result.user.userId || result.user.id,
               username: result.user.username,
               email: result.user.email,
-            });
+            };
+            
+            setUser(userData);
             console.log("Auth check successful:", result.user.username);
+            
+            // Sync token ke cookie jika hanya ada di localStorage
+            if (!document.cookie.includes('token=') && token) {
+              console.log('Syncing token from localStorage to cookie');
+              const isProduction = window.location.protocol === 'https:';
+              const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
+              document.cookie = cookieValue;
+            }
+            
             return;
           } else {
             console.log("Auth check failed:", result);
@@ -146,15 +178,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error instanceof Error &&
         !error.message.includes("Authentication failed")
       ) {
-        console.log("Network error, keeping cookie");
+        console.log("Network error, keeping tokens");
       } else {
+        // Clear invalid tokens
         document.cookie =
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax";
+        try {
+          localStorage.removeItem('authToken');
+        } catch (e) {
+          console.warn('Could not clear localStorage:', e);
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [apiCall, user]);
+  }, [apiCall, user, getAuthToken]);
 
   // Login function
   const login = async (email: string, password: string) => {
@@ -310,22 +348,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuth();
   }, [checkAuth]);
 
-  // Handle redirect dari Google OAuth (opsional)
+  // Enhanced Google OAuth redirect handling
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const googleLoginSuccess = urlParams.get("google_login");
+    const timestamp = urlParams.get("_t");
 
     if (googleLoginSuccess === "success") {
-      console.log("Google login detected, checking auth...");
-      // Remove URL parameter
+      console.log("Google login success detected, checking auth...");
+      
+      // Remove URL parameters
       const url = new URL(window.location.href);
       url.searchParams.delete("google_login");
+      url.searchParams.delete("_t");
       window.history.replaceState({}, "", url.toString());
 
-      // Recheck auth untuk update user state
-      checkAuth();
+      // Delay auth check to ensure cookie is set
+      setTimeout(() => {
+        checkAuth();
+      }, 1000);
     }
   }, [checkAuth]);
+
+  // TAMBAHAN: Periodic auth check untuk memastikan session tetap valid
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      const token = getAuthToken();
+      if (!token) {
+        console.log("Token not found during periodic check, logging out...");
+        setUser(null);
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [user, getAuthToken]);
 
   const value: AuthContextType = {
     user,

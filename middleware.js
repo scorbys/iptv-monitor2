@@ -5,25 +5,36 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Configuration for different path types
 const ROUTE_CONFIG = {
-  // Public routes that don't require authentication
-  public: [
-    "/login",
-    "/register",
-    "/api/auth/login",
-    "/api/auth/register",
-    "/api/health",
-  ],
-
   // Protected routes that require authentication
   protected: [
     "/dashboard",
     "/channel",
     "/hospitality",
     "/chromecast",
+  ],
+
+  // Auth routes (login/register pages)
+  auth: [
+    "/login",
+    "/register"
+  ],
+
+  // Protected API routes
+  protectedAPI: [
     "/api/channels",
-    "/api/hospitality",
+    "/api/hospitality/tvs",
     "/api/chromecast",
     "/api/config",
+  ],
+
+  // Public API routes
+  publicAPI: [
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/google",
+    "/api/auth/google/callback",
+    "/api/auth/verify",
+    "/api/auth/health",
   ],
 
   // Static files and Next.js internals
@@ -41,7 +52,7 @@ const ROUTE_CONFIG = {
  */
 async function verifyAuthToken(token) {
   try {
-    // PERBAIKAN: Tambahkan validasi token format terlebih dahulu
+    // Validasi token format
     if (!token || typeof token !== 'string' || token.length < 10) {
       console.error("Invalid token format");
       return { isValid: false, user: null };
@@ -50,33 +61,23 @@ async function verifyAuthToken(token) {
     // Timeout untuk JWT verification
     const verifyPromise = jwtVerify(token, JWT_SECRET);
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('JWT verification timeout')), 3000)
+      setTimeout(() => reject(new Error('JWT verification timeout')), 5000)
     );
 
     const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
 
-    // PERBAIKAN: Validasi payload lebih ketat
+    // Validasi payload
     if (!payload || !payload.userId || !payload.username) {
       console.error("Invalid token payload:", payload);
       return { isValid: false, user: null };
     }
 
-    // PERBAIKAN: Check token expiration lebih strict dengan buffer time
+    // Check token expiration
     const now = Math.floor(Date.now() / 1000);
     const bufferTime = 30; // 30 detik buffer
 
     if (payload.exp && payload.exp < (now + bufferTime)) {
-      console.error("Token expired or about to expire:", {
-        exp: new Date(payload.exp * 1000),
-        now: new Date(now * 1000),
-        remainingTime: payload.exp - now
-      });
-      return { isValid: false, user: null };
-    }
-
-    // PERBAIKAN: Validasi tambahan untuk issued time
-    if (payload.iat && payload.iat > now) {
-      console.error("Token issued in the future:", new Date(payload.iat * 1000));
+      console.error("Token expired or about to expire");
       return { isValid: false, user: null };
     }
 
@@ -122,19 +123,17 @@ function isStaticFile(pathname) {
  */
 function createRedirect(request, destination, clearCookie = false, reason = "") {
   console.log(
-    `Redirecting to ${destination}: ${reason} (from: ${request.nextUrl.pathname})`
+    `[MIDDLEWARE] Redirecting to ${destination}: ${reason} (from: ${request.nextUrl.pathname})`
   );
 
   const response = NextResponse.redirect(new URL(destination, request.url));
 
   if (clearCookie) {
-    // PERBAIKAN: Clear cookie dengan lebih banyak variasi
+    // Clear cookie dengan berbagai konfigurasi
     const cookieConfigs = [
       { httpOnly: true, secure: true, sameSite: "none", maxAge: 0, path: "/" },
       { httpOnly: true, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
       { httpOnly: true, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
-      { httpOnly: false, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
-      { httpOnly: false, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
       { maxAge: 0, path: "/" },
       { expires: new Date(0), path: "/" }
     ];
@@ -143,13 +142,12 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
       response.cookies.set("token", "", config);
     });
 
-    // PERBAIKAN: Tambahan headers untuk memastikan cache tidak menyimpan response
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
-    response.headers.set('Vary', 'Cookie');
   }
 
+  response.headers.set('Vary', 'Cookie');
   return response;
 }
 
@@ -166,18 +164,58 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // Get token from cookies
-  const token = request.cookies.get("token")?.value;
+  // Skip middleware untuk Google OAuth callback
+  if (pathname === '/api/auth/google/callback') {
+    console.log(`[MIDDLEWARE] Allowing Google OAuth callback`);
+    return NextResponse.next();
+  }
+
+  // Allow all public API routes
+  if (matchesRoutes(pathname, ROUTE_CONFIG.publicAPI)) {
+    console.log(`[MIDDLEWARE] Allowing public API access: ${pathname}`);
+    return NextResponse.next();
+  }
+
+  // Get token from cookies dengan berbagai nama yang mungkin
+  let token = request.cookies.get("token")?.value ||
+    request.cookies.get("auth-token")?.value ||
+    request.cookies.get("jwt")?.value;
+
   console.log(`[MIDDLEWARE] Token present: ${!!token}`);
+  if (token) {
+    console.log(`[MIDDLEWARE] Token preview: ${token.substring(0, 20)}...`);
+  }
 
   // Verify token if present
   let authResult = { isValid: false, user: null };
   if (token) {
     authResult = await verifyAuthToken(token);
     console.log(`[MIDDLEWARE] Token valid: ${authResult.isValid}`);
+    if (authResult.user) {
+      console.log(`[MIDDLEWARE] User: ${authResult.user.username}`);
+    }
   }
 
-  // Handle public routes
+  // Handle root path
+  if (pathname === "/") {
+    if (authResult.isValid) {
+      return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
+    } else {
+      return createRedirect(request, "/login", !!token, "Unauthenticated user accessing root");
+    }
+  }
+
+  // Handle auth pages (login, register)
+  if (matchesRoutes(pathname, ROUTE_CONFIG.auth)) {
+    if (authResult.isValid) {
+      // User sudah login, redirect ke dashboard
+      return createRedirect(request, "/dashboard", false, "Authenticated user accessing auth page");
+    }
+    // User belum login, allow access ke auth pages
+    return NextResponse.next();
+  }
+
+  // Handle protected pages
   if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
     if (!authResult.isValid) {
       console.log(`[MIDDLEWARE] Blocking protected page access: ${pathname}`);
@@ -190,35 +228,26 @@ export async function middleware(request) {
     if (authResult.user) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
-      response.headers.set("x-user-email", authResult.user.email); // removed duplicate .user
-      response.headers.set('Vary', 'Cookie');
+      response.headers.set("x-user-email", authResult.user.email);
     }
+    response.headers.set('Vary', 'Cookie');
+    console.log(`[MIDDLEWARE] Allowing protected page access: ${pathname}`);
     return response;
   }
 
-  // Handle root path
-  if (pathname === "/") {
-    if (authResult.isValid) {
-      console.log(`[MIDDLEWARE] Redirecting authenticated user from / to /dashboard`);
-      return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
-    } else {
-      console.log(`[MIDDLEWARE] Redirecting unauthenticated user from / to /login`);
-      return createRedirect(request, "/login", true, "Unauthenticated user accessing root");
-    }
-  }
-
   // Handle protected API routes
-  if (pathname.startsWith("/api/")) {
-    // Allow auth endpoints
-    if (pathname.startsWith("/api/auth/")) {
-      return NextResponse.next();
-    }
-
+  if (matchesRoutes(pathname, ROUTE_CONFIG.protectedAPI)) {
     if (!authResult.isValid) {
-      console.log(`[MIDDLEWARE] Blocking API access: ${pathname}`);
+      console.log(`[MIDDLEWARE] Blocking protected API access: ${pathname}`);
       return NextResponse.json(
         { success: false, error: "Authentication required" },
-        { status: 401 }
+        {
+          status: 401,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Vary': 'Cookie'
+          }
+        }
       );
     }
 
@@ -229,6 +258,8 @@ export async function middleware(request) {
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email);
     }
+    response.headers.set('Vary', 'Cookie');
+    console.log(`[MIDDLEWARE] Allowing protected API access: ${pathname}`);
     return response;
   }
 
@@ -241,7 +272,6 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
