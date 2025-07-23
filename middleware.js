@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode('process.env.JWT_SECRET');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Configuration for different path types
 const ROUTE_CONFIG = {
@@ -147,6 +147,7 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
+    response.headers.set('Vary', 'Cookie');
   }
 
   return response;
@@ -190,6 +191,7 @@ export async function middleware(request) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email); // removed duplicate .user
+      response.headers.set('Vary', 'Cookie');
     }
     return response;
   }
