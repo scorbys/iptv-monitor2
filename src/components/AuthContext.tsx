@@ -231,19 +231,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Gmail login - langsung redirect ke Google OAuth
   const loginWithGmail = () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      const currentUrl = window.location.href;
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+
+      const currentPath =
+        typeof window !== "undefined" ? window.location.pathname : "/dashboard";
+      const redirectPath =
+        currentPath === "/login" || currentPath === "/register"
+          ? "/dashboard"
+          : currentPath;
 
       // Encode current URL sebagai state untuk redirect setelah login
-      const state = encodeURIComponent(currentUrl);
+      const frontendUrl =
+        process.env.NEXT_PUBLIC_FRONTEND_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+      const state = encodeURIComponent(`${frontendUrl}${redirectPath}`);
+
       const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
 
-      console.log("Redirecting to Google OAuth:", googleAuthUrl);
+      console.log("Google OAuth URL:", googleAuthUrl);
+      console.log("State parameter:", state);
 
-      // Langsung redirect ke halaman Google OAuth di tab yang sama
+      // Tambahkan error handling
+      if (!backendUrl) {
+        console.error("Backend URL not configured");
+        throw new Error("Authentication service not available");
+      }
+
       window.location.href = googleAuthUrl;
     } catch (error) {
       console.error("Gmail login redirect error:", error);
+      // Tampilkan error ke user
+      alert("Failed to initiate Google login. Please try again.");
     }
   };
 

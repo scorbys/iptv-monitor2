@@ -164,6 +164,11 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith('/api/auth/google')) {
+    console.log(`[MIDDLEWARE] Allowing Google OAuth path: ${pathname}`);
+    return NextResponse.next();
+  }
+
   // Skip middleware untuk Google OAuth callback
   if (pathname === '/api/auth/google/callback') {
     console.log(`[MIDDLEWARE] Allowing Google OAuth callback`);
