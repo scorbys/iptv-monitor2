@@ -156,8 +156,12 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  const userAgent = request.headers.get('user-agent') || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
 
   console.log(`[MIDDLEWARE] Processing: ${pathname}`);
+  console.log(`[MIDDLEWARE] User Agent: ${userAgent}`);
+  console.log(`[MIDDLEWARE] Is Mobile: ${isMobile}`);
 
   // Skip middleware untuk static files dan Next.js internals
   if (isStaticFile(pathname)) {
@@ -175,18 +179,47 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // PERBAIKAN: Enhanced token extraction untuk mobile
+  // Enhanced token extraction untuk mobile
   let token = request.cookies.get("token")?.value ||
     request.cookies.get("auth-token")?.value ||
-    request.cookies.get("jwt")?.value;
+    request.cookies.get("jwt")?.value ||
+    request.cookies.get("authToken")?.value; // Tambahan untuk mobile
 
-  // TAMBAHAN: Fallback token dari header untuk mobile
+  // Enhanced fallback token dari header untuk mobile
   if (!token) {
     const authHeader = request.headers.get('authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
       console.log(`[MIDDLEWARE] Token found in Authorization header`);
     }
+  }
+
+  // Cek semua possible cookie names untuk debugging
+  const allCookies = request.headers.get('cookie') || '';
+  console.log(`[MIDDLEWARE] Raw cookie header:`, allCookies);
+
+  // Parse cookies manually sebagai fallback
+  if (!token && allCookies) {
+    const cookiePairs = allCookies.split(';');
+    for (const pair of cookiePairs) {
+      const [name, value] = pair.trim().split('=');
+      if (name && ['token', 'auth-token', 'jwt', 'authToken'].includes(name) && value) {
+        token = decodeURIComponent(value);
+        console.log(`[MIDDLEWARE] Token found via manual parsing: ${name}`);
+        break;
+      }
+    }
+  }
+
+  // Debug logging untuk mobile
+  if (isMobile) {
+    console.log(`[MIDDLEWARE] Mobile Debug - Cookie analysis:`, {
+      rawCookieHeader: allCookies,
+      tokenFromCookieGet: !!request.cookies.get("token")?.value,
+      authTokenFromCookieGet: !!request.cookies.get("auth-token")?.value,
+      finalTokenFound: !!token,
+      tokenPreview: token ? token.substring(0, 20) + '...' : 'none'
+    });
   }
 
   console.log(`[MIDDLEWARE] Token present: ${!!token}`);
