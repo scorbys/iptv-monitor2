@@ -164,7 +164,7 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith('/api/auth/google')) {
+  if (pathname.startsWith("/api/auth/google")) {
     console.log(`[MIDDLEWARE] Allowing Google OAuth path: ${pathname}`);
     return NextResponse.next();
   }
@@ -176,18 +176,30 @@ export async function middleware(request) {
   }
 
   // PERBAIKAN: Enhanced token extraction untuk mobile
-  let token = request.cookies.get("token")?.value ||
+  let token =
+    request.cookies.get("token")?.value ||
     request.cookies.get("auth-token")?.value ||
-    request.cookies.get("jwt")?.value;
+    request.cookies.get("jwt")?.value ||
+    request.cookies.get("authToken")?.value ||
+    request.cookies.get("token-fallback")?.value ||
+    request.cookies.get("session-token")?.value;
 
   // TAMBAHAN: Fallback token dari header untuk mobile
   if (!token) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7);
       console.log(`[MIDDLEWARE] Token found in Authorization header`);
     }
   }
+
+  // TAMBAHAN: Debug cookie information
+  console.log(`[MIDDLEWARE] Cookie debug:`, {
+    allCookies: Array.from(request.cookies.keys()),
+    tokenFound: !!token,
+    tokenSource: token ? "found" : "not_found",
+    userAgent: request.headers.get("user-agent")?.substring(0, 50),
+  });
 
   console.log(`[MIDDLEWARE] Token present: ${!!token}`);
   if (token) {
@@ -200,23 +212,40 @@ export async function middleware(request) {
     authResult = await verifyAuthToken(token);
     console.log(`[MIDDLEWARE] Token valid: ${authResult.isValid}`);
     if (authResult.user) {
-      console.log(`[MIDDLEWARE] User: ${authResult.user.username} (ID: ${authResult.user.id})`);
+      console.log(
+        `[MIDDLEWARE] User: ${authResult.user.username} (ID: ${authResult.user.id})`
+      );
     }
   }
 
   // Handle root path
   if (pathname === "/") {
     if (authResult.isValid) {
-      return createRedirect(request, "/dashboard", false, "Authenticated user accessing root");
+      return createRedirect(
+        request,
+        "/dashboard",
+        false,
+        "Authenticated user accessing root"
+      );
     } else {
-      return createRedirect(request, "/login", !!token, "Unauthenticated user accessing root");
+      return createRedirect(
+        request,
+        "/login",
+        !!token,
+        "Unauthenticated user accessing root"
+      );
     }
   }
 
   // Handle auth pages (login, register)
   if (matchesRoutes(pathname, ROUTE_CONFIG.auth)) {
     if (authResult.isValid) {
-      return createRedirect(request, "/dashboard", false, "Authenticated user accessing auth page");
+      return createRedirect(
+        request,
+        "/dashboard",
+        false,
+        "Authenticated user accessing auth page"
+      );
     }
     return NextResponse.next();
   }
@@ -224,9 +253,16 @@ export async function middleware(request) {
   // Handle protected pages
   if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
     if (!authResult.isValid) {
-      console.log(`[MIDDLEWARE] Blocking protected page access: ${pathname} - Invalid token`);
+      console.log(
+        `[MIDDLEWARE] Blocking protected page access: ${pathname} - Invalid token`
+      );
       const shouldClearCookie = !!token && !authResult.isValid;
-      return createRedirect(request, "/login", shouldClearCookie, "Unauthenticated access to protected route");
+      return createRedirect(
+        request,
+        "/login",
+        shouldClearCookie,
+        "Unauthenticated access to protected route"
+      );
     }
 
     // Add user info headers for protected pages
@@ -236,23 +272,31 @@ export async function middleware(request) {
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email);
     }
-    response.headers.set('Vary', 'Cookie');
-    console.log(`[MIDDLEWARE] Allowing protected page access: ${pathname} for user: ${authResult.user?.username}`);
+    response.headers.set("Vary", "Cookie");
+    console.log(
+      `[MIDDLEWARE] Allowing protected page access: ${pathname} for user: ${authResult.user?.username}`
+    );
     return response;
   }
 
   // Handle protected API routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.protectedAPI)) {
     if (!authResult.isValid) {
-      console.log(`[MIDDLEWARE] Blocking protected API access: ${pathname} - Invalid token`);
+      console.log(
+        `[MIDDLEWARE] Blocking protected API access: ${pathname} - Invalid token`
+      );
       return NextResponse.json(
-        { success: false, error: "Authentication required", debug: { tokenPresent: !!token, tokenValid: authResult.isValid } },
+        {
+          success: false,
+          error: "Authentication required",
+          debug: { tokenPresent: !!token, tokenValid: authResult.isValid },
+        },
         {
           status: 401,
           headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Vary': 'Cookie'
-          }
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Vary: "Cookie",
+          },
         }
       );
     }
@@ -264,8 +308,10 @@ export async function middleware(request) {
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email);
     }
-    response.headers.set('Vary', 'Cookie');
-    console.log(`[MIDDLEWARE] Allowing protected API access: ${pathname} for user: ${authResult.user?.username}`);
+    response.headers.set("Vary", "Cookie");
+    console.log(
+      `[MIDDLEWARE] Allowing protected API access: ${pathname} for user: ${authResult.user?.username}`
+    );
     return response;
   }
 

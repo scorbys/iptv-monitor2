@@ -97,29 +97,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Enhanced token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
-    // Cek cookie terlebih dahulu
-    const cookies = document.cookie.split(";").reduce((acc, cookie) => {
-      const [key, ...rest] = cookie.trim().split("=");
-      if (key) acc[key] = rest.join("=");
-      return acc;
-    }, {} as Record<string, string>);
+  // Cek semua possible cookie names
+  const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+    const [key, ...rest] = cookie.trim().split("=");
+    if (key) acc[key] = rest.join("=");
+    return acc;
+  }, {} as Record<string, string>);
 
-    let token = cookies.token;
-    
-    // Jika tidak ada di cookie, cek localStorage sebagai fallback (terutama untuk mobile)
-    if (!token) {
-      try {
-        token = localStorage.getItem('authToken') || '';
-        if (token) {
-          console.log('Token retrieved from localStorage as fallback');
-        }
-      } catch (e) {
-        console.warn('Could not access localStorage:', e);
+  // ENHANCED: Check multiple cookie names untuk compatibility
+  let token = cookies.token ||
+    cookies['auth-token'] ||
+    cookies.authToken ||
+    cookies['token-fallback'] ||
+    cookies['session-token'] ||
+    cookies.jwt;
+  
+  console.log('Cookie extraction:', {
+    allCookies: Object.keys(cookies),
+    tokenFound: !!token,
+    tokenSource: token ? 'cookie' : 'none'
+  });
+  
+  // Jika tidak ada di cookie, cek localStorage
+  if (!token) {
+    try {
+      token = localStorage.getItem('authToken') ||
+        localStorage.getItem('token') ||
+        localStorage.getItem('auth-token') ||
+        localStorage.getItem('session-token') ||
+        localStorage.getItem('jwt') || '';
+        
+      if (token) {
+        console.log('Token retrieved from localStorage as fallback');
+        
+        // SYNC: Set token ke cookie jika ditemukan di localStorage
+        const isProduction = window.location.protocol === 'https:';
+        const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
+        document.cookie = cookieValue;
+        console.log('Token synced from localStorage to cookie');
       }
+    } catch (e) {
+      console.warn('Could not access localStorage:', e);
     }
+  }
 
-    return token;
-  }, []);
+  // Fallback dari URL
+  if (!token) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get("temp_token");
+    if (urlToken) {
+      token = urlToken;
+      localStorage.setItem("authToken", token);
+      const isProduction = window.location.protocol === "https:";
+      const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${
+        isProduction ? "secure; samesite=none" : "samesite=lax"
+      }`;
+      document.cookie = cookieValue;
+      console.log("Token extracted from URL and synced to cookie/localStorage");
+    }
+  }
+
+  return token;
+}, []);
 
   const checkAuth = React.useCallback(async () => {
     try {
