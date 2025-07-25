@@ -143,31 +143,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const result = await apiCall("/api/auth/verify");
 
           if (result.success && result.user) {
-            // PERBAIKAN: Konsistensi format user data
             const userData = {
               id: result.user.userId || result.user.id,
               username: result.user.username,
               email: result.user.email,
             };
             
-            console.log("Setting user data:", userData); // Debug log
             setUser(userData);
             console.log("Auth check successful:", result.user.username);
             
             // MOBILE OPTIMIZATION: Sync token ke cookie jika hanya ada di localStorage
-            if ((!document.cookie.includes('token=') || !document.cookie.includes('auth-token=')) && token) {
+            if (!document.cookie.includes('token=') && token) {
               console.log('Syncing token from localStorage to cookie (mobile optimization)');
               const isProduction = window.location.protocol === 'https:';
               
-              // Set multiple cookie formats for better compatibility
-              const cookieConfigs = [
-                `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`,
-                `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`
-              ];
+              // Mobile-friendly cookie setting
+              let cookieValue;
+              if (isMobile) {
+                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
+              } else {
+                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
+              }
               
-              cookieConfigs.forEach(config => {
-                document.cookie = config;
-              });
+              document.cookie = cookieValue;
             }
             
             return;
@@ -185,7 +183,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           
           // Shorter retry delay for mobile
-          const retryDelay = isMobile ? 1500 * retryCount : 2000 * retryCount;
+          const retryDelay = isMobile ? 1000 * retryCount : 2000 * retryCount;
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
       }
@@ -199,16 +197,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       ) {
         console.log("Network error, keeping tokens");
       } else {
+        // Clear invalid tokens
         console.log("Clearing invalid tokens");
         
         // Clear cookie with multiple configurations for mobile compatibility
         const cookieConfigs = [
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
-          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
-          "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
-          "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
-          "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
+          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
         ];
         
         cookieConfigs.forEach(config => {
@@ -217,8 +213,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         try {
           localStorage.removeItem('authToken');
-          localStorage.removeItem('token');
-          localStorage.removeItem('auth-token');
         } catch (e) {
           console.warn('Could not clear localStorage:', e);
         }
