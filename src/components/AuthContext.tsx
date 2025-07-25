@@ -459,7 +459,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const googleLoginSuccess = urlParams.get("google_login");
     const timestamp = urlParams.get("_t");
 
-    if (googleLoginSuccess === "success") {
+    if (googleLoginSuccess === "success" && !user) {
       console.log("Google login success detected, checking auth...");
       console.log("Is mobile device:", isMobile);
       
