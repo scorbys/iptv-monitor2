@@ -145,7 +145,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div className="relative min-h-screen min-h-[100dvh] flex items-center justify-center py-4 px-3 sm:py-6 sm:px-4 lg:px-8 overflow-hidden">
       {/* Background Image + brightness filter */}
       <div
         className="absolute inset-0 bg-center bg-cover brightness-50"
@@ -162,10 +162,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
       {/* Notification */}
       {notification.show && (
         <div
-          className={`fixed top-4 right-4 left-4 sm:left-auto sm:right-4 sm:w-auto max-w-sm mx-auto sm:mx-0 z-50 flex items-center space-x-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm transition-all duration-300 transform ${
+          className={`fixed top-4 left-3 right-3 sm:left-auto sm:right-4 sm:w-auto sm:max-w-sm mx-auto sm:mx-0 z-50 flex items-center space-x-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm transition-all duration-300 transform ${
             notification.type === "success"
-              ? "bg-green-50/90 border border-green-200 text-green-700"
-              : "bg-red-50/90 border border-red-200 text-red-700"
+              ? "bg-green-50/95 border border-green-200 text-green-700"
+              : "bg-red-50/95 border border-red-200 text-red-700"
           }`}
         >
           {notification.type === "success" ? (
@@ -183,7 +183,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
       >
         {/* Header */}
         <div className="text-center">
-          <h2 className="mt-6 text-center text-3xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent leading-tight">
             Welcome Back
           </h2>
           <p className="mt-2 text-center text-sm text-gray-300">
@@ -192,8 +192,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
         </div>
 
         {/* Form */}
-        <div className="bg-white/80 backdrop-blur-sm py-8 px-6 shadow-xl rounded-2xl border border-white/20">
-          <div className="space-y-5">
+        <div className="bg-white/95 backdrop-blur-md py-6 px-4 sm:py-8 sm:px-6 shadow-xl rounded-xl sm:rounded-2xl border border-white/20">
+          <div className="space-y-4 sm:space-y-5">
             {/* Email Field */}
             <div className="group">
               <label
@@ -211,9 +211,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 bg-slate-100 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-3 py-3 sm:py-3 bg-slate-100 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base sm:text-sm min-h-[48px]"
                   placeholder="john@example.com"
                   disabled={loading || gmailLoading}
+                  style={{ fontSize: "16px" }} // Prevents zoom on iOS
                 />
               </div>
               {errors.email && (
@@ -243,15 +244,16 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                   onChange={(e) =>
                     handleInputChange("password", e.target.value)
                   }
-                  className="w-full pl-10 pr-12 py-3 bg-slate-100 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-12 py-3 sm:py-3 bg-slate-100 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base sm:text-sm min-h-[48px]"
                   placeholder="••••••••"
                   disabled={loading || gmailLoading}
+                  style={{ fontSize: "16px" }}
                 />
                 {isPasswordTyping && (
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 focus:outline-none p-2 rounded-md hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5 text-gray-400" />
@@ -274,7 +276,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={loading || gmailLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-base sm:text-sm font-semibold rounded-lg sm:rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[48px]"
+              style={{ fontSize: "16px" }}
             >
               {loading ? (
                 <div className="flex items-center">
@@ -298,7 +301,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
               type="button"
               onClick={handleGmailLogin}
               disabled={loading || gmailLoading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-lg sm:rounded-xl shadow-sm bg-white text-base sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[48px]"
+              style={{ fontSize: "16px" }}
             >
               {gmailLoading ? (
                 <Loader2 className="animate-spin h-5 w-5 mr-2" />
@@ -328,14 +332,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
             {/* Switch to Register */}
             <div className="text-center">
               <div className="relative">
-                <div className="relative flex justify-center text-sm">
+                <div className="relative flex flex-col sm:flex-row justify-center items-center text-sm gap-1 sm:gap-0">
                   <span className="px-2 text-gray-500">
                     Don't have an account?
                   </span>
                   <button
                     type="button"
                     onClick={onSwitchToRegister}
-                    className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200 hover:underline"
+                    className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200 hover:underline px-2 py-1 rounded min-h-[44px] flex items-center justify-center"
                     disabled={loading || gmailLoading}
                   >
                     Create account

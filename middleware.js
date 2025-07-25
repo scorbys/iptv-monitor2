@@ -175,7 +175,7 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // PERBAIKAN: Enhanced token extraction untuk mobile
+  // Enhanced token extraction untuk mobile
   let token =
     request.cookies.get("token")?.value ||
     request.cookies.get("auth-token")?.value ||
@@ -184,7 +184,7 @@ export async function middleware(request) {
     request.cookies.get("token-fallback")?.value ||
     request.cookies.get("session-token")?.value;
 
-  // TAMBAHAN: Fallback token dari header untuk mobile
+  // Fallback token dari header untuk mobile
   if (!token) {
     const authHeader = request.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -193,7 +193,7 @@ export async function middleware(request) {
     }
   }
 
-  // TAMBAHAN: Debug cookie information
+  // Debug cookie information
   console.log(`[MIDDLEWARE] Cookie debug:`, {
     allCookies: Array.from(request.cookies.keys()),
     tokenFound: !!token,

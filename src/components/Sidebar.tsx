@@ -13,52 +13,7 @@ import {
 import { Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import classes from "../app/NavbarMinimalColored.module.css";
 import { useAuth } from "./AuthContext";
-
-// Custom hook for scroll direction
-const useScrollDirection = () => {
-  const [scrollDirection, setScrollDirection] = useState<"up" | "down" | null>(
-    null
-  );
-  const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    let ticking = false;
-
-    const updateScrollDirection = () => {
-      const scrollY = window.scrollY;
-
-      if (Math.abs(scrollY - lastScrollY) < 5) {
-        ticking = false;
-        return;
-      }
-
-      const direction = scrollY > lastScrollY ? "down" : "up";
-      setScrollDirection(direction);
-
-      if (direction === "down" && scrollY > 50) {
-        setIsVisible(false);
-      } else if (direction === "up") {
-        setIsVisible(true);
-      }
-
-      lastScrollY = scrollY > 0 ? scrollY : 0;
-      ticking = false;
-    };
-
-    const onScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(updateScrollDirection);
-        ticking = true;
-      }
-    };
-
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  return { scrollDirection, isVisible };
-};
+import { useScrollDirection } from '../app/useScrollDirection';
 
 interface NavbarLinkProps {
   icon: typeof IconHome2;
@@ -100,7 +55,7 @@ export function NavbarMinimalColored() {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
-  const { isVisible } = useScrollDirection();
+  const { isVisible } = useScrollDirection(); // Gunakan hook eksternal
   const { logout } = useAuth();
 
   useEffect(() => {
@@ -115,10 +70,9 @@ export function NavbarMinimalColored() {
 
   const handleLogout = async () => {
     try {
-      await logout(); // Gunakan fungsi logout dari AuthContext
+      await logout();
     } catch (error) {
       console.error("Logout failed:", error);
-      // Fallback: force logout
       localStorage.removeItem("token");
       sessionStorage.removeItem("token");
       window.location.href = "/login";
@@ -135,12 +89,22 @@ export function NavbarMinimalColored() {
     />
   ));
 
-  const navbarClasses = `${classes.navbar} ${
-    !isVisible && isMobile ? classes.hidden : ""
-  }`;
+  // Improved mobile navbar visibility logic
+  const getNavbarClasses = () => {
+    let navbarClasses = classes.navbar;
+    
+    if (isMobile) {
+      // Only hide if not visible and user has scrolled significantly
+      if (!isVisible && window.scrollY > 100) {
+        navbarClasses += ` ${classes.hidden}`;
+      }
+    }
+    
+    return navbarClasses;
+  };
 
   return (
-    <nav className={navbarClasses}>
+    <nav className={getNavbarClasses()}>
       <div className={classes.navbarMain}>
         {isMobile ? (
           <div className={classes.mainLinks}>{links}</div>
@@ -153,13 +117,11 @@ export function NavbarMinimalColored() {
 
       <div className={classes.navbarActions}>
         {isMobile ? (
-          <>
-            <NavbarLink
-              icon={IconLogout}
-              label="Logout"
-              onClick={handleLogout}
-            />
-          </>
+          <NavbarLink
+            icon={IconLogout}
+            label="Logout"
+            onClick={handleLogout}
+          />
         ) : (
           <Stack justify="center" gap={0}>
             <NavbarLink

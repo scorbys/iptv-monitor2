@@ -30,7 +30,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    // PERBAIKAN: Tambahkan delay untuk memastikan auth state sudah stabil
+    // Tambahan delay untuk memastikan auth state sudah stabil
     const checkAuthWithDelay = setTimeout(() => {
       if (!loading && !hasRedirected) {
         if (requireAuth && !user) {
@@ -61,14 +61,14 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     return <LoadingSpinner />;
   }
 
-  // PERBAIKAN: Double check auth state sebelum render
+  // PERBAIKAN: Double check auth state sebelum 
   if (requireAuth && !user) {
     return <LoadingSpinner />;
   }
 
-  if (!requireAuth && user) {
+  /* if (!requireAuth && user) {
     return <LoadingSpinner />;
-  }
+  } */
 
   return <>{children}</>;
 };

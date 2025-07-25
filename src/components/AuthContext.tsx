@@ -500,21 +500,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // OPTIMIZED: Periodic auth check dengan mobile consideration
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    // Longer interval for mobile to save battery
-    const checkInterval = isMobile ? 120000 : 60000; // 2 minutes on mobile, 1 minute on desktop
+  // Longer interval for mobile to save battery
+  const checkInterval = isMobile ? 120000 : 60000; // 2 minutes on mobile, 1 minute on desktop
 
-    const interval = setInterval(() => {
-      const token = getAuthToken();
-      if (!token) {
-        console.log("Token not found during periodic check, logging out...");
-        setUser(null);
+  const interval = setInterval(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      console.log("Token not found during periodic check, logging out...");
+      setUser(null);
+    } else {
+      // Tambahkan verify token secara periodik
+      try {
+        const result = await apiCall("/api/auth/verify");
+        if (!result.success || !result.user) {
+          console.log("Token invalid during periodic check, logging out...");
+          setUser(null);
+          // Clear invalid tokens
+          const cookieConfigs = [
+            "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
+            "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
+            "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
+          ];
+          cookieConfigs.forEach((config) => {
+            document.cookie = config;
+          });
+          try {
+            localStorage.removeItem("authToken");
+          } catch (e) {
+            console.warn("Could not clear localStorage:", e);
+          }
+        }
+      } catch (error) {
+        console.error("Periodic auth check failed:", error);
+        // Jangan logout jika hanya network error
+        if (error instanceof Error && !error.message.includes("Authentication failed")) {
+          console.log("Network error during periodic check, keeping user logged in");
+        } else {
+          setUser(null);
+        }
       }
-    }, checkInterval);
+    }
+  }, checkInterval);
 
-    return () => clearInterval(interval);
-  }, [user, getAuthToken, isMobile]);
+  return () => clearInterval(interval);
+}, [user, getAuthToken, isMobile, apiCall]);
 
   const value: AuthContextType = {
     user,
