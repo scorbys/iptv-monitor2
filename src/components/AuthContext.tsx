@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 
 interface User {
   id: string;
@@ -43,11 +43,14 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasCheckedRef = useRef(false);
 
   // Detect mobile browser
   const isMobile = React.useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (typeof window === "undefined") return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
   }, []);
 
   const apiCall = React.useCallback(
@@ -97,68 +100,75 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Enhanced token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
-  // Cek semua possible cookie names
-  const cookies = document.cookie.split(";").reduce((acc, cookie) => {
-    const [key, ...rest] = cookie.trim().split("=");
-    if (key) acc[key] = rest.join("=");
-    return acc;
-  }, {} as Record<string, string>);
+    // Cek semua possible cookie names
+    const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+      const [key, ...rest] = cookie.trim().split("=");
+      if (key) acc[key] = rest.join("=");
+      return acc;
+    }, {} as Record<string, string>);
 
-  // ENHANCED: Check multiple cookie names untuk compatibility
-  let token = cookies.token ||
-    cookies['auth-token'] ||
-    cookies.authToken ||
-    cookies['token-fallback'] ||
-    cookies['session-token'] ||
-    cookies.jwt;
-  
-  console.log('Cookie extraction:', {
-    allCookies: Object.keys(cookies),
-    tokenFound: !!token,
-    tokenSource: token ? 'cookie' : 'none'
-  });
-  
-  // Jika tidak ada di cookie, cek localStorage
-  if (!token) {
-    try {
-      token = localStorage.getItem('authToken') ||
-        localStorage.getItem('token') ||
-        localStorage.getItem('auth-token') ||
-        localStorage.getItem('session-token') ||
-        localStorage.getItem('jwt') || '';
-        
-      if (token) {
-        console.log('Token retrieved from localStorage as fallback');
-        
-        // SYNC: Set token ke cookie jika ditemukan di localStorage
-        const isProduction = window.location.protocol === 'https:';
-        const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
-        document.cookie = cookieValue;
-        console.log('Token synced from localStorage to cookie');
+    // ENHANCED: Check multiple cookie names untuk compatibility
+    let token =
+      cookies.token ||
+      cookies["auth-token"] ||
+      cookies.authToken ||
+      cookies["token-fallback"] ||
+      cookies["session-token"] ||
+      cookies.jwt;
+
+    console.log("Cookie extraction:", {
+      allCookies: Object.keys(cookies),
+      tokenFound: !!token,
+      tokenSource: token ? "cookie" : "none",
+    });
+
+    // Jika tidak ada di cookie, cek localStorage
+    if (!token) {
+      try {
+        token =
+          localStorage.getItem("authToken") ||
+          localStorage.getItem("token") ||
+          localStorage.getItem("auth-token") ||
+          localStorage.getItem("session-token") ||
+          localStorage.getItem("jwt") ||
+          "";
+
+        if (token) {
+          console.log("Token retrieved from localStorage as fallback");
+
+          // SYNC: Set token ke cookie jika ditemukan di localStorage
+          const isProduction = window.location.protocol === "https:";
+          const cookieValue = `token=${token}; path=/; max-age=${
+            7 * 24 * 60 * 60
+          }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
+          document.cookie = cookieValue;
+          console.log("Token synced from localStorage to cookie");
+        }
+      } catch (e) {
+        console.warn("Could not access localStorage:", e);
       }
-    } catch (e) {
-      console.warn('Could not access localStorage:', e);
     }
-  }
 
-  // Fallback dari URL
-  if (!token) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get("temp_token");
-    if (urlToken) {
-      token = urlToken;
-      localStorage.setItem("authToken", token);
-      const isProduction = window.location.protocol === "https:";
-      const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${
-        isProduction ? "secure; samesite=none" : "samesite=lax"
-      }`;
-      document.cookie = cookieValue;
-      console.log("Token extracted from URL and synced to cookie/localStorage");
+    // Fallback dari URL
+    if (!token) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get("temp_token");
+      if (urlToken) {
+        token = urlToken;
+        localStorage.setItem("authToken", token);
+        const isProduction = window.location.protocol === "https:";
+        const cookieValue = `token=${token}; path=/; max-age=${
+          7 * 24 * 60 * 60
+        }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
+        document.cookie = cookieValue;
+        console.log(
+          "Token extracted from URL and synced to cookie/localStorage"
+        );
+      }
     }
-  }
 
-  return token;
-}, []);
+    return token;
+  }, []);
 
   const checkAuth = React.useCallback(async () => {
     try {
@@ -187,26 +197,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               username: result.user.username,
               email: result.user.email,
             };
-            
+
             setUser(userData);
             console.log("Auth check successful:", result.user.username);
-            
+
             // MOBILE OPTIMIZATION: Sync token ke cookie jika hanya ada di localStorage
-            if (!document.cookie.includes('token=') && token) {
-              console.log('Syncing token from localStorage to cookie (mobile optimization)');
-              const isProduction = window.location.protocol === 'https:';
-              
+            if (!document.cookie.includes("token=") && token) {
+              console.log(
+                "Syncing token from localStorage to cookie (mobile optimization)"
+              );
+              const isProduction = window.location.protocol === "https:";
+
               // Mobile-friendly cookie setting
               let cookieValue;
               if (isMobile) {
-                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
+                cookieValue = `token=${token}; path=/; max-age=${
+                  7 * 24 * 60 * 60
+                }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
               } else {
-                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`;
+                cookieValue = `token=${token}; path=/; max-age=${
+                  7 * 24 * 60 * 60
+                }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
               }
-              
+
               document.cookie = cookieValue;
             }
-            
+
             return;
           } else {
             console.log("Auth check failed:", result);
@@ -220,7 +236,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (retryCount >= maxRetries) {
             throw error;
           }
-          
+
           // Shorter retry delay for mobile
           const retryDelay = isMobile ? 1000 * retryCount : 2000 * retryCount;
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
@@ -238,22 +254,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         // Clear invalid tokens
         console.log("Clearing invalid tokens");
-        
+
         // Clear cookie with multiple configurations for mobile compatibility
         const cookieConfigs = [
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
-          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT"
+          "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
         ];
-        
-        cookieConfigs.forEach(config => {
+
+        cookieConfigs.forEach((config) => {
           document.cookie = config;
         });
-        
+
         try {
-          localStorage.removeItem('authToken');
+          localStorage.removeItem("authToken");
         } catch (e) {
-          console.warn('Could not clear localStorage:', e);
+          console.warn("Could not clear localStorage:", e);
         }
       }
     } finally {
@@ -428,7 +444,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       console.log("Logout successful, redirecting...");
-      
+
       // Mobile-optimized redirect
       if (isMobile) {
         window.location.replace("/login");
@@ -450,7 +466,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check authentication on mount
   useEffect(() => {
-    checkAuth();
+    if (!hasCheckedRef.current) {
+      hasCheckedRef.current = true;
+      checkAuth();
+    }
   }, [checkAuth]);
 
   // Enhanced Google OAuth redirect handling dengan mobile optimization
@@ -459,10 +478,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const googleLoginSuccess = urlParams.get("google_login");
     const timestamp = urlParams.get("_t");
 
-    if (googleLoginSuccess === "success" && !user) {
+    if (googleLoginSuccess === "success") {
       console.log("Google login success detected, checking auth...");
       console.log("Is mobile device:", isMobile);
-      
+
       // Remove URL parameters
       const url = new URL(window.location.href);
       url.searchParams.delete("google_login");
@@ -471,7 +490,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Mobile-optimized delay untuk ensure cookie is set
       const authCheckDelay = isMobile ? 2000 : 1000;
-      
+
       setTimeout(() => {
         console.log("Performing auth check after Google login redirect");
         checkAuth();
@@ -485,7 +504,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Longer interval for mobile to save battery
     const checkInterval = isMobile ? 120000 : 60000; // 2 minutes on mobile, 1 minute on desktop
-    
+
     const interval = setInterval(() => {
       const token = getAuthToken();
       if (!token) {
