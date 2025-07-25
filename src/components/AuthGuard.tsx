@@ -41,7 +41,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
           return;
         }
 
-        if (!requireAuth && user) {
+        /* if (!requireAuth && user) {
           // User is authenticated but trying to access public route
           console.log(
             "AuthGuard: Redirecting to dashboard - user authenticated"
@@ -49,7 +49,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
           setHasRedirected(true);
           router.replace("/dashboard");
           return;
-        }
+        } */
       }
     }, 100); // 100ms delay
 
