@@ -195,6 +195,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Style for scrollbar
   <style jsx global>{`
     /* Scrollbar styling */
     .max-h-\[24rem\]::-webkit-scrollbar,
