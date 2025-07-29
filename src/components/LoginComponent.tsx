@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "./AuthContext";
 
 interface LoginFormData {
@@ -258,10 +259,20 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
             >
               {/* Header */}
               <div className="text-center space-y-4">
+                <Image
+                  src="/radisson-uluwatu.png"
+                  alt="Logo"
+                  width={720}
+                  height={720}
+                  className="mx-auto h-12 w-auto"
+                />
+                <h2 className="text-xl font-bold text-gray-900">
+                  Sistem Monitoring IPTV & Chromecast
+                </h2>
+                <div className="w-16 h-1 bg-blue-600 mx-auto rounded-full"></div>
                 <h2 className="text-3xl font-bold text-gray-900">
                   Welcome Back
                 </h2>
-                <div className="w-16 h-1 bg-blue-600 mx-auto rounded-full"></div>
                 <p className="text-gray-600">
                   Sign in to access your dashboard
                 </p>

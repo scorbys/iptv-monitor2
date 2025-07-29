@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "./AuthContext";
 
 interface RegisterFormData {
@@ -263,7 +264,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
           </div>
 
           {/* Right Side - Form */}
-          <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-12 bg-white relative">
+          <div className="lg:w-1/2 p-6 lg:p-12 bg-white relative max-h-[calc(100vh-4rem)] overflow-y-auto">
             {/* Notification */}
             {notification.show && (
               <div
@@ -290,10 +291,20 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
             >
               {/* Header */}
               <div className="text-center space-y-4">
+                <Image
+                  src="/radisson-uluwatu.png"
+                  alt="Logo"
+                  width={720}
+                  height={720}
+                  className="mx-auto h-12 w-auto"
+                />
+                <h2 className="text-xl font-bold text-gray-900">
+                  Sistem Monitoring IPTV & Chromecast
+                </h2>
+                <div className="w-16 h-1 bg-blue-600 mx-auto rounded-full"></div>
                 <h2 className="text-3xl font-bold text-gray-900">
                   Create Account
                 </h2>
-                <div className="w-16 h-1 bg-blue-600 mx-auto rounded-full"></div>
                 <p className="text-gray-600">
                   Join us today and start your journey
                 </p>
