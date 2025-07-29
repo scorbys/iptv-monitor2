@@ -16,6 +16,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "./AuthContext";
 
+const backgroundImages = [
+  "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b6/aa/public-space.jpg?w=1000&h=-1&s=1",
+  "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/12/f1/2d/5a/ocean-view-suite-livingroom.jpg?w=1000&h=-1&s=1",
+  "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/30/9e/81/50/breakfast.jpg?w=1000&h=-1&s=1",
+];
+
 interface LoginFormData {
   email: string;
   password: string;
@@ -146,14 +152,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
     }
   };
 
-  const backgroundImages = [
-    "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b6/aa/public-space.jpg?w=1000&h=-1&s=1",
-    "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/12/f1/2d/5a/ocean-view-suite-livingroom.jpg?w=1000&h=-1&s=1",
-    "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/30/9e/81/50/breakfast.jpg?w=1000&h=-1&s=1",
-  ];
-
   // Mengganti gambar latar belakang setiap 4 detik
-
   React.useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex(
