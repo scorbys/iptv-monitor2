@@ -142,13 +142,13 @@ export default function TvPage() {
 
     loadData();
 
-    // Auto-refresh every 2 minutes
+    // Auto-refresh every 30 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchTVs();
         fetchStats();
       }
-    }, 120000);
+    }, 1800000);
 
     return () => clearInterval(interval);
   }, [mounted, fetchTVs, fetchStats]);
@@ -852,7 +852,7 @@ export default function TvPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 2 minutes
+            Auto-refresh every 30 minutes
           </div>
         </div>
       </div>
