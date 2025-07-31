@@ -42,7 +42,7 @@ interface CurrentStats {
   chromecast: ServiceStats;
 }
 
-type ColorKey = 'blue' | 'green' | 'yellow' | 'purple' | 'red';
+type ColorKey = "blue" | "green" | "yellow" | "purple" | "red";
 
 export default function NetworkTrafficDashboard() {
   const [selectedTimeRange, setSelectedTimeRange] = useState("1h");
@@ -80,12 +80,12 @@ export default function NetworkTrafficDashboard() {
           throughput: Math.random() * 6 + 2,
         },
       };
-      
+
       setCurrentStats(mockData);
       setError(null);
     } catch (err) {
       console.error("Error fetching current stats:", err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     }
   }, []);
 
@@ -146,12 +146,12 @@ export default function NetworkTrafficDashboard() {
     try {
       setLoading(true);
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setTrafficData(generateFallbackData());
       setError(null);
     } catch (err) {
       console.error("Error fetching traffic data:", err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
       setTrafficData(generateFallbackData());
     } finally {
       setLoading(false);
@@ -179,13 +179,13 @@ export default function NetworkTrafficDashboard() {
   }, [selectedTimeRange, fetchTrafficData]);
 
   // Fixed StatCard component with proper Tailwind classes
-  const StatCard = ({ 
-    title, 
-    value, 
-    unit, 
-    icon: Icon, 
-    trend, 
-    color = "blue" 
+  const StatCard = ({
+    title,
+    value,
+    unit,
+    icon: Icon,
+    trend,
+    color = "blue",
   }: {
     title: string;
     value: number | string;
@@ -194,11 +194,26 @@ export default function NetworkTrafficDashboard() {
     trend?: number;
     color?: ColorKey;
   }) => {
-    const colorClasses: Record<ColorKey, { text: string; bg: string; icon: string }> = {
+    const colorClasses: Record<
+      ColorKey,
+      { text: string; bg: string; icon: string }
+    > = {
       blue: { text: "text-blue-600", bg: "bg-blue-100", icon: "text-blue-600" },
-      green: { text: "text-green-600", bg: "bg-green-100", icon: "text-green-600" },
-      yellow: { text: "text-yellow-600", bg: "bg-yellow-100", icon: "text-yellow-600" },
-      purple: { text: "text-purple-600", bg: "bg-purple-100", icon: "text-purple-600" },
+      green: {
+        text: "text-green-600",
+        bg: "bg-green-100",
+        icon: "text-green-600",
+      },
+      yellow: {
+        text: "text-yellow-600",
+        bg: "bg-yellow-100",
+        icon: "text-yellow-600",
+      },
+      purple: {
+        text: "text-purple-600",
+        bg: "bg-purple-100",
+        icon: "text-purple-600",
+      },
       red: { text: "text-red-600", bg: "bg-red-100", icon: "text-red-600" },
     };
 
@@ -241,7 +256,11 @@ export default function NetworkTrafficDashboard() {
     );
   };
 
-  const CustomTooltip = ({ active, payload, label }: {
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+  }: {
     active?: boolean;
     payload?: Array<{
       name?: string;
@@ -255,7 +274,11 @@ export default function NetworkTrafficDashboard() {
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 mb-2">{label}</p>
           {payload.map((entry, index) => (
-            <p key={entry.name || index} className="text-sm" style={{ color: entry.color }}>
+            <p
+              key={entry.name || index}
+              className="text-sm"
+              style={{ color: entry.color }}
+            >
               {entry.name}: {entry.value} req/s
             </p>
           ))}
@@ -267,12 +290,29 @@ export default function NetworkTrafficDashboard() {
 
   // Service status based on error rate
   const getServiceStatus = (errorRate: number) => {
-    if (errorRate < 1) return { color: "text-green-600", icon: CheckCircleIcon, text: "Healthy" };
-    if (errorRate < 5) return { color: "text-yellow-600", icon: ExclamationTriangleIcon, text: "Warning" };
-    return { color: "text-red-600", icon: ExclamationTriangleIcon, text: "Critical" };
+    if (errorRate < 1)
+      return {
+        color: "text-green-600",
+        icon: CheckCircleIcon,
+        text: "Healthy",
+      };
+    if (errorRate < 5)
+      return {
+        color: "text-yellow-600",
+        icon: ExclamationTriangleIcon,
+        text: "Warning",
+      };
+    return {
+      color: "text-red-600",
+      icon: ExclamationTriangleIcon,
+      text: "Critical",
+    };
   };
 
-  const ServiceCard = ({ stats, displayName }: {
+  const ServiceCard = ({
+    stats,
+    displayName,
+  }: {
     name: string;
     stats: ServiceStats;
     displayName: string;
@@ -286,7 +326,9 @@ export default function NetworkTrafficDashboard() {
           <h3 className="text-lg font-semibold text-gray-900">{displayName}</h3>
           <div className="flex items-center gap-2">
             <StatusIcon className={`w-5 h-5 ${status.color}`} />
-            <span className={`text-sm font-medium ${status.color}`}>{status.text}</span>
+            <span className={`text-sm font-medium ${status.color}`}>
+              {status.text}
+            </span>
           </div>
         </div>
         <div className="space-y-3">
@@ -304,10 +346,15 @@ export default function NetworkTrafficDashboard() {
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Error Rate</span>
-            <span className={`text-sm font-semibold ${
-              stats.errorRate < 1 ? 'text-green-600' : 
-              stats.errorRate < 5 ? 'text-yellow-600' : 'text-red-600'
-            }`}>
+            <span
+              className={`text-sm font-semibold ${
+                stats.errorRate < 1
+                  ? "text-green-600"
+                  : stats.errorRate < 5
+                  ? "text-yellow-600"
+                  : "text-red-600"
+              }`}
+            >
               {stats.errorRate.toFixed(2)}%
             </span>
           </div>
@@ -323,7 +370,7 @@ export default function NetworkTrafficDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
+    <div className="min-h-screen bg-blue-50 p-4 sm:p-6">
       {/* Header - Responsive */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -331,7 +378,9 @@ export default function NetworkTrafficDashboard() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               IPTV Monitoring Dashboard
             </h1>
-            <p className="text-sm text-gray-600 mt-1">Real-time network traffic monitoring</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Real-time network traffic monitoring
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -340,9 +389,7 @@ export default function NetworkTrafficDashboard() {
                   error ? "bg-red-500" : "bg-green-500"
                 } ${!error ? "animate-pulse" : ""}`}
               />
-              <span className="font-medium">
-                {error ? "Error" : "Live"}
-              </span>
+              <span className="font-medium">{error ? "Error" : "Live"}</span>
               <span className="text-gray-400">•</span>
               <span>{currentTime.toLocaleTimeString()}</span>
             </div>
@@ -477,7 +524,8 @@ export default function NetworkTrafficDashboard() {
           value={
             (currentStats.channels.responseTime +
               currentStats.hospitality.responseTime +
-              currentStats.chromecast.responseTime) / 3
+              currentStats.chromecast.responseTime) /
+            3
           }
           unit="ms"
           icon={ClockIcon}
@@ -489,7 +537,8 @@ export default function NetworkTrafficDashboard() {
           value={
             (currentStats.channels.errorRate +
               currentStats.hospitality.errorRate +
-              currentStats.chromecast.errorRate) / 3
+              currentStats.chromecast.errorRate) /
+            3
           }
           unit="%"
           icon={ExclamationTriangleIcon}

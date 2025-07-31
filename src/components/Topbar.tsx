@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { IconBell } from "@tabler/icons-react";
+import { IconBell, IconUser } from "@tabler/icons-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
 import Image from "next/image";
@@ -62,6 +62,87 @@ export default function Topbar() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // User data state - will be populated from API
+  const [userData, setUserData] = useState({
+    username: "Loading...",
+    email: "Loading...",
+    avatar: null as string | null, // Tambahkan avatar field
+  });
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        console.log("Fetching user data...");
+
+        const response = await fetch("/api/auth/verify", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("User data received:", result.user);
+
+          if (result.success && result.user) {
+            // Deteksi provider dan prioritaskan data yang benar
+            const isGoogleUser =
+              result.user.provider === "google" || result.user.googleId;
+
+            // Tentukan username/display name
+            let displayName = "";
+            if (isGoogleUser) {
+              // Untuk Google user, prioritaskan 'name' dari Google profile
+              displayName =
+                result.user.name || result.user.username || "Google User";
+            } else {
+              // Untuk user lokal, gunakan username
+              displayName = result.user.username || "User";
+            }
+
+            // Tentukan avatar URL
+            let avatarUrl = null;
+            if (isGoogleUser && result.user.avatar) {
+              avatarUrl = result.user.avatar;
+            }
+
+            console.log("Setting user data:", {
+              displayName,
+              email: result.user.email,
+              avatar: avatarUrl,
+              provider: result.user.provider,
+              isGoogleUser,
+            });
+
+            setUserData({
+              username: displayName,
+              email: result.user.email || "user@example.com",
+              avatar: avatarUrl, // Tambahkan avatar ke state
+            });
+          }
+        } else {
+          console.log("Failed to fetch user data:", response.status);
+          // Fallback ke data default
+          setUserData({
+            username: "User",
+            email: "user@example.com",
+            avatar: null,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+        setUserData({
+          username: "User",
+          email: "user@example.com",
+          avatar: null,
+        });
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const fetchOfflineDevices = useCallback(async () => {
     try {
@@ -254,24 +335,49 @@ export default function Topbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 w-full h-[60px] bg-sky-900 flex items-center justify-between px-6 z-50">
-      <div className="flex items-center gap-3">
-        <Image
-          src="/logo-white.png"
-          alt="Logo"
-          width={480}
-          height={480}
-          className="w-25 h-25 object-contain"
-        />
+    <header className="fixed top-0 left-0 right-0 w-full h-[80px] bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 shadow-lg border-b border-blue-700/30 flex items-center justify-between px-4 sm:px-6 z-50 backdrop-blur-xl">
+      {/* Decorative gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 via-transparent to-blue-900/50 pointer-events-none" />
+
+      {/* Left Section - Logo and Title dengan glassmorphism effect */}
+      <div className="flex items-center gap-4 flex-1 min-w-0 relative z-10">
+        <div className="relative">
+          <Image
+            src="/logo-white.png"
+            alt="Logo"
+            width={400}
+            height={400}
+            className="w-13 h-13 sm:w-16 sm:h-16 object-contain flex-shrink-0 filter drop-shadow-lg"
+          />
+          {/* Logo glow effect */}
+          <div className="absolute inset-0 bg-white/20 rounded-full blur-xl opacity-30 animate-pulse" />
+        </div>
+
+        {/* Desktop title dengan typography yang lebih menarik */}
+        <div className="hidden sm:block">
+          <h1 className="text-white text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent drop-shadow-sm">
+            Sistem Monitoring IPTV & Chromecast
+          </h1>
+          <div className="h-0.5 w-24 bg-gradient-to-r from-blue-400 to-transparent mt-1 rounded-full" />
+        </div>
+
+        {/* Mobile title - lebih stylish */}
+        <div className="block sm:hidden">
+          <h1 className="text-white text-base font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+            IPTV Monitor
+          </h1>
+          <div className="h-0.5 w-16 bg-gradient-to-r from-blue-400 to-transparent mt-0.5 rounded-full" />
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* Right Section - User Profile and Notifications dengan glassmorphism */}
+      <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0 relative z-10">
+        {/* Notifications dengan modern design */}
         <DropdownMenu.Root
           open={notificationOpen}
           onOpenChange={(open) => {
             setNotificationOpen(open);
             if (!open) {
-              // Saat dropdown ditutup, tandai semua notifikasi saat ini sebagai sudah dibaca
               const readIds = notifications.map((n) => n.id.toString());
               setReadIds(readIds);
             }
@@ -282,9 +388,9 @@ export default function Topbar() {
               <Button
                 variant="ghost"
                 size="2"
-                className="relative p-2 text-white hover:bg-slate-800 rounded-lg"
+                className="relative p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20 group"
               >
-                <IconBell className="w-5 h-5 text-white" />
+                <IconBell className="w-6 h-6 text-white transition-transform duration-300 group-hover:scale-110" />
                 {(() => {
                   const readIds = getReadIds();
                   const unreadCount = notifications.filter(
@@ -293,8 +399,8 @@ export default function Topbar() {
 
                   return unreadCount > 0 ? (
                     <>
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                      <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></span>
+                      <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full flex items-center justify-center font-medium shadow-lg shadow-red-500/30 animate-bounce">
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     </>
@@ -304,6 +410,7 @@ export default function Topbar() {
             </div>
           </DropdownMenu.Trigger>
 
+          {/* Keep existing DropdownMenu.Portal content unchanged */}
           <DropdownMenu.Portal>
             <DropdownMenu.Content
               className="w-80 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1 z-50 max-h-96 overflow-y-auto"
@@ -401,7 +508,40 @@ export default function Topbar() {
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
+
+        {/* User Profile - Desktop dengan glassmorphism yang lebih menarik */}
+        <div className="hidden sm:flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
+          <div className="relative">
+            {userData.avatar ? (
+              <Image
+                src={userData.avatar}
+                alt="User Avatar"
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-full border-2 border-white/30 shadow-lg"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30">
+                <IconUser className="w-5 h-5 text-white" />
+              </div>
+            )}
+            {/* Online indicator */}
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse" />
+          </div>
+
+          <div className="text-left">
+            <p className="text-sm font-semibold text-white leading-tight group-hover:text-blue-100 transition-colors">
+              {userData.username}
+            </p>
+            <p className="text-xs text-blue-100 leading-tight opacity-80 group-hover:opacity-100 transition-opacity">
+              {userData.email}
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Subtle bottom border glow */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" />
     </header>
   );
 }

@@ -14,7 +14,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #eff6ff;
     --foreground: #ededed;
   }
 }
@@ -30,10 +30,10 @@ body {
 /* Main content adjustments for desktop */
 @media (min-width: 641px) {
   .main-content {
-    margin-left: 80px; /* Space for sidebar */
-    margin-top: 60px; /* Space for topbar */
-    padding: 20px;
-    min-height: calc(100vh - 60px);
+    margin-left: 200px; /* Diubah dari 80px ke 200px */
+    margin-top: 100px; /* Diubah dari 80px ke 100px untuk space yang lebih baik */
+    padding: 24px; /* Sedikit diperbesar dari 20px */
+    min-height: calc(100vh - 80px);
     overflow-y: auto;
   }
 }
@@ -41,7 +41,9 @@ body {
 /* Tablet adjustments */
 @media (min-width: 641px) and (max-width: 768px) {
   .main-content {
-    margin-left: 70px; /* Adjusted for tablet sidebar width */
+    margin-left: 200px; /* Adjusted for tablet sidebar width */
+    margin-top: 100px; /* Konsisten dengan desktop */
+    padding: 20px;
   }
 }
 
@@ -49,10 +51,10 @@ body {
 @media (max-width: 640px) {
   .main-content {
     margin-left: 0;
-    margin-top: 60px; /* Space for topbar */
+    margin-top: 100px; /* Diubah dari 80px ke 100px */
     padding: 20px;
-    padding-bottom: 110px; /* Reduced from 120px */
-    min-height: calc(100vh - 60px);
+    padding-bottom: 120px; /* Sedikit diperbesar untuk navbar space */
+    min-height: calc(100vh - 100px);
     overflow-y: auto;
     background: var(--background);
     width: 100%;
@@ -72,7 +74,7 @@ body {
     min-height: 100vh;
   }
 
-  /* Area di belakang navbar tetap menggunakan background yang sama */
+  /* Mobile navbar specific adjustments */
   .scrollable-content {
     background: var(--background);
     bottom: 0px;
@@ -128,7 +130,7 @@ a:focus-visible {
 /* Scrollable content area */
 .scrollable-content {
   position: absolute;
-  top: 60px;
+  top: 80px; /* Updated height for topbar */
   left: 0;
   right: 0;
   bottom: 0;
@@ -139,13 +141,15 @@ a:focus-visible {
 
 @media (min-width: 641px) {
   .scrollable-content {
-    left: 80px;
+    left: 200px; /* Diubah dari 80px ke 200px */
+    padding-top: 24px; /* Tambahan padding top untuk space yang lebih baik */
   }
 }
 
 @media (min-width: 641px) and (max-width: 768px) {
   .scrollable-content {
-    left: 70px;
+    left: 200px; /* Konsisten dengan desktop */
+    padding-top: 20px;
   }
 }
 
@@ -153,6 +157,7 @@ a:focus-visible {
   .scrollable-content {
     bottom: 0px; /* Remove bottom spacing */
     padding-bottom: 110px; /* Add padding instead for navbar space */
+    padding-top: 20px; /* Tambahan padding untuk mobile */
   }
 }
 

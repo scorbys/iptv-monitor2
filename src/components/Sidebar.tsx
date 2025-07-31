@@ -30,16 +30,42 @@ function NavbarLink({
   onClick,
   className,
 }: NavbarLinkProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  if (isMobile) {
+    // Mobile: hanya icon dengan tooltip
+    return (
+      <Tooltip label={label} position="top" transitionProps={{ duration: 0 }}>
+        <UnstyledButton
+          onClick={onClick}
+          className={`${classes.link} ${className || ""}`}
+          data-active={active || undefined}
+        >
+          <Icon size={20} stroke={1.5} />
+        </UnstyledButton>
+      </Tooltip>
+    );
+  }
+
+  // Desktop: icon dengan label
   return (
-    <Tooltip label={label} position="right" transitionProps={{ duration: 0 }}>
-      <UnstyledButton
-        onClick={onClick}
-        className={`${classes.link} ${className || ""}`}
-        data-active={active || undefined}
-      >
-        <Icon size={20} stroke={1.5} />
-      </UnstyledButton>
-    </Tooltip>
+    <UnstyledButton
+      onClick={onClick}
+      className={`${classes.linkWithLabel} ${className || ""}`}
+      data-active={active || undefined}
+    >
+      <Icon size={20} stroke={1.5} />
+      <span className={classes.linkLabel}>{label}</span>
+    </UnstyledButton>
   );
 }
 
