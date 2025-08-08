@@ -8,7 +8,6 @@ import {
   IconCast,
   IconDeviceTv,
   IconLogout,
-  IconUser,
 } from "@tabler/icons-react";
 import { Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import classes from "../app/NavbarMinimalColored.module.css";
@@ -74,7 +73,6 @@ const mockdata = [
   { name: "Channel", href: "/channel", icon: IconBroadcast },
   { name: "Chromecast", href: "/chromecast", icon: IconCast },
   { name: "Hospitality", href: "/hospitality", icon: IconDeviceTv },
-  { name: "Account", href: "/account", icon: IconUser },
 ];
 
 export function NavbarMinimalColored() {
@@ -120,8 +118,8 @@ export function NavbarMinimalColored() {
     let navbarClasses = classes.navbar;
     
     if (isMobile) {
-      // Only hide if not visible and user has scrolled significantly
-      if (!isVisible && window.scrollY > 100) {
+      // Only hide if not visible
+      if (!isVisible) {
         navbarClasses += ` ${classes.hidden}`;
       }
     }
