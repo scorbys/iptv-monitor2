@@ -15,7 +15,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #eff6ff;
-    --foreground: #ededed;
+    --foreground: #f1f5f9;
   }
 }
 
@@ -27,22 +27,24 @@ body {
   padding: 0;
 }
 
-/* Main content adjustments for desktop */
+/* ========================================
+   LAYOUT STYLES
+   ======================================== */
+
+/* Desktop and Tablet */
 @media (min-width: 641px) {
   .main-content {
-    margin-left: 200px; /* Diubah dari 80px ke 200px */
-    margin-top: 100px; /* Diubah dari 80px ke 100px untuk space yang lebih baik */
-    padding: 24px; /* Sedikit diperbesar dari 20px */
+    margin-left: 200px;
+    margin-top: 100px;
+    padding: 24px;
     min-height: calc(100vh - 80px);
     overflow-y: auto;
   }
 }
 
-/* Tablet adjustments */
-@media (min-width: 641px) and (max-width: 768px) {
+/* Tablet fine-tuning */
+@media (max-width: 768px) {
   .main-content {
-    margin-left: 200px; /* Adjusted for tablet sidebar width */
-    margin-top: 100px; /* Konsisten dengan desktop */
     padding: 20px;
   }
 }
@@ -51,9 +53,12 @@ body {
 @media (max-width: 640px) {
   .main-content {
     margin-left: 0;
-    margin-top: 100px; /* Diubah dari 80px ke 100px */
-    padding: 20px;
-    padding-bottom: 120px; /* Sedikit diperbesar untuk navbar space */
+    margin-top: 6.25rem;
+    /* 100px */
+    padding: 1.25rem;
+    /* 20px */
+    padding-bottom: 7.5rem;
+    /* 120px */
     min-height: calc(100vh - 100px);
     overflow-y: auto;
     background: var(--background);
@@ -66,11 +71,6 @@ body {
     overflow-x: hidden;
     width: 100%;
     background: var(--background);
-  }
-
-  /* Pastikan body background konsisten */
-  body {
-    background: var(--background);
     min-height: 100vh;
   }
 
@@ -78,9 +78,88 @@ body {
   .scrollable-content {
     background: var(--background);
     bottom: 0px;
-    padding-bottom: 110px; /* Space for navbar */
+    padding-bottom: 110px;
   }
 }
+
+/* Layout wrapper for proper positioning */
+.layout-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Scrollable content area */
+.scrollable-content {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--background);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.scrollable-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+@media (min-width: 641px) {
+  .scrollable-content {
+    left: 200px;
+    padding-top: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .scrollable-content {
+    bottom: 0px;
+    padding-bottom: 110px;
+    padding-top: 20px;
+  }
+}
+
+/* Safe area for devices with notches */
+@supports (padding: max(0px)) {
+  @media (max-width: 640px) {
+    .main-content {
+      padding-bottom: max(110px, calc(110px + env(safe-area-inset-bottom)));
+      padding-left: max(1.25rem, env(safe-area-inset-left));
+      padding-right: max(1.25rem, env(safe-area-inset-right));
+    }
+
+    .mobile-safe-area {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+      padding-bottom: max(6.875rem, calc(6.875rem + env(safe-area-inset-bottom)));
+    }
+
+    .scrollable-content {
+      padding-bottom: max(110px, calc(110px + env(safe-area-inset-bottom)));
+    }
+  }
+}
+
+/* ========================================
+   BASE STYLES & UTILITIES
+   ======================================== */
 
 /* Smooth scrolling for better user experience */
 html {
@@ -106,86 +185,15 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
-/* Safe area for devices with notches */
-@supports (padding: max(0px)) {
-  @media (max-width: 640px) {
-    .main-content {
-      padding-bottom: max(110px, calc(110px + env(safe-area-inset-bottom)));
-    }
-    
-    .scrollable-content {
-      padding-bottom: max(110px, calc(110px + env(safe-area-inset-bottom)));
-    }
-  }
+/* Enhanced focus states */
+.focus-ring:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
-/* Layout wrapper for proper positioning */
-.layout-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Scrollable content area */
-.scrollable-content {
-  position: absolute;
-  top: 80px; /* Updated height for topbar */
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: var(--background); /* Ensure consistent background */
-}
-
-@media (min-width: 641px) {
-  .scrollable-content {
-    left: 200px; /* Diubah dari 80px ke 200px */
-    padding-top: 24px; /* Tambahan padding top untuk space yang lebih baik */
-  }
-}
-
-@media (min-width: 641px) and (max-width: 768px) {
-  .scrollable-content {
-    left: 200px; /* Konsisten dengan desktop */
-    padding-top: 20px;
-  }
-}
-
-@media (max-width: 640px) {
-  .scrollable-content {
-    bottom: 0px; /* Remove bottom spacing */
-    padding-bottom: 110px; /* Add padding instead for navbar space */
-    padding-top: 20px; /* Tambahan padding untuk mobile */
-  }
-}
-
-@layer base {
-  input::-ms-reveal,
-  input::-ms-clear,
-  input[type="password"]::-webkit-textfield-decoration-container,
-  input[type="password"]::-webkit-clear-button,
-  input[type="password"]::-webkit-inner-spin-button,
-  input[type="password"]::-webkit-credentials-auto-fill-button {
-    display: none !important;
-    appearance: none !important;
-  }
-}
-
-/* === UI Channel, Chromecast, Hospiltality === */
-@media (max-width: 640px) {
-  .table-responsive {
-    font-size: 0.875rem;
-  }
-
-  .table-responsive td {
-    padding: 0.75rem 0.5rem;
-  }
-
-  .table-responsive th {
-    padding: 0.75rem 0.5rem;
-  }
+.focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 /* Enhanced backdrop blur */
@@ -193,15 +201,82 @@ a:focus-visible {
   backdrop-filter: blur(4px);
 }
 
-/* Smooth animations */
+.backdrop-enhanced {
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ========================================
+   ANIMATIONS & KEYFRAMES
+   ======================================== */
+
 @keyframes slideIn {
   from {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -209,23 +284,37 @@ a:focus-visible {
   animation: slideIn 0.3s ease-out;
 }
 
-/* Enhanced focus states */
-.focus-ring:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+.form-animate {
+  animation: fadeInUp 0.6s ease-out;
 }
+
+.error-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+.container-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   TABLE & CARD COMPONENTS
+   ======================================== */
 
 @media (max-width: 768px) {
   .table-responsive {
     font-size: 0.875rem;
   }
 
-  .table-responsive td {
+  .table-responsive td,
+  .table-responsive th {
     padding: 0.75rem 0.5rem;
   }
 
   .table-responsive th {
-    padding: 0.75rem 0.5rem;
     font-size: 0.75rem;
   }
 
@@ -243,54 +332,18 @@ a:focus-visible {
   .mobile-card:hover {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
+    transition: all 0.2s ease;
   }
 
-  /* Pagination mobile adjustments */
-  .pagination-mobile {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .pagination-mobile .pagination-info {
-    order: 2;
-  }
-
-  .pagination-mobile .pagination-controls {
-    order: 1;
-    justify-content: center;
+  .mobile-card:focus-within {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
   }
 }
 
-/* === Login page specific improvements === */
-.login-container {
-  min-height: 100vh;
-  min-height: 100dvh; /* Dynamic viewport height untuk mobile */
-}
-
-/* Improved form animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.form-animate {
-  animation: fadeInUp 0.6s ease-out;
-}
+/* ========================================
+   FORM COMPONENTS
+   ======================================== */
 
 /* Enhanced input focus states */
 .input-field {
@@ -323,53 +376,77 @@ a:focus-visible {
   left: 100%;
 }
 
-/* Mobile specific improvements */
+/* ========================================
+   LOGIN & FORM PAGE SPECIFIC
+   ======================================== */
+
+.login-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Mobile specific form improvements */
 @media (max-width: 640px) {
   .login-register-container {
-    padding: 1rem 0.75rem; /* Reduced horizontal padding */
+    padding: 1rem 0.75rem;
     min-height: 100vh;
-    min-height: 100dvh; /* Dynamic viewport height */
+    min-height: 100dvh;
   }
-  
-  /* Form container adjustments */
+
   .form-container-mobile {
     max-width: 100%;
     margin: 0;
-    padding: 1.5rem 1rem; /* Reduced padding */
-    background: rgba(255, 255, 255, 0.95); /* Slightly more opaque for better readability */
+    padding: 1.5rem 1rem;
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 1rem; /* Slightly smaller radius */
+    border-radius: 1rem;
   }
-  
-  /* Input improvements for mobile */
+
   .mobile-input-field {
-    font-size: 16px; /* Prevents zoom on iOS */
-    padding: 0.875rem 2.5rem 0.875rem 2.5rem; /* Better touch targets */
-    min-height: 48px; /* Apple recommended minimum */
+    font-size: 16px;
+    /* Prevents zoom on iOS */
+    padding: 0.875rem 2.5rem 0.875rem 2.5rem;
+    min-height: 48px;
+    /* Apple recommended minimum */
     -webkit-appearance: none;
     appearance: none;
     border-radius: 0.75rem;
   }
-  
-  /* Icon positioning adjustments */
-  .input-icon-left {
-    left: 0.75rem; /* Adjusted for better alignment */
+
+  .mobile-input-field:focus {
+    transform: none;
+    /* Disable transform on mobile to prevent layout shift */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    border-color: #3b82f6;
   }
-  
+
+  .mobile-input-field:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  .input-icon-left {
+    left: 0.75rem;
+  }
+
   .input-icon-right {
     right: 0.75rem;
   }
-  
-  /* Button improvements */
+
   .mobile-button {
-    min-height: 48px; /* Better touch target */
+    min-height: 48px;
     padding: 0.875rem 1rem;
-    font-size: 16px; /* Prevents zoom */
+    font-size: 16px;
+    /* Prevents zoom */
     border-radius: 0.75rem;
     font-weight: 600;
   }
-  
-  /* Notification positioning for mobile */
+
+  .mobile-button:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
   .mobile-notification {
     top: 1rem;
     left: 0.75rem;
@@ -378,98 +455,57 @@ a:focus-visible {
     max-width: none;
     margin: 0;
   }
-  
-  /* Form spacing improvements */
+
   .form-field-mobile {
-    margin-bottom: 1.25rem; /* Better spacing between fields */
+    margin-bottom: 1.25rem;
   }
-  
-  /* Label improvements */
+
   .form-label-mobile {
     font-size: 0.875rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: rgba(55, 65, 81, 1);
   }
-  
-  /* Error message improvements */
+
   .error-message-mobile {
-    font-size: 0.8125rem; /* Slightly smaller but still readable */
+    font-size: 0.8125rem;
     margin-top: 0.375rem;
     line-height: 1.3;
   }
-  
-  /* Header text improvements */
+
   .header-title-mobile {
-    font-size: 1.75rem; /* Slightly smaller than desktop */
+    font-size: 1.75rem;
     line-height: 1.2;
     margin-bottom: 0.5rem;
   }
-  
+
   .header-subtitle-mobile {
     font-size: 0.875rem;
     line-height: 1.4;
     margin-bottom: 1.5rem;
   }
-  
-  /* Divider improvements */
+
   .divider-mobile {
-    margin: 1.25rem 0; /* Better spacing */
+    margin: 1.25rem 0;
   }
-  
+
   .divider-text-mobile {
     font-size: 0.875rem;
     padding: 0 1rem;
     background: rgba(255, 255, 255, 0.95);
   }
-  
-  /* Switch button improvements */
+
   .switch-button-mobile {
     font-size: 0.875rem;
     line-height: 1.4;
     padding: 0.25rem;
     border-radius: 0.375rem;
-    min-height: 44px; /* Better touch target */
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
-}
 
-/* Landscape mobile adjustments */
-@media (max-width: 640px) and (orientation: landscape) and (max-height: 500px) {
-  .form-container-mobile {
-    padding: 1rem 1rem;
-    margin: 0.5rem 0;
-  }
-  
-  .form-field-mobile {
-    margin-bottom: 1rem;
-  }
-  
-  .header-title-mobile {
-    font-size: 1.5rem;
-    margin-bottom: 0.25rem;
-  }
-  
-  .header-subtitle-mobile {
-    font-size: 0.8125rem;
-    margin-bottom: 1rem;
-  }
-  
-  .mobile-input-field {
-    padding: 0.75rem 2.25rem 0.75rem 2.25rem;
-    min-height: 44px;
-  }
-  
-  .mobile-button {
-    min-height: 44px;
-    padding: 0.75rem 1rem;
-  }
-}
-
-/* Better touch targets for interactive elements */
-@media (max-width: 640px) {
   .touch-target {
     min-height: 44px;
     min-width: 44px;
@@ -477,8 +513,7 @@ a:focus-visible {
     align-items: center;
     justify-content: center;
   }
-  
-  /* Password visibility toggle */
+
   .password-toggle-mobile {
     padding: 0.75rem;
     margin: -0.75rem;
@@ -489,134 +524,56 @@ a:focus-visible {
     align-items: center;
     justify-content: center;
   }
-}
 
-/* Improved focus states for mobile */
-@media (max-width: 640px) {
-  .mobile-input-field:focus {
-    transform: none; /* Disable transform on mobile to prevent layout shift */
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-    border-color: #3b82f6;
-  }
-  
-  .mobile-button:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-  }
-}
-
-/* Loading state improvements for mobile */
-@media (max-width: 640px) {
   .loading-spinner-mobile {
     width: 1.25rem;
     height: 1.25rem;
   }
-  
+
   .loading-text-mobile {
     font-size: 0.875rem;
   }
 }
 
-/* Tablet specific improvements */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .form-container {
-    max-width: 28rem;
+/* Landscape mobile adjustments */
+@media (max-width: 640px) and (orientation: landscape) {
+  .form-container-mobile {
+    padding: 1rem 1rem;
+    margin: 0.5rem 0;
   }
-}
 
-/* Enhanced loading states */
-.loading-overlay {
-  backdrop-filter: blur(4px);
-  background: rgba(255, 255, 255, 0.8);
-}
+  .form-field-mobile {
+    margin-bottom: 1rem;
+  }
 
-/* Improved error states */
-.error-shake {
-  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
-}
+  .header-title-mobile {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+  }
 
-@keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
+  .header-subtitle-mobile {
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
   }
-  10%, 30%, 50%, 70%, 90% {
-    transform: translateX(-5px);
-  }
-  20%, 40%, 60%, 80% {
-    transform: translateX(5px);
-  }
-}
 
-/* Dark mode improvements */
-@media (prefers-color-scheme: dark) {
-  .form-container {
-    background: rgba(17, 24, 39, 0.8);
-    border: 1px solid rgba(55, 65, 81, 0.5);
+  .mobile-input-field {
+    padding: 0.75rem 2.25rem 0.75rem 2.25rem;
+    min-height: 44px;
   }
-  
-  .input-field {
-    background: rgba(31, 41, 55, 0.8);
-    border-color: rgba(75, 85, 99, 0.5);
-    color: #f3f4f6;
-  }
-  
-  .input-field:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 1px #3b82f6;
-  }
-}
 
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .mobile-button {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
   }
-}
 
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .input-field {
-    border-width: 2px;
-    border-color: #000;
+  .main-content {
+    padding: 0.75rem;
   }
-  
-  .btn-primary {
-    border: 2px solid #000;
+
+  .mobile-card {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
   }
-}
-
-/* Focus visible improvements */
-.focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Loading spinner improvements */
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Smooth container transitions */
-.container-transition {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Enhanced backdrop effects */
-.backdrop-enhanced {
-  backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* Better mobile landscape handling */
@@ -624,12 +581,394 @@ a:focus-visible {
   .login-container {
     padding: 0.5rem;
   }
-  
+
   .form-container {
     padding: 1rem;
   }
-  
+
   .form-spacing {
     gap: 1rem;
+  }
+}
+
+/* ========================================
+   PAGINATION COMPONENT STYLES - CONSOLIDATED
+   ======================================== */
+
+/* Base pagination styles */
+.pagination-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  font-weight: 500;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.pagination-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pagination-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.pagination-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Current page styling */
+.pagination-current {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.pagination-current:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: translateY(-1px);
+}
+
+/* Ellipsis styling */
+.pagination-ellipsis {
+  color: #9ca3af;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 40px;
+}
+
+/* Jump to page input (desktop only) */
+.jump-to-page-input {
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.jump-to-page-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Responsive pagination info */
+.pagination-info-responsive {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Loading state for pagination */
+.pagination-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.pagination-loading .pagination-button {
+  cursor: wait;
+}
+
+/* Responsive pagination layouts */
+@media (min-width: 1025px) {
+  .pagination-desktop {
+    gap: 0.5rem;
+  }
+
+  .page-number-desktop {
+    width: 40px;
+    height: 40px;
+  }
+
+  .page-number-desktop:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .pagination-tablet {
+    gap: 0.5rem;
+  }
+
+  .pagination-button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.625rem;
+    font-size: 0.875rem;
+  }
+
+  .page-number-tablet {
+    width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
+  }
+
+  .form-container {
+    max-width: 28rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .pagination-mobile {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .pagination-controls {
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    order: 1;
+  }
+
+  .pagination-info {
+    order: 2;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  .pagination-button {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .page-number-mobile {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+  }
+
+  .current-page-mobile {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  }
+
+  .pagination-info-responsive {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+    background: #f9fafb;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+  }
+}
+
+/* ========================================
+   LOADING & ERROR STATES
+   ======================================== */
+
+.loading-overlay {
+  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* ========================================
+   INPUT PASSWORD STYLES
+   ======================================== */
+
+@layer base {
+
+  input::-ms-reveal,
+  input::-ms-clear,
+  input[type="password"]::-webkit-textfield-decoration-container,
+  input[type="password"]::-webkit-clear-button,
+  input[type="password"]::-webkit-inner-spin-button,
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+    display: none !important;
+    appearance: none !important;
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-break {
+    page-break-inside: avoid;
+  }
+
+  button,
+  .pagination,
+  .filters {
+    display: none !important;
+  }
+}
+
+/* ========================================
+   DARK MODE STYLES
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  .form-container {
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid rgba(55, 65, 81, 0.5);
+  }
+
+  .input-field {
+    background: rgba(31, 41, 55, 0.8);
+    border-color: rgba(75, 85, 99, 0.5);
+    color: #f3f4f6;
+  }
+
+  .input-field:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+  }
+
+  .status-badge-online {
+    background: rgba(34, 197, 94, 0.2);
+    color: rgb(34, 197, 94);
+    border-color: rgba(34, 197, 94, 0.3);
+  }
+
+  .status-badge-offline {
+    background: rgba(239, 68, 68, 0.2);
+    color: rgb(239, 68, 68);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .mobile-card {
+    background: rgba(31, 41, 55, 0.8);
+    border-color: rgba(55, 65, 81, 0.5);
+  }
+
+  .mobile-card:hover {
+    background: rgba(31, 41, 55, 0.9);
+    border-color: rgba(75, 85, 99, 0.6);
+  }
+
+  /* Dark mode pagination */
+  .pagination-button {
+    background: rgba(31, 41, 55, 0.8);
+    border-color: rgba(55, 65, 81, 0.5);
+    color: #f3f4f6;
+  }
+
+  .pagination-button:hover:not(:disabled) {
+    background: #374151;
+    border-color: #4b5563;
+  }
+
+  .pagination-current {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  }
+
+  .pagination-ellipsis {
+    color: #6b7280;
+  }
+
+  .pagination-info-responsive {
+    color: #9ca3af;
+  }
+
+  @media (max-width: 640px) {
+    .pagination-info-responsive {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY STYLES
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .spinner,
+  .animate-spin {
+    animation: none !important;
+  }
+
+  .spinner::after {
+    content: '⏳';
+    font-size: 1rem;
+  }
+
+  .pagination-button {
+    transition: none;
+  }
+
+  .pagination-button:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .input-field {
+    border-width: 2px;
+    border-color: #000;
+  }
+
+  .btn-primary {
+    border: 2px solid #000;
+  }
+
+  .pagination-button {
+    border-width: 2px;
+    border-color: #000;
+  }
+
+  .pagination-current {
+    background: #000;
+    border-color: #000;
+  }
+}
+
+/* ========================================
+   CONTAINER QUERIES & MODERN CSS
+   ======================================== */
+
+@container (max-width: 640px) {
+  .responsive-container {
+    padding: 1rem;
+    font-size: 0.875rem;
   }
 }

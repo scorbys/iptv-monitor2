@@ -47,6 +47,30 @@ export default function TvPage() {
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
+    "desktop"
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
+      }
+    };
+
+    // Set initial value
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
+
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
 
   // Fetch TVs data
   const fetchTVs = useCallback(async () => {
@@ -169,7 +193,7 @@ export default function TvPage() {
   const checkTVStatus = useCallback(async (roomNo: string) => {
     if (!roomNo) return;
 
-    setCheckingId(roomNo); // ⬅️ mulai loading tombol itu
+    setCheckingId(roomNo);
 
     try {
       const response = await fetch(`/api/hospitality/tvs/${roomNo}/check`, {
@@ -194,14 +218,46 @@ export default function TvPage() {
       if (result.success && result.data) {
         setTvs((prev) =>
           prev.map((tv) =>
-            tv.roomNo === roomNo ? { ...tv, ...result.data } : tv
+            tv.roomNo === roomNo
+              ? {
+                  ...tv,
+                  ...result.data,
+                  error: undefined, // Clear previous error
+                }
+              : tv
+          )
+        );
+      } else {
+        // Handle API error response
+        setTvs((prev) =>
+          prev.map((tv) =>
+            tv.roomNo === roomNo
+              ? {
+                  ...tv,
+                  error: result.message || "Check failed",
+                  status: "offline",
+                }
+              : tv
           )
         );
       }
-    } catch (error) {
-      console.error("Error checking channel status:", error);
+    } catch (error: unknown) {
+      console.error("Error checking TV status:", error);
+
+      // Update TV with error state
+      setTvs((prev) =>
+        prev.map((tv) =>
+          tv.roomNo === roomNo
+            ? {
+                ...tv,
+                error: error instanceof Error ? error.message : "Network error",
+                status: "offline",
+              }
+            : tv
+        )
+      );
     } finally {
-      setCheckingId(null); // ⬅️ selesai loading
+      setCheckingId(null);
     }
   }, []);
 
@@ -309,21 +365,28 @@ export default function TvPage() {
       const csvContent = [headers, ...csvData]
         .map((row) =>
           row
-            .map((field) =>
-              // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
-              typeof field === "string" &&
-              (field.includes(",") ||
-                field.includes('"') ||
-                field.includes("\n"))
-                ? `"${field.replace(/"/g, '""')}"`
-                : field
-            )
+            .map((field) => {
+              const stringField = String(field);
+              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
+              if (
+                stringField.includes(",") ||
+                stringField.includes('"') ||
+                stringField.includes("\n") ||
+                stringField.includes("\r")
+              ) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+              }
+              return stringField;
+            })
             .join(",")
         )
         .join("\n");
 
       // Buat file dan download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
       const link = document.createElement("a");
 
       if (link.download !== undefined) {
@@ -335,21 +398,67 @@ export default function TvPage() {
           .toISOString()
           .slice(0, 19)
           .replace(/[:-]/g, "");
-        const filename = `hospitality_export_${timestamp}.csv`;
+        const filename = `hospitality_tvs_export_${timestamp}.csv`;
         link.setAttribute("download", filename);
 
         link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
     } catch (error) {
       console.error("Error exporting CSV:", error);
-      // Optional: Tambahkan toast notification untuk error
+      alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);
     }
   }, [filteredTVs, exportLoading]);
+
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number, screenSize: string) => {
+      let maxVisiblePages: number;
+      let showFirstLast: boolean;
+
+      switch (screenSize) {
+        case "mobile":
+          maxVisiblePages = 3;
+          showFirstLast = false;
+          break;
+        case "tablet":
+          maxVisiblePages = 5;
+          showFirstLast = true;
+          break;
+        default: // desktop
+          maxVisiblePages = 7;
+          showFirstLast = true;
+          break;
+      }
+
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      // Adjust start page if we're near the end
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      return {
+        startPage,
+        endPage,
+        maxVisiblePages,
+        showFirstLast,
+        showEllipsis: {
+          start: showFirstLast && startPage > 2,
+          end: showFirstLast && endPage < totalPages - 1,
+        },
+      };
+    },
+    []
+  );
 
   if (!mounted || loading) {
     return (
@@ -564,7 +673,7 @@ export default function TvPage() {
             <tbody className="divide-y divide-gray-100">
               {paginationData.paginatedTVs.map((tv, index) => (
                 <tr
-                  key={`tv-${tv.id || index}`}
+                  key={`desktop-tv-${tv.id || tv.roomNo || index}`}
                   className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group"
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
@@ -603,7 +712,7 @@ export default function TvPage() {
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <button
-                      key={tv.roomNo}
+                      key={`desktop-check-${tv.roomNo}-${index}`}
                       onClick={() => checkTVStatus(tv.roomNo)}
                       disabled={!tv.roomNo || checkingId === tv.roomNo}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
@@ -613,7 +722,7 @@ export default function TvPage() {
                           checkingId === tv.roomNo ? "animate-spin" : ""
                         }`}
                       />
-                      {checkingId === tv.roomNo ? "Check" : "Check"}
+                      {checkingId === tv.roomNo ? "Checking..." : "Check"}
                     </button>
                   </td>
                 </tr>
@@ -626,7 +735,7 @@ export default function TvPage() {
         <div className="md:hidden divide-y divide-gray-100">
           {paginationData.paginatedTVs.map((tv, index) => (
             <div
-              key={`mobile-tv-${tv.id || index}`}
+              key={`mobile-card-${tv.id}-${tv.roomNo}-${index}`} // More unique key
               className="p-4 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">
@@ -638,7 +747,7 @@ export default function TvPage() {
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">
-                      Room {tv.roomNo}
+                      Room {tv.roomNo || "Unknown"}
                     </h3>
                     <p className="text-sm text-gray-500">
                       {tv.model || "Samsung Hospitality"}
@@ -652,13 +761,13 @@ export default function TvPage() {
               </div>
 
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-500">IP Address:</span>
-                  <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
+                  <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs break-all">
                     {tv.ipAddress || "N/A"}
                   </code>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-500">Last Checked:</span>
                   <DateFormatter
                     date={tv.lastChecked}
@@ -670,12 +779,27 @@ export default function TvPage() {
 
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
+                  key={`mobile-action-${tv.roomNo}-${index}-${Date.now()}`} // Dynamic key to prevent conflicts
                   onClick={() => checkTVStatus(tv.roomNo)}
-                  disabled={!tv.roomNo}
+                  disabled={!tv.roomNo || checkingId === tv.roomNo}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  Check Now
+                  <ArrowPathIcon
+                    className={`w-4 h-4 ${
+                      checkingId === tv.roomNo ? "animate-spin" : ""
+                    }`}
+                  />
+                  {checkingId === tv.roomNo ? "Checking..." : "Check Now"}
                 </button>
+
+                {/* Error message */}
+                {tv.error && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs text-red-600 break-words">
+                      {tv.error}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -690,7 +814,7 @@ export default function TvPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No TVs found
             </h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            <p className="text-gray-500 mb-6 max-w-md mx-auto text-sm">
               {searchTerm
                 ? `No TVs match "${searchTerm}". Try adjusting your search terms.`
                 : "No TVs available with current filters. Try changing your filter settings."}
@@ -701,7 +825,7 @@ export default function TvPage() {
                   setSearchTerm("");
                   setStatusFilter("All");
                 }}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all duration-200 transform hover:scale-105 active:scale-95"
               >
                 <XMarkIcon className="w-4 h-4 mr-2" />
                 Clear all filters
@@ -713,71 +837,103 @@ export default function TvPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${
+              screenSize === "mobile"
+                ? "flex-col space-y-3"
+                : "flex-col sm:flex-row"
+            }`}
+          >
             {/* Info Text */}
-            <div className="text-sm text-gray-600 order-2 sm:order-1">
-              Showing{" "}
-              <span className="font-semibold text-gray-900">
-                {paginationData.startIndex + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold text-gray-900">
-                {paginationData.endIndex}
-              </span>{" "}
-              of{" "}
-              <span className="font-semibold text-gray-900">
-                {filteredTVs.length}
-              </span>{" "}
-              TVs
+            <div
+              className={`text-xs sm:text-sm text-gray-600 ${
+                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+              }`}
+            >
+              {screenSize === "mobile" ? (
+                // Compact info for mobile
+                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+                  <span className="font-medium">
+                    Page {currentPage} of {paginationData.totalPages}
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    ({paginationData.startIndex + 1}-{paginationData.endIndex}{" "}
+                    of {filteredTVs.length} TVs)
+                  </span>
+                </div>
+              ) : (
+                // Full info for tablet/desktop
+                <>
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.startIndex + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.endIndex}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {filteredTVs.length}
+                  </span>{" "}
+                  TVs
+                </>
+              )}
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex items-center gap-2 order-1 sm:order-2">
+            <div
+              className={`flex items-center gap-1 sm:gap-2 ${
+                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+              }`}
+            >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
               >
-                <ChevronLeftIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Previous</span>
+                <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Previous</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Prev</span>
+                )}
               </button>
 
-              {/* Page Numbers - Mobile optimized */}
+              {/* Page Numbers - Fully Responsive */}
               <div className="flex items-center gap-1">
                 {(() => {
                   const { totalPages } = paginationData;
-                  const maxVisiblePages = window.innerWidth < 640 ? 3 : 5;
-                  let startPage = Math.max(
-                    1,
-                    currentPage - Math.floor(maxVisiblePages / 2)
-                  );
-                  const endPage = Math.min(
-                    totalPages,
-                    startPage + maxVisiblePages - 1
-                  );
-
-                  if (endPage - startPage < maxVisiblePages - 1) {
-                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                  }
+                  const { startPage, endPage, showFirstLast, showEllipsis } =
+                    getVisiblePages(currentPage, totalPages, screenSize);
 
                   const pages = [];
 
-                  if (startPage > 1) {
+                  // First page + ellipsis (desktop/tablet only)
+                  if (showFirstLast && startPage > 1) {
                     pages.push(
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === 1
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
                       >
                         1
                       </button>
                     );
-                    if (startPage > 2) {
+
+                    if (showEllipsis.start) {
                       pages.push(
                         <span
                           key="ellipsis-start"
-                          className="px-2 py-2 text-gray-400"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
                         >
                           ...
                         </span>
@@ -785,12 +941,21 @@ export default function TvPage() {
                     }
                   }
 
+                  // Main page numbers
                   for (let i = startPage; i <= endPage; i++) {
+                    // Skip if this is the last page and we'll add it separately
+                    if (
+                      showFirstLast &&
+                      i === totalPages &&
+                      totalPages > endPage
+                    )
+                      continue;
+
                     pages.push(
                       <button
-                        key={`page-${i}`}
+                        key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                           currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
@@ -801,22 +966,28 @@ export default function TvPage() {
                     );
                   }
 
-                  if (endPage < totalPages) {
-                    if (endPage < totalPages - 1) {
+                  // Ellipsis + last page (desktop/tablet only)
+                  if (showFirstLast && endPage < totalPages) {
+                    if (showEllipsis.end) {
                       pages.push(
                         <span
                           key="ellipsis-end"
-                          className="px-2 py-2 text-gray-400"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
                         >
                           ...
                         </span>
                       );
                     }
+
                     pages.push(
                       <button
-                        key={`page-${totalPages}`}
+                        key="page-last"
                         onClick={() => handlePageChange(totalPages)}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === totalPages
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
                       >
                         {totalPages}
                       </button>
@@ -830,10 +1001,17 @@ export default function TvPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
               >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRightIcon className="w-4 h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Next</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Next</span>
+                )}
+                <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>

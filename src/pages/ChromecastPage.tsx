@@ -54,12 +54,35 @@ export default function ChromecastPage() {
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
+    "desktop"
+  );
 
   const router = useRouter();
 
   // Effect untuk mounted state
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
+      }
+    };
+
+    // Set initial value
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
   }, []);
 
   // Fetch Chromecast data
@@ -183,7 +206,7 @@ export default function ChromecastPage() {
   const checkChromecastStatus = useCallback(async (deviceName: string) => {
     if (!deviceName) return;
 
-    setCheckingId(deviceName); // ⬅️ mulai loading tombol itu
+    setCheckingId(deviceName); // Start loading state for this device
 
     try {
       const response = await fetch(`/api/chromecast/${deviceName}/check`, {
@@ -209,15 +232,40 @@ export default function ChromecastPage() {
         setChromecasts((prev) =>
           prev.map((device) =>
             device.deviceName === deviceName
-              ? { ...device, ...result.data }
+              ? { ...device, ...result.data, error: undefined }
+              : device
+          )
+        );
+      } else {
+        // Handle API error response
+        setChromecasts((prev) =>
+          prev.map((device) =>
+            device.deviceName === deviceName
+              ? {
+                  ...device,
+                  error: result.message || "Check failed",
+                  status: "offline",
+                }
               : device
           )
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error checking channel status:", error);
+      // Update TV with error state
+      setChromecasts((prev) =>
+        prev.map((device) =>
+          device.deviceName === deviceName
+            ? {
+                ...device,
+                error: error instanceof Error ? error.message : "Network error",
+                status: "offline",
+              }
+            : device
+        )
+      );
     } finally {
-      setCheckingId(null); // ⬅️ selesai loading
+      setCheckingId(null); // Clear loading state
     }
   }, []);
 
@@ -398,21 +446,28 @@ export default function ChromecastPage() {
       const csvContent = [headers, ...csvData]
         .map((row) =>
           row
-            .map((field) =>
-              // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
-              typeof field === "string" &&
-              (field.includes(",") ||
-                field.includes('"') ||
-                field.includes("\n"))
-                ? `"${field.replace(/"/g, '""')}"`
-                : field
-            )
+            .map((field) => {
+              const stringField = String(field);
+              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
+              if (
+                stringField.includes(",") ||
+                stringField.includes('"') ||
+                stringField.includes("\n") ||
+                stringField.includes("\r")
+              ) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+              }
+              return stringField;
+            })
             .join(",")
         )
         .join("\n");
 
       // Buat file dan download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
       const link = document.createElement("a");
 
       if (link.download !== undefined) {
@@ -424,21 +479,67 @@ export default function ChromecastPage() {
           .toISOString()
           .slice(0, 19)
           .replace(/[:-]/g, "");
-        const filename = `charomecast_export_${timestamp}.csv`;
+        const filename = `chromecast_export_${timestamp}.csv`;
         link.setAttribute("download", filename);
 
         link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url); // Cleanup URL object
       }
     } catch (error) {
       console.error("Error exporting CSV:", error);
-      // Optional: Tambahkan toast notification untuk error
+      alert("Failed to export CSV. Please try again."); // Tambahkan user feedback
     } finally {
       setExportLoading(false);
     }
   }, [filteredChromecasts, exportLoading]);
+
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number, screenSize: string) => {
+      let maxVisiblePages: number;
+      let showFirstLast: boolean;
+
+      switch (screenSize) {
+        case "mobile":
+          maxVisiblePages = 3;
+          showFirstLast = false;
+          break;
+        case "tablet":
+          maxVisiblePages = 5;
+          showFirstLast = true;
+          break;
+        default: // desktop
+          maxVisiblePages = 7;
+          showFirstLast = true;
+          break;
+      }
+
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      // Adjust start page if we're near the end
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      return {
+        startPage,
+        endPage,
+        maxVisiblePages,
+        showFirstLast,
+        showEllipsis: {
+          start: showFirstLast && startPage > 2,
+          end: showFirstLast && endPage < totalPages - 1,
+        },
+      };
+    },
+    []
+  );
 
   if (!router || !mounted || loading) {
     return (
@@ -514,7 +615,7 @@ export default function ChromecastPage() {
                   {stats?.avgSignalLevel ?? 0} dBm
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-purle-50 to-red-50 rounded-lg">
+              <div className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
                 <SignalIcon className="w-8 h-8 text-purple-600" />
               </div>
             </div>
@@ -608,6 +709,11 @@ export default function ChromecastPage() {
                 <button
                   onClick={handleRefresh}
                   disabled={refreshing}
+                  aria-label={
+                    refreshing
+                      ? "Refreshing chromecast data"
+                      : "Refresh chromecast data"
+                  }
                   className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                 >
                   <ArrowPathIcon
@@ -725,7 +831,9 @@ export default function ChromecastPage() {
                       key={device.deviceName}
                       onClick={() => checkChromecastStatus(device.deviceName)}
                       disabled={
-                        !device.deviceName || checkingId === device.deviceName
+                        !device.deviceName ||
+                        checkingId === device.deviceName ||
+                        checkingId !== null
                       }
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
                     >
@@ -747,29 +855,27 @@ export default function ChromecastPage() {
         <div className="md:hidden divide-y divide-gray-100">
           {paginationData.paginatedChromecasts.map((device, index) => (
             <div
-              key={`mobile-tv-${device.idCast || index}`}
+              key={`mobile-chromecast-${device.idCast || index}`}
               className="p-4 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <span className="text-xs font-bold text-white">
-                      <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
-                    </span>
+                    <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">
-                      {device.deviceName}
+                      {device.deviceName || "Unknown Device"}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      {device.signalLevel}
+                      {device.type || "Chromecast"}
                     </p>
-                    <p className="text-sm text-gray-500">{device.speed} Mbps</p>
                   </div>
                 </div>
                 <StatusBadge
                   isOnline={device.isOnline}
                   isPingable={device.isPingable}
+                  responseTime={device.responseTime}
                 />
               </div>
 
@@ -781,10 +887,22 @@ export default function ChromecastPage() {
                   </code>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Last Checked:</span>
+                  <span className="text-gray-500">Signal:</span>
+                  <span className="text-xs text-gray-600">
+                    {device.signalLevel || 0} dBm
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Speed:</span>
+                  <span className="text-xs text-gray-600">
+                    {device.speed || 0} Mbps
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Last Seen:</span>
                   <DateFormatter
                     date={device.lastSeen}
-                    fallback="Never checked"
+                    fallback="Never seen"
                     className="text-xs text-gray-600"
                   />
                 </div>
@@ -793,11 +911,29 @@ export default function ChromecastPage() {
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
                   onClick={() => checkChromecastStatus(device.deviceName)}
-                  disabled={!device.deviceName}
+                  disabled={
+                    !device.deviceName || checkingId === device.deviceName
+                  }
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  Check Now
+                  <ArrowPathIcon
+                    className={`w-4 h-4 ${
+                      checkingId === device.deviceName ? "animate-spin" : ""
+                    }`}
+                  />
+                  {checkingId === device.deviceName
+                    ? "Checking..."
+                    : "Check Now"}
                 </button>
+
+                {/* Error message */}
+                {device.error && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs text-red-600 break-words">
+                      {device.error}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -835,71 +971,103 @@ export default function ChromecastPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${
+              screenSize === "mobile"
+                ? "flex-col space-y-3"
+                : "flex-col sm:flex-row"
+            }`}
+          >
             {/* Info Text */}
-            <div className="text-sm text-gray-600 order-2 sm:order-1">
-              Showing{" "}
-              <span className="font-semibold text-gray-900">
-                {paginationData.startIndex + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold text-gray-900">
-                {paginationData.endIndex}
-              </span>{" "}
-              of{" "}
-              <span className="font-semibold text-gray-900">
-                {filteredChromecasts.length}
-              </span>{" "}
-              devices
+            <div
+              className={`text-xs sm:text-sm text-gray-600 ${
+                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+              }`}
+            >
+              {screenSize === "mobile" ? (
+                // Compact info for mobile
+                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+                  <span className="font-medium">
+                    Page {currentPage} of {paginationData.totalPages}
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    ({paginationData.startIndex + 1}-{paginationData.endIndex}{" "}
+                    of {filteredChromecasts.length} devices)
+                  </span>
+                </div>
+              ) : (
+                // Full info for tablet/desktop
+                <>
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.startIndex + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.endIndex}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {filteredChromecasts.length}
+                  </span>{" "}
+                  devices
+                </>
+              )}
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex items-center gap-2 order-1 sm:order-2">
+            <div
+              className={`flex items-center gap-1 sm:gap-2 ${
+                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+              }`}
+            >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
               >
-                <ChevronLeftIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Previous</span>
+                <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Previous</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Prev</span>
+                )}
               </button>
 
-              {/* Page Numbers - Mobile optimized */}
+              {/* Page Numbers - Fully Responsive */}
               <div className="flex items-center gap-1">
                 {(() => {
                   const { totalPages } = paginationData;
-                  const maxVisiblePages = window.innerWidth < 640 ? 3 : 5;
-                  let startPage = Math.max(
-                    1,
-                    currentPage - Math.floor(maxVisiblePages / 2)
-                  );
-                  const endPage = Math.min(
-                    totalPages,
-                    startPage + maxVisiblePages - 1
-                  );
-
-                  if (endPage - startPage < maxVisiblePages - 1) {
-                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                  }
+                  const { startPage, endPage, showFirstLast, showEllipsis } =
+                    getVisiblePages(currentPage, totalPages, screenSize);
 
                   const pages = [];
 
-                  if (startPage > 1) {
+                  // First page + ellipsis (desktop/tablet only)
+                  if (showFirstLast && startPage > 1) {
                     pages.push(
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === 1
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
                       >
                         1
                       </button>
                     );
-                    if (startPage > 2) {
+
+                    if (showEllipsis.start) {
                       pages.push(
                         <span
                           key="ellipsis-start"
-                          className="px-2 py-2 text-gray-400"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
                         >
                           ...
                         </span>
@@ -907,12 +1075,13 @@ export default function ChromecastPage() {
                     }
                   }
 
+                  // Main page numbers
                   for (let i = startPage; i <= endPage; i++) {
                     pages.push(
                       <button
-                        key={`page-${i}`}
+                        key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                           currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
@@ -923,22 +1092,28 @@ export default function ChromecastPage() {
                     );
                   }
 
-                  if (endPage < totalPages) {
-                    if (endPage < totalPages - 1) {
+                  // Ellipsis + last page (desktop/tablet only)
+                  if (showFirstLast && endPage < totalPages) {
+                    if (showEllipsis.end) {
                       pages.push(
                         <span
                           key="ellipsis-end"
-                          className="px-2 py-2 text-gray-400"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
                         >
                           ...
                         </span>
                       );
                     }
+
                     pages.push(
                       <button
                         key={`page-${totalPages}`}
                         onClick={() => handlePageChange(totalPages)}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === totalPages
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
                       >
                         {totalPages}
                       </button>
@@ -952,10 +1127,17 @@ export default function ChromecastPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
               >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRightIcon className="w-4 h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Next</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Next</span>
+                )}
+                <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>

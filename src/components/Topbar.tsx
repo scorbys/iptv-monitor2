@@ -495,10 +495,6 @@ export default function Topbar() {
                     <div className="h-3 bg-slate-700 rounded w-16 mb-1" />
                   </div>
                 </div>
-                {/* Mobile loading */}
-                <div className="block sm:hidden">
-                  <div className="w-8 h-8 bg-slate-700 rounded-full" />
-                </div>
               </div>
             ) : (
               <div className="cursor-pointer">
@@ -572,14 +568,10 @@ export default function Topbar() {
                           }
                         }}
                       />
-                      {/* Online indicator for mobile */}
-                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse" />
                     </div>
                   ) : (
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium border border-white/30 relative">
                       {user?.username.slice(0, 2).toUpperCase() || "US"}
-                      {/* Online indicator for mobile */}
-                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse" />
                     </div>
                   )}
                 </div>

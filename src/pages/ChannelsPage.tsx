@@ -14,7 +14,6 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
-import { useRouter } from "next/navigation";
 
 interface Channel {
   id: number;
@@ -26,6 +25,7 @@ interface Channel {
   status: "online" | "offline";
   lastChecked: string;
   responseTime?: number;
+  error?: string;
 }
 
 interface ChannelStats {
@@ -63,8 +63,9 @@ export default function ChannelsPage() {
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [checkingId, setCheckingId] = useState<number | null>(null);
-
-  const router = useRouter();
+  const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
+    "desktop"
+  );
 
   // Effect untuk mounted state
   useEffect(() => {
@@ -86,7 +87,9 @@ export default function ChannelsPage() {
 
       if (response.status === 401) {
         // Token expired atau invalid, redirect ke login
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
         return;
       }
 
@@ -123,7 +126,9 @@ export default function ChannelsPage() {
 
       if (response.status === 401) {
         // Token expired atau invalid, redirect ke login
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
         return;
       }
 
@@ -153,8 +158,7 @@ export default function ChannelsPage() {
       setLoading(true);
       try {
         // Load data secara sequential untuk better error handling
-        await fetchChannels();
-        await fetchStats();
+        await Promise.all([fetchChannels(), fetchStats()]);
       } catch (error) {
         console.error("Error loading initial data:", error);
       } finally {
@@ -168,8 +172,7 @@ export default function ChannelsPage() {
     const interval = setInterval(() => {
       // Cek visibility dan authentication state
       if (document.visibilityState === "visible") {
-        fetchChannels();
-        fetchStats();
+        Promise.all([fetchChannels(), fetchStats()]).catch(console.error);
       }
     }, 1800000);
 
@@ -183,6 +186,10 @@ export default function ChannelsPage() {
     setRefreshing(true);
     try {
       await Promise.all([fetchChannels(), fetchStats()]);
+      console.log("Data refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      alert("Failed to refresh data. Please try again.");
     } finally {
       setRefreshing(false);
     }
@@ -192,7 +199,7 @@ export default function ChannelsPage() {
   const checkChannelStatus = useCallback(async (channelId: number) => {
     if (!channelId) return;
 
-    setCheckingId(channelId); // ⬅️ mulai loading tombol itu
+    setCheckingId(channelId);
 
     try {
       const response = await fetch(`/api/channels/${channelId}/check`, {
@@ -204,7 +211,9 @@ export default function ChannelsPage() {
       });
 
       if (response.status === 401) {
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
         return;
       }
 
@@ -217,14 +226,41 @@ export default function ChannelsPage() {
       if (result.success && result.data) {
         setChannels((prev) =>
           prev.map((ch) =>
-            ch.id === channelId ? { ...ch, ...result.data } : ch
+            ch.id === channelId
+              ? { ...ch, ...result.data, error: undefined }
+              : ch
+          )
+        );
+      } else {
+        // Handle API error response
+        setChannels((prev) =>
+          prev.map((ch) =>
+            ch.id === channelId
+              ? {
+                  ...ch,
+                  error: result.message || "Check failed",
+                  status: "offline",
+                }
+              : ch
           )
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error checking channel status:", error);
+      // Update TV with error state
+      setChannels((prev) =>
+        prev.map((ch) =>
+          ch.id === channelId
+            ? {
+                ...ch,
+                error: error instanceof Error ? error.message : "Network error",
+                status: "offline",
+              }
+            : ch
+        )
+      );
     } finally {
-      setCheckingId(null); // ⬅️ selesai loading
+      setCheckingId(null);
     }
   }, []);
 
@@ -267,10 +303,32 @@ export default function ChannelsPage() {
     setCurrentPage(page);
   };
 
-  // Reset page ketika filter berubang
+  // Reset page ketika filter berubah
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, categoryFilter, statusFilter]);
+
+  // Handle responsive window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
+      }
+    };
+
+    // Set initial value
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
+
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
 
   // Memoized categories
   const categories = useMemo(
@@ -283,7 +341,15 @@ export default function ChannelsPage() {
 
   // Status badge component untuk konsistensi
   const StatusBadge = useCallback(
-    ({ status, responseTime }: { status: string; responseTime?: number }) => (
+    ({
+      status,
+      responseTime,
+      isMobile = false,
+    }: {
+      status: string;
+      responseTime?: number;
+      isMobile?: boolean;
+    }) => (
       <div>
         <span
           className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
@@ -301,7 +367,7 @@ export default function ChannelsPage() {
             ? status.charAt(0).toUpperCase() + status.slice(1)
             : "Unknown"}
         </span>
-        {responseTime && (
+        {responseTime && !isMobile && (
           <div className="text-xs text-gray-500 mt-1 ml-1">
             {responseTime}ms
           </div>
@@ -332,12 +398,12 @@ export default function ChannelsPage() {
 
       // Convert filtered data ke CSV format
       const csvData = filteredChannels.map((channel) => [
-        channel.channelNumber || "",
-        channel.channelName || "",
-        channel.category || "",
+        channel.channelNumber?.toString() || "",
+        (channel.channelName || "").replace(/"/g, '""'),
+        (channel.category || "").replace(/"/g, '""'),
         channel.ipMulticast || "",
         channel.status || "",
-        channel.responseTime || "",
+        channel.responseTime?.toString() || "",
         channel.lastChecked || "",
         channel.logo || "",
       ]);
@@ -346,21 +412,28 @@ export default function ChannelsPage() {
       const csvContent = [headers, ...csvData]
         .map((row) =>
           row
-            .map((field) =>
-              // Escape quotes dan wrap dengan quotes jika mengandung koma/quotes
-              typeof field === "string" &&
-              (field.includes(",") ||
-                field.includes('"') ||
-                field.includes("\n"))
-                ? `"${field.replace(/"/g, '""')}"`
-                : field
-            )
+            .map((field) => {
+              const stringField = String(field);
+              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
+              if (
+                stringField.includes(",") ||
+                stringField.includes('"') ||
+                stringField.includes("\n") ||
+                stringField.includes("\r")
+              ) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+              }
+              return stringField;
+            })
             .join(",")
         )
         .join("\n");
 
       // Buat file dan download
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
       const link = document.createElement("a");
 
       if (link.download !== undefined) {
@@ -379,28 +452,63 @@ export default function ChannelsPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
     } catch (error) {
       console.error("Error exporting CSV:", error);
-      // Optional: Tambahkan toast notification untuk error
+      alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);
     }
   }, [filteredChannels, exportLoading]);
 
-  // Jika belum mounted, return loading state sederhana
-  if (!router || !mounted) {
-    return (
-      <div className="p-6 bg-blue-50 min-h-screen">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading channels...</span>
-        </div>
-      </div>
-    );
-  }
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number, screenSize: string) => {
+      let maxVisiblePages: number;
+      let showFirstLast: boolean;
 
-  if (loading) {
+      switch (screenSize) {
+        case "mobile":
+          maxVisiblePages = 3;
+          showFirstLast = false;
+          break;
+        case "tablet":
+          maxVisiblePages = 5;
+          showFirstLast = true;
+          break;
+        default: // desktop
+          maxVisiblePages = 7;
+          showFirstLast = true;
+          break;
+      }
+
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      // Adjust start page if we're near the end
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      return {
+        startPage,
+        endPage,
+        maxVisiblePages,
+        showFirstLast,
+        showEllipsis: {
+          start: showFirstLast && startPage > 2,
+          end: showFirstLast && endPage < totalPages - 1,
+        },
+      };
+    },
+    []
+  );
+
+  // Jika belum mounted atau loading, return loading state
+  if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">
@@ -703,7 +811,7 @@ export default function ChannelsPage() {
                     </code>
                   </td>
                   <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
-                    <StatusBadge status={channel.status} />
+                    <StatusBadge status={channel.status} isMobile={false} />
                   </td>
                   <td className="hidden md:table-cell px-4 sm:px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
@@ -737,22 +845,23 @@ export default function ChannelsPage() {
         <div className="md:hidden divide-y divide-gray-100">
           {paginationData.paginatedChannels.map((channel, index) => (
             <div
-              key={`mobile-tv-${channel.id || index}`}
+              key={`mobile-channel-${channel.id || index}`}
               className="p-4 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm">
                     {channel.logo && (
-                      <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-200">
+                      <div className="h-8 w-16 relative bg-gray-50 rounded-lg overflow-hidden shadow-sm">
                         {channel.logo && isValidUrl(channel.logo) ? (
                           <Image
                             src={channel.logo}
                             alt={channel.channelName || "Channel logo"}
                             fill
                             className="object-contain p-1"
-                            sizes="80px"
+                            sizes="64px"
                             unoptimized
+                            priority={index < 4}
                           />
                         ) : (
                           <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
@@ -805,6 +914,15 @@ export default function ChannelsPage() {
                   Check Now
                 </button>
               </div>
+
+              {/* Error message */}
+              {channel.error && (
+                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-xs text-red-600 break-words">
+                    {channel.error}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -843,71 +961,103 @@ export default function ChannelsPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Info Text */}
-            <div className="text-sm text-gray-600 order-2 sm:order-1">
-              Showing{" "}
-              <span className="font-semibold text-gray-900">
-                {paginationData.startIndex + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold text-gray-900">
-                {paginationData.endIndex}
-              </span>{" "}
-              of{" "}
-              <span className="font-semibold text-gray-900">
-                {filteredChannels.length}
-              </span>{" "}
-              channels
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${
+              screenSize === "mobile"
+                ? "flex-col space-y-3"
+                : "flex-col sm:flex-row"
+            }`}
+          >
+            {/* Info Text - Responsive positioning */}
+            <div
+              className={`text-xs sm:text-sm text-gray-600 ${
+                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+              }`}
+            >
+              {screenSize === "mobile" ? (
+                // Compact info for mobile
+                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+                  <span className="font-medium">
+                    Page {currentPage} of {paginationData.totalPages}
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    ({paginationData.startIndex + 1}-{paginationData.endIndex}{" "}
+                    of {filteredChannels.length} channels)
+                  </span>
+                </div>
+              ) : (
+                // Full info for tablet/desktop
+                <>
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.startIndex + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.endIndex}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {filteredChannels.length}
+                  </span>{" "}
+                  channels
+                </>
+              )}
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex items-center gap-2 order-1 sm:order-2">
+            <div
+              className={`flex items-center gap-1 sm:gap-2 ${
+                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+              }`}
+            >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
               >
-                <ChevronLeftIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Previous</span>
+                <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Previous</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Prev</span>
+                )}
               </button>
 
-              {/* Page Numbers - Mobile optimized */}
+              {/* Page Numbers - Fully Responsive */}
               <div className="flex items-center gap-1">
                 {(() => {
                   const { totalPages } = paginationData;
-                  const maxVisiblePages = window.innerWidth < 640 ? 3 : 5;
-                  let startPage = Math.max(
-                    1,
-                    currentPage - Math.floor(maxVisiblePages / 2)
-                  );
-                  const endPage = Math.min(
-                    totalPages,
-                    startPage + maxVisiblePages - 1
-                  );
-
-                  if (endPage - startPage < maxVisiblePages - 1) {
-                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                  }
+                  const { startPage, endPage, showFirstLast, showEllipsis } =
+                    getVisiblePages(currentPage, totalPages, screenSize);
 
                   const pages = [];
 
-                  if (startPage > 1) {
+                  // First page + ellipsis (desktop/tablet only)
+                  if (showFirstLast && startPage > 1) {
                     pages.push(
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === 1
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
                       >
                         1
                       </button>
                     );
-                    if (startPage > 2) {
+
+                    if (showEllipsis.start) {
                       pages.push(
                         <span
                           key="ellipsis-start"
-                          className="px-2 py-2 text-gray-400"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
                         >
                           ...
                         </span>
@@ -915,12 +1065,21 @@ export default function ChannelsPage() {
                     }
                   }
 
+                  // Main page numbers
                   for (let i = startPage; i <= endPage; i++) {
+                    // Skip last page, will be added separately
+                    if (
+                      showFirstLast &&
+                      i === totalPages &&
+                      totalPages > endPage
+                    )
+                      continue;
+
                     pages.push(
                       <button
-                        key={`page-${i}`}
+                        key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                           currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
@@ -931,22 +1090,28 @@ export default function ChannelsPage() {
                     );
                   }
 
-                  if (endPage < totalPages) {
-                    if (endPage < totalPages - 1) {
+                  // Ellipsis + last page (desktop/tablet only)
+                  if (showFirstLast && endPage < totalPages) {
+                    if (showEllipsis.end) {
                       pages.push(
                         <span
                           key="ellipsis-end"
-                          className="px-2 py-2 text-gray-400"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
                         >
                           ...
                         </span>
                       );
                     }
+
                     pages.push(
                       <button
                         key={`page-${totalPages}`}
                         onClick={() => handlePageChange(totalPages)}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === totalPages
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
                       >
                         {totalPages}
                       </button>
@@ -960,10 +1125,17 @@ export default function ChannelsPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
               >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRightIcon className="w-4 h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Next</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Next</span>
+                )}
+                <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>

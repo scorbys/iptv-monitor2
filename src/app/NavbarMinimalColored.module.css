@@ -215,15 +215,11 @@
     left: 10px;
     bottom: 10px;
     height: 65px;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    background-color: var(--mantine-color-blue-filled);
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
   }
-
+  
   .link {
     width: 40px;
     height: 40px;
-    margin-right: 6px;
   }
 
   .navbarActions {

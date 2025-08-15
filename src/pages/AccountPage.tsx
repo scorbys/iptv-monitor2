@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   IconUser,
   IconMail,
@@ -240,6 +240,21 @@ export default function AccountPage() {
     }
   };
 
+  const isValidImageUrl = (url: string): boolean => {
+    if (!url) return false;
+
+    // Check for base64 images
+    if (url.startsWith("data:image/")) return true;
+
+    // Check for valid HTTP/HTTPS URLs
+    try {
+      new URL(url);
+      return url.startsWith("http://") || url.startsWith("https://");
+    } catch {
+      return false;
+    }
+  };
+
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -301,12 +316,7 @@ export default function AccountPage() {
     const isGoogleUser = user?.provider === "google";
 
     // Check if user has existing password with better validation
-    const hasExistingPassword =
-      user?.password &&
-      user?.password !== null &&
-      user?.password !== "exists" &&
-      typeof user?.password === "string" &&
-      user?.password.trim() !== "";
+    const hasExistingPassword = user?.password === "exists";
 
     // Current password required only for local users with existing password
     const requiresCurrentPassword = isLocalUser && hasExistingPassword;
@@ -341,6 +351,15 @@ export default function AccountPage() {
     return false;
   };
 
+  const shouldShowCurrentPasswordField = (): boolean => {
+    if (!user) return false;
+
+    const isLocalUser = !user?.provider || user?.provider === "local";
+    const hasExistingPassword = user?.password === "exists";
+
+    return isLocalUser && hasExistingPassword;
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -349,15 +368,17 @@ export default function AccountPage() {
     setPasswordData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const clearMessage = () => {
-    setTimeout(() => setMessage(null), 5000);
-  };
+  const clearMessage = useCallback(() => {
+    const timer = setTimeout(() => setMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (message) {
-      clearMessage();
+      const cleanup = clearMessage();
+      return cleanup;
     }
-  }, [message]);
+  }, [message, clearMessage]);
 
   useEffect(() => {
     if (user) {
@@ -390,19 +411,17 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16">
+    <div className="min-h-screen bg-blue-50">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <button
             onClick={() => router.back()}
-            className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <IconArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Account Settings
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
         </div>
 
         {/* Message Alert */}
@@ -410,8 +429,8 @@ export default function AccountPage() {
           <div
             className={`mb-6 p-4 rounded-lg border ${
               message.type === "success"
-                ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
-                : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
+                ? "bg-green-50 border-green-200 text-green-800"
+                : "bg-red-50 border-red-200 text-red-800"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -426,14 +445,14 @@ export default function AccountPage() {
         )}
 
         {/* Tab Navigation */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab("profile")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "profile"
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               Profile Information
@@ -443,8 +462,8 @@ export default function AccountPage() {
                 onClick={() => setActiveTab("security")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === "security"
-                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
                 Security
@@ -455,16 +474,16 @@ export default function AccountPage() {
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow">
             {/* Avatar Section */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
                 Profile Picture
               </h2>
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  {user?.avatar ? (
-                    <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-600">
+                  {user?.avatar && isValidImageUrl(user.avatar) ? (
+                    <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
                       <Image
                         src={user.avatar}
                         alt={user.name || user.username}
@@ -477,16 +496,16 @@ export default function AccountPage() {
                           const parent = target.parentElement;
                           if (parent) {
                             parent.innerHTML = `
-                              <div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-medium">
-                                ${getInitials(user.name || "", user.username)}
-                              </div>
-                            `;
+                            <div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-medium">
+                              ${getInitials(user.name || "", user.username)}
+                            </div>
+                          `;
                           }
                         }}
                       />
                     </div>
                   ) : (
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-medium border-2 border-gray-200 dark:border-gray-600">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-medium border-2 border-gray-200">
                       {user ? (
                         getInitials(user.name || "", user.username)
                       ) : (
@@ -507,19 +526,17 @@ export default function AccountPage() {
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                  <h3 className="font-medium text-gray-900">
                     {user?.name || user?.username}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {user?.email}
-                  </p>
+                  <p className="text-sm text-gray-500">{user?.email}</p>
                   {isGoogleUser && (
-                    <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
+                    <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
                       Google Account
                     </span>
                   )}
                   {!isGoogleUser && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Click the camera icon to change your profile picture
                     </p>
                   )}
@@ -538,14 +555,14 @@ export default function AccountPage() {
             {/* Profile Form */}
             <form onSubmit={handleProfileUpdate} className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                <h2 className="text-lg font-medium text-gray-900">
                   Personal Information
                 </h2>
                 {canEditProfile && !editMode && (
                   <button
                     type="button"
                     onClick={() => setEditMode(true)}
-                    className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
                   >
                     <IconEdit className="w-4 h-4" />
                     Edit
@@ -556,7 +573,7 @@ export default function AccountPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Email Address
                   </label>
                   <div className="relative">
@@ -564,18 +581,18 @@ export default function AccountPage() {
                       type="email"
                       value={formData.email}
                       disabled
-                      className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                     <IconMail className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     Email cannot be changed
                   </p>
                 </div>
 
                 {/* Username */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Username
                   </label>
                   <div className="relative">
@@ -588,14 +605,14 @@ export default function AccountPage() {
                       disabled={!canEditProfile || !editMode}
                       className={`w-full px-4 py-2 pl-10 border rounded-md ${
                         !canEditProfile || !editMode
-                          ? "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                          : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          ? "border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
+                          : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       }`}
                     />
                     <IconUser className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                   </div>
                   {isGoogleUser && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Username cannot be changed for Google accounts
                     </p>
                   )}
@@ -603,7 +620,7 @@ export default function AccountPage() {
 
                 {/* Display Name */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Display Name
                   </label>
                   <input
@@ -614,11 +631,11 @@ export default function AccountPage() {
                     placeholder="Enter your display name"
                     className={`w-full px-4 py-2 border rounded-md ${
                       !editMode
-                        ? "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                        : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        ? "border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
+                        : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     }`}
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     This is how your name will be displayed
                   </p>
                 </div>
@@ -648,7 +665,7 @@ export default function AccountPage() {
                         email: user?.email || "",
                       });
                     }}
-                    className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
@@ -660,62 +677,57 @@ export default function AccountPage() {
 
         {/* Security Tab */}
         {activeTab === "security" && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow">
             {passwordChangeAllowed ? (
               <form onSubmit={handlePasswordUpdate} className="p-6">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">
                   Change Password
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                <p className="text-sm text-gray-600 mb-6">
                   Update your password to keep your account secure
                 </p>
 
                 <div className="space-y-4">
                   {/* Current Password - Only show if user has existing password AND is local user */}
-                  {user?.password &&
-                    user?.password !== null &&
-                    user?.password !== "exists" &&
-                    typeof user?.password === "string" &&
-                    user?.password.trim() !== "" &&
-                    (!user?.provider || user?.provider === "local") && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Current Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showCurrentPassword ? "text" : "password"}
-                            value={passwordData.currentPassword}
-                            onChange={(e) =>
-                              handlePasswordChange(
-                                "currentPassword",
-                                e.target.value
-                              )
-                            }
-                            className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          />
-                          <IconLock className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowCurrentPassword(!showCurrentPassword)
-                            }
-                            className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          >
-                            {showCurrentPassword ? (
-                              <IconEyeOff className="w-4 h-4" />
-                            ) : (
-                              <IconEye className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
+                  {shouldShowCurrentPasswordField() && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Current Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={passwordData.currentPassword}
+                          onChange={(e) =>
+                            handlePasswordChange(
+                              "currentPassword",
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
+                        <IconLock className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowCurrentPassword(!showCurrentPassword)
+                          }
+                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                        >
+                          {showCurrentPassword ? (
+                            <IconEyeOff className="w-4 h-4" />
+                          ) : (
+                            <IconEye className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
-                    )}
+                    </div>
+                  )}
 
                   {/* New Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       {user?.provider === "google" && !user?.password
                         ? "Set Password"
                         : "New Password"}
@@ -727,14 +739,14 @@ export default function AccountPage() {
                         onChange={(e) =>
                           handlePasswordChange("newPassword", e.target.value)
                         }
-                        className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       />
                       <IconLock className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
                       >
                         {showNewPassword ? (
                           <IconEyeOff className="w-4 h-4" />
@@ -743,14 +755,14 @@ export default function AccountPage() {
                         )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Must be at least 6 characters long
                     </p>
                   </div>
 
                   {/* Confirm Password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Confirm{" "}
                       {user?.provider === "google" && !user?.password
                         ? "Password"
@@ -766,7 +778,7 @@ export default function AccountPage() {
                             e.target.value
                           )
                         }
-                        className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       />
                       <IconLock className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
@@ -775,7 +787,7 @@ export default function AccountPage() {
                         onClick={() =>
                           setShowConfirmPassword(!showConfirmPassword)
                         }
-                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
                       >
                         {showConfirmPassword ? (
                           <IconEyeOff className="w-4 h-4" />
@@ -788,11 +800,11 @@ export default function AccountPage() {
 
                   {/* Google Account Info */}
                   {user?.provider === "google" && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0">
                           <svg
-                            className="w-5 h-5 text-blue-600 dark:text-blue-400"
+                            className="w-5 h-5 text-blue-600"
                             fill="currentColor"
                             viewBox="0 0 24 24"
                           >
@@ -803,11 +815,11 @@ export default function AccountPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                          <p className="text-sm font-medium text-blue-800">
                             Google Account
                           </p>
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                            {!user?.password || user?.password === null
+                          <p className="text-xs text-blue-600 mt-1">
+                            {user?.password !== "exists"
                               ? "You can set a password to enable local login in addition to Google sign-in."
                               : "You have set a password for local login. Your Google sign-in will continue to work."}
                           </p>
@@ -829,10 +841,12 @@ export default function AccountPage() {
                       <IconLock className="w-4 h-4" />
                     )}
                     {saving
-                      ? user?.provider === "google" && !user?.password
+                      ? user?.provider === "google" &&
+                        user?.password !== "exists"
                         ? "Setting Password..."
                         : "Updating Password..."
-                      : user?.provider === "google" && !user?.password
+                      : user?.provider === "google" &&
+                        user?.password !== "exists"
                       ? "Set Password"
                       : "Update Password"}
                   </button>
@@ -841,13 +855,13 @@ export default function AccountPage() {
             ) : (
               <div className="p-6 text-center">
                 <div className="max-w-md mx-auto">
-                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <IconLock className="w-8 h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Password Management Not Available
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Your account is managed through Google. Password changes
                     should be done through your Google account settings.
                   </p>
@@ -855,7 +869,7 @@ export default function AccountPage() {
                     href="https://myaccount.google.com/security"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors"
                   >
                     <svg
                       className="w-4 h-4"
