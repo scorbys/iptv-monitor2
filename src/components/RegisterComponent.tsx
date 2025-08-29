@@ -18,7 +18,7 @@ import { useAuth } from "./AuthContext";
 const backgroundImages = [
   "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b6/aa/public-space.jpg?w=1000&h=-1&s=1",
   "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/12/f1/2d/5a/ocean-view-suite-livingroom.jpg?w=1000&h=-1&s=1",
-  "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/30/9e/81/50/breakfast.jpg?w=1000&h=-1&s=1",
+  "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2b/76/b8/9b/gym-membership-available.jpg?w=1000&h=-1&s=1",
 ];
 
 interface RegisterFormData {
@@ -379,7 +379,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                           onChange={(e) =>
                             handleInputChange("email", e.target.value)
                           }
-                          className="w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
+                          className="w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
                           placeholder="john@example.com"
                           disabled={loading || gmailLoading}
                         />
@@ -411,7 +411,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                           onChange={(e) =>
                             handleInputChange("username", e.target.value)
                           }
-                          className="w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
+                          className="w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
                           placeholder="johndoe"
                           disabled={loading || gmailLoading}
                         />
@@ -443,7 +443,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                           onChange={(e) =>
                             handleInputChange("password", e.target.value)
                           }
-                          className="w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
+                          className="w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
                           placeholder="••••••••"
                           disabled={loading || gmailLoading}
                         />
@@ -488,7 +488,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                           onChange={(e) =>
                             handleInputChange("confirmPassword", e.target.value)
                           }
-                          className="w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2.5 sm:py-3 bg-gray-50 border-2 border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
+                          className="w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 placeholder-gray-500 text-gray-900 rounded-lg sm:rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 hover:border-gray-300 transition-all duration-200 text-sm sm:text-base"
                           placeholder="••••••••"
                           disabled={loading || gmailLoading}
                         />
@@ -534,7 +534,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                         type="button"
                         onClick={handleSubmit}
                         disabled={loading || gmailLoading}
-                        className="w-full flex justify-center py-2.5 sm:py-3 px-4 border-2 border-transparent text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-0 focus:border-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-h-[44px] sm:min-h-[48px]"
+                        className="w-full flex justify-center py-2.5 sm:py-3 px-4 border border-transparent text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-0 focus:border-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg min-h-[44px] sm:min-h-[48px]"
                       >
                         {loading ? (
                           <div className="flex items-center">
@@ -561,7 +561,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                           type="button"
                           onClick={handleGmailLogin}
                           disabled={loading || gmailLoading}
-                          className="w-full flex justify-center items-center py-2.5 sm:py-3 px-4 border-2 border-gray-200 rounded-lg sm:rounded-xl shadow-sm bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-0 focus:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px] sm:min-h-[48px]"
+                          className="w-full flex justify-center items-center py-2.5 sm:py-3 px-4 border border-gray-200 rounded-lg sm:rounded-xl shadow-sm bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-0 focus:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px] sm:min-h-[48px]"
                         >
                           {gmailLoading ? (
                             <Loader2 className="animate-spin h-4 sm:h-5 w-4 sm:w-5 mr-2" />
