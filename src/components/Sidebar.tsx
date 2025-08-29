@@ -8,6 +8,8 @@ import {
   IconCast,
   IconDeviceTv,
   IconLogout,
+  IconInfoHexagon,
+  IconMichelinBibGourmand,
 } from "@tabler/icons-react";
 import { Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import classes from "../app/NavbarMinimalColored.module.css";
@@ -73,6 +75,8 @@ const mockdata = [
   { name: "Channel", href: "/channel", icon: IconBroadcast },
   { name: "Chromecast", href: "/chromecast", icon: IconCast },
   { name: "Hospitality", href: "/hospitality", icon: IconDeviceTv },
+  { name: "Notifications", href: "/notifications", icon: IconInfoHexagon },
+  { name: "Help", href: "/help", icon: IconMichelinBibGourmand },
 ];
 
 export function NavbarMinimalColored() {
