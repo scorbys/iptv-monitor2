@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -23,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ZoomIn,
+  ChevronDown,
 } from "lucide-react";
 
 // Types
@@ -60,6 +60,49 @@ interface ImageModalProps {
   onImageClick: (index: number) => void;
 }
 
+// Component Props Interfaces
+interface ModernVisualGuideProps {
+  article: FAQ;
+  openImageModal: (index: number) => void;
+}
+
+interface ModernQuickInfoProps {
+  article: FAQ;
+  totalSteps: number;
+}
+
+interface ModernTroubleshootingProps {
+  article: FAQ;
+}
+
+interface ModernStepGuideProps {
+  article: FAQ;
+  completedSteps: number[];
+  toggleStepCompletion: (stepIndex: number) => void;
+}
+
+interface ModernStepItemProps {
+  step: string;
+  index: number;
+  completedSteps: number[];
+  toggleStepCompletion: (stepIndex: number) => void;
+}
+
+interface ModernHeaderProps {
+  router: ReturnType<typeof useRouter>;
+  article: FAQ;
+}
+
+interface ModernArticleHeaderProps {
+  article: FAQ;
+  deviceInfo: DeviceConfig;
+  DeviceIcon: LucideIcon;
+  completionPercentage: number;
+  totalSteps: number;
+  completedSteps: number[];
+  resetProgress: () => void;
+}
+
 // Enhanced mock data with more articles
 const faqData: FAQ[] = [
   {
@@ -82,12 +125,12 @@ const faqData: FAQ[] = [
       "Logout dari WiFi Radisson Guest, lalu login kembali dengan kredensial yang benar",
       "Restart Chromecast dengan mencabut dan memasang kembali adaptor daya",
       "Buka browser dan akses log-out.me untuk memastikan tidak ada session yang konflik",
-      "Coba setup Chromecast kembali melalui aplikasi Google Home"
+      "Coba setup Chromecast kembali melalui aplikasi Google Home",
     ],
     troubleshooting: [
       "Jika masih tidak terdeteksi, coba reset Chromecast ke pengaturan pabrik",
       "Pastikan tidak ada VPN yang aktif di perangkat iOS",
-      "Periksa apakah firewall hotel memblokir koneksi Chromecast"
+      "Periksa apakah firewall hotel memblokir koneksi Chromecast",
     ],
     hasImage: true,
     actionType: "System",
@@ -95,7 +138,7 @@ const faqData: FAQ[] = [
     estimatedTime: "10-15 minutes",
     difficulty: "Medium",
     slug: "no-device-found-chromecast",
-    images: ["/placeholder/100.jpeg", "/placeholder/101.jpeg"]
+    images: ["/placeholder/100.jpeg", "/placeholder/101.jpeg"],
   },
   {
     id: 2,
@@ -116,12 +159,12 @@ const faqData: FAQ[] = [
       "Cabut adaptor daya box IPTV selama 10 detik, lalu pasang kembali",
       "Tunggu hingga indikator LED berubah menjadi hijau (sekitar 2-3 menit)",
       "Jika LED masih merah atau berkedip, periksa koneksi internet",
-      "Test koneksi dengan mengganti kabel LAN jika tersedia"
+      "Test koneksi dengan mengganti kabel LAN jika tersedia",
     ],
     troubleshooting: [
       "Jika masih lemah, periksa kabel LAN apakah ada kerusakan fisik",
       "Pastikan tidak ada bending yang berlebihan pada kabel",
-      "Coba gunakan port LAN yang berbeda jika tersedia di wall outlet"
+      "Coba gunakan port LAN yang berbeda jika tersedia di wall outlet",
     ],
     hasImage: true,
     actionType: "On Site",
@@ -129,7 +172,7 @@ const faqData: FAQ[] = [
     estimatedTime: "5-10 minutes",
     difficulty: "Easy",
     slug: "weak-or-no-signal",
-    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"]
+    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
   },
   {
     id: 3,
@@ -151,12 +194,12 @@ const faqData: FAQ[] = [
       "Periksa ujung kabel yang terhubung ke wall outlet juga terpasang dengan kuat",
       "Nyalakan kembali box IPTV dan tunggu proses booting selesai",
       "Nyalakan TV dan atur input ke HDMI-1",
-      "Jika masih bermasalah, coba gunakan kabel LAN cadangan"
+      "Jika masih bermasalah, coba gunakan kabel LAN cadangan",
     ],
     troubleshooting: [
       "Periksa apakah ada kerusakan pada konektor RJ45",
       "Pastikan tidak ada dust atau kotoran di dalam port",
-      "Jika tersedia, test dengan kabel LAN yang berbeda"
+      "Jika tersedia, test dengan kabel LAN yang berbeda",
     ],
     hasImage: true,
     actionType: "On Site",
@@ -164,7 +207,7 @@ const faqData: FAQ[] = [
     estimatedTime: "5-8 minutes",
     difficulty: "Easy",
     slug: "unplug-lan-tv",
-    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"]
+    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
   },
   {
     id: 4,
@@ -189,12 +232,12 @@ const faqData: FAQ[] = [
       "Aplikasi akan mencari Chromecast di sekitar",
       "Ikuti instruksi on-screen untuk menyelesaikan setup",
       "Sambungkan Chromecast ke WiFi 'Radisson Guest'",
-      "Masukkan password WiFi jika diminta"
+      "Masukkan password WiFi jika diminta",
     ],
     troubleshooting: [
       "Jika Chromecast tidak terdeteksi, restart aplikasi Google Home",
       "Pastikan iPhone dan Chromecast terhubung ke WiFi yang sama",
-      "Jika setup gagal, reset Chromecast dengan menekan tombol di device selama 25 detik"
+      "Jika setup gagal, reset Chromecast dengan menekan tombol di device selama 25 detik",
     ],
     hasImage: true,
     actionType: "System",
@@ -202,7 +245,7 @@ const faqData: FAQ[] = [
     estimatedTime: "8-12 minutes",
     difficulty: "Medium",
     slug: "chromecast-setup-ios",
-    images: ["/placeholder/400.jpeg"]
+    images: ["/placeholder/400.jpeg"],
   },
   {
     id: 5,
@@ -218,12 +261,12 @@ const faqData: FAQ[] = [
       "Jika VLC bisa memutar, masalah ada di aplikasi IPTV",
       "Jika VLC tidak bisa, masalah ada di provider (Biznet)",
       "Hubungi technical support untuk konfirmasi channel",
-      "Laporkan hasil test VLC ke tim support"
+      "Laporkan hasil test VLC ke tim support",
     ],
     troubleshooting: [
       "Coba channel lain untuk memastikan tidak ada masalah jaringan",
       "Periksa kecepatan internet dengan speed test",
-      "Restart modem/router jika diperlukan"
+      "Restart modem/router jika diperlukan",
     ],
     hasImage: true,
     actionType: "System",
@@ -233,8 +276,8 @@ const faqData: FAQ[] = [
     slug: "error-playing",
     images: [
       "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f3e5f5'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%237b1fa2' font-size='16'%3EVLC Testing Method%3C/text%3E%3C/svg%3E",
-      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23e8f5e8'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%232e7d32' font-size='16'%3ENetwork Stream Setup%3C/text%3E%3C/svg%3E"
-    ]
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23e8f5e8'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%232e7d32' font-size='16'%3ENetwork Stream Setup%3C/text%3E%3C/svg%3E",
+    ],
   },
   {
     id: 6,
@@ -253,12 +296,12 @@ const faqData: FAQ[] = [
       "Reset konfigurasi widget ke default",
       "Restart aplikasi IPTV setelah perubahan",
       "Test channel yang bermasalah",
-      "Jika masih error, lakukan test dengan VLC seperti prosedur sebelumnya"
+      "Jika masih error, lakukan test dengan VLC seperti prosedur sebelumnya",
     ],
     troubleshooting: [
       "Backup konfigurasi sebelum melakukan reset",
       "Catat pengaturan yang berhasil untuk referensi",
-      "Hubungi support jika error persisten setelah reset"
+      "Hubungi support jika error persisten setelah reset",
     ],
     hasImage: false,
     actionType: "System",
@@ -266,7 +309,7 @@ const faqData: FAQ[] = [
     estimatedTime: "15-20 minutes",
     difficulty: "Hard",
     slug: "error-player-error",
-    images: []
+    images: [],
   },
   {
     id: 7,
@@ -288,12 +331,12 @@ const faqData: FAQ[] = [
       "Restart set-top box dengan IP baru",
       "Reinstall widget solution jika diperlukan",
       "Reload IGCMP service",
-      "Test koneksi channel setelah perubahan"
+      "Test koneksi channel setelah perubahan",
     ],
     troubleshooting: [
       "Gunakan IP scanner untuk detect conflict",
       "Dokumentasikan perubahan IP untuk referensi",
-      "Monitor stabilitas koneksi setelah perubahan"
+      "Monitor stabilitas koneksi setelah perubahan",
     ],
     hasImage: true,
     actionType: "System",
@@ -302,8 +345,8 @@ const faqData: FAQ[] = [
     difficulty: "Hard",
     slug: "connection-failure",
     images: [
-      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23fff8e1'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23f57f17' font-size='16'%3EIP Configuration%3C/text%3E%3C/svg%3E"
-    ]
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23fff8e1'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23f57f17' font-size='16'%3EIP Configuration%3C/text%3E%3C/svg%3E",
+    ],
   },
   {
     id: 8,
@@ -324,12 +367,12 @@ const faqData: FAQ[] = [
       "Bawa Chromecast ke ruang server",
       "Tekan dan tahan tombol reset selama 10 detik",
       "LED akan berkedip menandakan proses reset",
-      "Setup ulang Chromecast dari awal"
+      "Setup ulang Chromecast dari awal",
     ],
     troubleshooting: [
       "Backup pengaturan penting sebelum factory reset",
       "Siapkan kredensial WiFi untuk setup ulang",
-      "Test fungsi basic setelah reset"
+      "Test fungsi basic setelah reset",
     ],
     hasImage: true,
     actionType: "On Site",
@@ -338,8 +381,8 @@ const faqData: FAQ[] = [
     difficulty: "Easy",
     slug: "reset-configuration",
     images: [
-      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23ffebee'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23c62828' font-size='16'%3EChromecast Reset Button%3C/text%3E%3C/svg%3E"
-    ]
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23ffebee'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23c62828' font-size='16'%3EChromecast Reset Button%3C/text%3E%3C/svg%3E",
+    ],
   },
   {
     id: 9,
@@ -359,12 +402,12 @@ const faqData: FAQ[] = [
       "Periksa apakah VPN sedang aktif di iPhone",
       "Jika VPN aktif, matikan sementara selama setup",
       "Restart aplikasi yang digunakan untuk casting",
-      "Coba deteksi perangkat kembali"
+      "Coba deteksi perangkat kembali",
     ],
     troubleshooting: [
       "Jika masih tidak terdeteksi, restart iPhone",
       "Pastikan perangkat target dan iPhone dalam jaringan WiFi yang sama",
-      "Coba forget dan reconnect ke WiFi"
+      "Coba forget dan reconnect ke WiFi",
     ],
     hasImage: true,
     actionType: "On Site",
@@ -372,17 +415,14 @@ const faqData: FAQ[] = [
     estimatedTime: "5-8 minutes",
     difficulty: "Easy",
     slug: "no-device-logged",
-    images: ["/placeholder/900.jpeg", "/placeholder/901.jpeg"]
+    images: ["/placeholder/900.jpeg", "/placeholder/901.jpeg"],
   },
   {
     id: 10,
     category: "Kategori-10",
     device: "Chromecast",
     issue: "Chromecast Black Screen",
-    solutions: [
-      "Chromecast Power Adaptor Rusak", 
-      "Check Adaptor Chromecast"
-    ],
+    solutions: ["Chromecast Power Adaptor Rusak", "Check Adaptor Chromecast"],
     detailedSteps: [
       "Periksa LED indicator pada Chromecast",
       "Jika LED tidak menyala, periksa adaptor daya",
@@ -391,12 +431,12 @@ const faqData: FAQ[] = [
       "Periksa koneksi HDMI ke TV",
       "Coba port HDMI yang berbeda di TV",
       "Restart TV dan ubah input source ke HDMI yang digunakan",
-      "Jika masih black screen, coba reset Chromecast"
+      "Jika masih black screen, coba reset Chromecast",
     ],
     troubleshooting: [
       "Jika LED berkedip, kemungkinan masalah koneksi WiFi",
       "Jika LED solid tapi layar hitam, periksa HDMI connection",
-      "Coba Chromecast di TV lain untuk isolasi masalah"
+      "Coba Chromecast di TV lain untuk isolasi masalah",
     ],
     hasImage: true,
     actionType: "System",
@@ -404,16 +444,14 @@ const faqData: FAQ[] = [
     estimatedTime: "10-15 minutes",
     difficulty: "Medium",
     slug: "chromecast-black-screen",
-    images: ["/placeholder/1000.jpeg"]
+    images: ["/placeholder/1000.jpeg"],
   },
   {
     id: 11,
     category: "Kategori-11",
     device: "Channel",
     issue: "Channel Not Found",
-    solutions: [
-      "LAN Out Terpasang bukan LAN In"
-    ],
+    solutions: ["LAN Out Terpasang bukan LAN In"],
     detailedSteps: [
       "Periksa bagian belakang set-top box atau TV",
       "Cari port yang berlabel 'LAN IN' atau 'ETHERNET IN'",
@@ -422,12 +460,12 @@ const faqData: FAQ[] = [
       "Lepaskan kabel dari port OUT jika salah pasang",
       "Pasang kabel ke port LAN IN dengan benar",
       "Tunggu beberapa saat hingga koneksi tersambung",
-      "Restart aplikasi channel atau reboot set-top box"
+      "Restart aplikasi channel atau reboot set-top box",
     ],
     troubleshooting: [
       "Jika masih tidak ada channel, periksa konfigurasi IPTV",
       "Pastikan subscription channel masih aktif",
-      "Hubungi technical support untuk verifikasi channel list"
+      "Hubungi technical support untuk verifikasi channel list",
     ],
     hasImage: true,
     actionType: "System",
@@ -435,7 +473,7 @@ const faqData: FAQ[] = [
     estimatedTime: "3-5 minutes",
     difficulty: "Easy",
     slug: "channel-not-found",
-    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"]
+    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
   },
 ];
 
@@ -494,11 +532,11 @@ const ImageModal: React.FC<ImageModalProps> = ({
   const currentImage = images[currentIndex];
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm">
       {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/20"
+        className="absolute top-4 right-4 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
         aria-label="Close modal"
       >
         <X className="w-6 h-6 text-gray-800" />
@@ -516,7 +554,7 @@ const ImageModal: React.FC<ImageModalProps> = ({
         <>
           <button
             onClick={onPrev}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/20"
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
             aria-label="Previous image"
           >
             <ChevronLeft className="w-6 h-6 text-gray-800" />
@@ -524,7 +562,7 @@ const ImageModal: React.FC<ImageModalProps> = ({
 
           <button
             onClick={onNext}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/20"
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
             aria-label="Next image"
           >
             <ChevronRight className="w-6 h-6 text-gray-800" />
@@ -533,12 +571,12 @@ const ImageModal: React.FC<ImageModalProps> = ({
       )}
 
       {/* Main image container */}
-      <div 
+      <div
         className="flex items-center justify-center min-h-screen p-4 md:p-8"
         onClick={onClose}
       >
-        <div 
-          className="relative max-w-full max-h-full animate-zoomIn"
+        <div
+          className="relative max-w-full max-h-full"
           onClick={(e) => e.stopPropagation()}
         >
           {!isImageLoaded && (
@@ -546,13 +584,13 @@ const ImageModal: React.FC<ImageModalProps> = ({
               <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
             </div>
           )}
-          
+
           <img
             src={currentImage}
             alt={`Guide step ${currentIndex + 1}`}
             className={`max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${
-              isImageLoaded ? 'opacity-100' : 'opacity-0'
-            } ${imageLoadError ? 'hidden' : ''}`}
+              isImageLoaded ? "opacity-100" : "opacity-0"
+            } ${imageLoadError ? "hidden" : ""}`}
             onLoad={handleImageLoad}
             onError={handleImageError}
           />
@@ -580,8 +618,8 @@ const ImageModal: React.FC<ImageModalProps> = ({
                 onClick={() => onImageClick(index)}
                 className={`w-3 h-3 rounded-full transition-all duration-200 ${
                   index === currentIndex
-                    ? 'bg-white scale-125'
-                    : 'bg-white/50 hover:bg-white/75'
+                    ? "bg-white scale-125"
+                    : "bg-white/50 hover:bg-white/75"
                 }`}
                 aria-label={`Go to image ${index + 1}`}
               />
@@ -592,6 +630,412 @@ const ImageModal: React.FC<ImageModalProps> = ({
     </div>
   );
 };
+
+// Modern Step Item Component
+const ModernStepItem: React.FC<ModernStepItemProps> = ({
+  step,
+  index,
+  completedSteps,
+  toggleStepCompletion,
+}) => {
+  const isCompleted = completedSteps.includes(index);
+
+  return (
+    <div
+      className={`group relative flex items-start space-x-4 p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+        isCompleted
+          ? "bg-green-50 border-green-200 shadow-sm"
+          : "bg-gray-50 border-gray-200 hover:border-blue-200 hover:bg-blue-50"
+      }`}
+      onClick={() => toggleStepCompletion(index)}
+    >
+      {/* Step Number / Checkbox */}
+      <div className="flex-shrink-0 mt-1">
+        {isCompleted ? (
+          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-4 h-4 text-white" />
+          </div>
+        ) : (
+          <div className="w-6 h-6 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center group-hover:border-blue-400">
+            <span className="text-xs font-bold text-gray-600">
+              {index + 1}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Step Content */}
+      <div className="flex-1">
+        <p
+          className={`text-sm font-medium leading-relaxed transition-colors ${
+            isCompleted
+              ? "text-green-800 line-through"
+              : "text-gray-800 group-hover:text-blue-800"
+          }`}
+        >
+          {step}
+        </p>
+      </div>
+
+      {/* Completion Indicator */}
+      <div className="flex-shrink-0">
+        {isCompleted ? (
+          <div className="text-green-600">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        ) : (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Modern Header Component
+const ModernHeader: React.FC<ModernHeaderProps> = ({ router, article }) => (
+  <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between h-16">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-3 text-gray-600 hover:text-gray-900 transition-colors group"
+        >
+          <div className="p-2 rounded-lg group-hover:bg-gray-100 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </div>
+          <span className="font-medium">Back to Help Center</span>
+        </button>
+
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <span>Article #{article.id}</span>
+          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+          <span>{article.category}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+);
+
+// Modern Article Header Component
+const ModernArticleHeader: React.FC<ModernArticleHeaderProps> = ({
+  article,
+  deviceInfo,
+  DeviceIcon,
+  completionPercentage,
+  totalSteps,
+  completedSteps,
+  resetProgress,
+}) => (
+  <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-xl shadow-gray-900/5">
+    <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+      {/* Article Info */}
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`p-3 ${deviceInfo?.color || 'bg-gray-500'} rounded-xl`}>
+            <DeviceIcon className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{article.issue}</h1>
+            <p className="text-gray-600">Device: {article.device}</p>
+          </div>
+        </div>
+
+        {/* Quick Solutions */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Solutions:</h3>
+          <div className="flex flex-wrap gap-2">
+            {article.solutions.map((solution: string, index: number) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full font-medium"
+              >
+                {solution}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Section */}
+      <div className="lg:w-80">
+        <div className="bg-gray-50 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-gray-700">Progress</span>
+            <span className="text-sm text-gray-600">
+              {completedSteps.length}/{totalSteps} steps
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${completionPercentage}%` }}
+            ></div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-2xl font-bold text-gray-900">
+              {completionPercentage}%
+            </span>
+            {completedSteps.length > 0 && (
+              <button
+                onClick={resetProgress}
+                className="flex items-center gap-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Modern Visual Guide Component
+const ModernVisualGuide: React.FC<ModernVisualGuideProps> = ({ article, openImageModal }) => {
+  if (!article.hasImage || !article.images?.length) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl">
+          <ImageIcon className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Visual Guide</h3>
+          <p className="text-sm text-gray-500">Step-by-step screenshots</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {article.images.map((imageSrc: string, index: number) => (
+          <div key={index} className="relative group">
+            <div
+              className="relative cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-200 group-hover:border-blue-300 transition-all duration-300 aspect-video"
+              onClick={() => openImageModal(index)}
+            >
+              <img
+                src={imageSrc}
+                alt={`Guide step ${index + 1}`}
+                className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EScreenshot Guide%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EStep ${
+                    index + 1
+                  }%3C/text%3E%3C/svg%3E`;
+                }}
+              />
+
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm rounded-full p-3 transform scale-75 group-hover:scale-100">
+                  <ZoomIn className="w-5 h-5 text-gray-800" />
+                </div>
+              </div>
+
+              {/* Step indicator */}
+              <div className="absolute top-3 left-3 bg-blue-600 text-white text-xs px-3 py-1 rounded-lg font-bold shadow-lg">
+                Step {index + 1}
+              </div>
+
+              {/* Hover hint */}
+              <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/70 text-white text-xs px-2 py-1 rounded-lg">
+                Click to enlarge
+              </div>
+            </div>
+
+            {/* Step description */}
+            <div className="mt-3 text-sm text-gray-600 font-medium">
+              Guide for step {index + 1}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Modern Quick Info Component
+const ModernQuickInfo: React.FC<ModernQuickInfoProps> = ({ article, totalSteps }) => (
+  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
+    <div className="flex items-center gap-3 mb-6">
+      <div className="p-2 bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl">
+        <Info className="w-5 h-5 text-white" />
+      </div>
+      <div>
+        <h3 className="text-lg font-bold text-gray-900">Quick Information</h3>
+        <p className="text-sm text-gray-500">Article details</p>
+      </div>
+    </div>
+
+    <div className="space-y-4">
+      {[
+        {
+          label: "Device Type",
+          value: article.device,
+          icon: Monitor,
+          color: "blue",
+        },
+        {
+          label: "Action Required",
+          value: article.actionType,
+          icon: Settings,
+          color: "green",
+        },
+        {
+          label: "Priority Level",
+          value: article.priority,
+          icon: AlertCircle,
+          color: "red",
+        },
+        {
+          label: "Difficulty",
+          value: article.difficulty,
+          icon: BarChart3,
+          color: "yellow",
+        },
+        {
+          label: "Est. Time",
+          value: article.estimatedTime,
+          icon: Clock,
+          color: "indigo",
+        },
+        {
+          label: "Total Steps",
+          value: totalSteps.toString(),
+          icon: CheckCircle2,
+          color: "emerald",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 bg-gray-200 rounded-lg">
+              <item.icon className="w-4 h-4 text-gray-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">
+              {item.label}
+            </span>
+          </div>
+          <span className="text-sm font-bold text-gray-900">
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Modern Troubleshooting Section
+const ModernTroubleshooting: React.FC<ModernTroubleshootingProps> = ({ article }) => (
+  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
+    <div className="flex items-center gap-3 mb-6">
+      <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl">
+        <AlertCircle className="w-5 h-5 text-white" />
+      </div>
+      <div>
+        <h3 className="text-lg font-bold text-gray-900">Additional Help</h3>
+        <p className="text-sm text-gray-500">If steps don`&apos`t work</p>
+      </div>
+    </div>
+
+    <div className="space-y-3">
+      {article.troubleshooting.map((tip: string, index: number) => (
+        <div
+          key={index}
+          className="group relative flex items-start space-x-3 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-200 hover:border-orange-300 transition-all duration-200"
+        >
+          <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mt-0.5">
+            <AlertCircle className="w-3 h-3 text-white" />
+          </div>
+          <p className="text-sm text-orange-900 font-medium leading-relaxed">
+            {tip}
+          </p>
+          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Modern Back to Help Section
+const ModernBackToHelp: React.FC = () => (
+  <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl border border-blue-200 p-6 shadow-xl shadow-blue-900/5 overflow-hidden">
+    {/* Background decoration */}
+    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-full transform translate-x-16 -translate-y-16"></div>
+
+    <div className="relative">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl">
+          <HelpCircle className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-blue-900">Need More Help?</h3>
+          <p className="text-sm text-blue-700">Explore other solutions</p>
+        </div>
+      </div>
+
+      <p className="text-sm text-blue-800 mb-6 leading-relaxed">
+        Browse our comprehensive knowledge base for more technical solutions
+        and troubleshooting guides.
+      </p>
+
+      <Link
+        href="/help"
+        className="group w-full block text-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/25 transform hover:scale-105"
+      >
+        <div className="flex items-center justify-center gap-2">
+          <span>Browse All Articles</span>
+          <ChevronDown className="w-4 h-4 rotate-[-90deg] group-hover:translate-x-1 transition-transform" />
+        </div>
+      </Link>
+    </div>
+  </div>
+);
+
+// Modern Step-by-Step Guide Section
+const ModernStepGuide: React.FC<ModernStepGuideProps> = ({
+  article,
+  completedSteps,
+  toggleStepCompletion,
+}) => (
+  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
+    <div className="flex items-center gap-3 mb-8">
+      <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl">
+        <Settings className="w-5 h-5 text-white" />
+      </div>
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">
+          Step-by-Step Guide
+        </h2>
+        <p className="text-sm text-gray-500">
+          Follow these instructions carefully
+        </p>
+      </div>
+    </div>
+
+    <div className="space-y-4">
+      {article.detailedSteps.map((step: string, index: number) => (
+        <ModernStepItem
+          key={index}
+          step={step}
+          index={index}
+          completedSteps={completedSteps}
+          toggleStepCompletion={toggleStepCompletion}
+        />
+      ))}
+    </div>
+  </div>
+);
 
 const HelpDetails: React.FC = () => {
   const router = useRouter();
@@ -606,11 +1050,11 @@ const HelpDetails: React.FC = () => {
 
   useEffect(() => {
     const slug = params?.slug as string;
-    console.log('Article slug from URL:', slug);
-    
+    console.log("Article slug from URL:", slug);
+
     if (slug) {
-      const foundArticle = faqData.find(item => item.slug === slug);
-      console.log('Found article:', foundArticle);
+      const foundArticle = faqData.find((item) => item.slug === slug);
+      console.log("Found article:", foundArticle);
       if (foundArticle) {
         setArticle(foundArticle);
       }
@@ -619,49 +1063,58 @@ const HelpDetails: React.FC = () => {
   }, [params]);
 
   // Keyboard navigation for modal
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!imageModal.isOpen || !article?.images) return;
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!imageModal.isOpen || !article?.images) return;
 
-    switch (e.key) {
-      case 'Escape':
-        setImageModal({ isOpen: false, currentIndex: 0 });
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        if (article.images.length > 1) {
-          setImageModal(prev => ({
-            ...prev,
-            currentIndex: prev.currentIndex > 0 ? prev.currentIndex - 1 : article.images!.length - 1
-          }));
-        }
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        if (article.images.length > 1) {
-          setImageModal(prev => ({
-            ...prev,
-            currentIndex: prev.currentIndex < article.images!.length - 1 ? prev.currentIndex + 1 : 0
-          }));
-        }
-        break;
-    }
-  }, [imageModal.isOpen, article?.images]);
+      switch (e.key) {
+        case "Escape":
+          setImageModal({ isOpen: false, currentIndex: 0 });
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          if (article.images.length > 1) {
+            setImageModal((prev) => ({
+              ...prev,
+              currentIndex:
+                prev.currentIndex > 0
+                  ? prev.currentIndex - 1
+                  : article.images!.length - 1,
+            }));
+          }
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (article.images.length > 1) {
+            setImageModal((prev) => ({
+              ...prev,
+              currentIndex:
+                prev.currentIndex < article.images!.length - 1
+                  ? prev.currentIndex + 1
+                  : 0,
+            }));
+          }
+          break;
+      }
+    },
+    [imageModal.isOpen, article?.images]
+  );
 
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (imageModal.isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
-    
+
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [imageModal.isOpen]);
 
@@ -675,28 +1128,34 @@ const HelpDetails: React.FC = () => {
 
   const nextImage = () => {
     if (!article?.images) return;
-    setImageModal(prev => ({
+    setImageModal((prev) => ({
       ...prev,
-      currentIndex: prev.currentIndex < article.images!.length - 1 ? prev.currentIndex + 1 : 0
+      currentIndex:
+        prev.currentIndex < article.images!.length - 1
+          ? prev.currentIndex + 1
+          : 0,
     }));
   };
 
   const prevImage = () => {
     if (!article?.images) return;
-    setImageModal(prev => ({
+    setImageModal((prev) => ({
       ...prev,
-      currentIndex: prev.currentIndex > 0 ? prev.currentIndex - 1 : article.images!.length - 1
+      currentIndex:
+        prev.currentIndex > 0
+          ? prev.currentIndex - 1
+          : article.images!.length - 1,
     }));
   };
 
   const goToImage = (index: number) => {
-    setImageModal(prev => ({ ...prev, currentIndex: index }));
+    setImageModal((prev) => ({ ...prev, currentIndex: index }));
   };
 
   const toggleStepCompletion = (stepIndex: number): void => {
-    setCompletedSteps(prev => 
-      prev.includes(stepIndex) 
-        ? prev.filter(index => index !== stepIndex)
+    setCompletedSteps((prev) =>
+      prev.includes(stepIndex)
+        ? prev.filter((index) => index !== stepIndex)
         : [...prev, stepIndex]
     );
   };
@@ -723,9 +1182,13 @@ const HelpDetails: React.FC = () => {
           <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
             <HelpCircle className="w-8 h-8 text-gray-500" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Artikel tidak ditemukan</h2>
-          <p className="text-gray-600 mb-4">Artikel yang Anda cari tidak tersedia.</p>
-          <Link 
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Artikel tidak ditemukan
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Artikel yang Anda cari tidak tersedia.
+          </p>
+          <Link
             href="/help"
             className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
           >
@@ -736,287 +1199,75 @@ const HelpDetails: React.FC = () => {
     );
   }
 
-  const deviceInfo: DeviceConfig = deviceConfig[article.device];
+  const deviceInfo: DeviceConfig = deviceConfig[article.device] || {
+    icon: HelpCircle,
+    color: "bg-gray-500",
+    bgLight: "bg-gray-50",
+    textColor: "text-gray-700",
+  };
   const DeviceIcon: LucideIcon = deviceInfo?.icon || HelpCircle;
   const totalSteps = article.detailedSteps.length;
-  const completionPercentage = Math.round((completedSteps.length / totalSteps) * 100);
+  const completionPercentage = Math.round(
+    (completedSteps.length / totalSteps) * 100
+  );
+
+  const headerProps: ModernHeaderProps = {
+    router,
+    article,
+  };
+
+  const articleHeaderProps: ModernArticleHeaderProps = {
+    article,
+    deviceInfo,
+    DeviceIcon,
+    completionPercentage,
+    totalSteps,
+    completedSteps,
+    resetProgress,
+  };
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => router.back()}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="w-5 h-5 text-gray-600" />
-                </button>
-                <Link href="/dashboard">
-                  <div className="relative cursor-pointer">
-                    <Image
-                      src="/logo-black.png"
-                      alt="Logo"
-                      width={240}
-                      height={240}
-                      className="w-12 h-12 object-contain"
-                    />
-                  </div>
-                </Link>
-                <div>
-                  <h1 className="text-lg font-semibold text-gray-900">Detail Bantuan</h1>
-                  <p className="text-sm text-gray-500">{article.category}</p>
-                </div>
-              </div>
-              <div className="text-sm text-gray-500 flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                {article.estimatedTime} • {article.difficulty}
-              </div>
-            </div>
-          </div>
-        </header>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <ModernHeader {...headerProps} />
 
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Article Header */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm">
-            <div className="flex items-start space-x-4 mb-6">
-              <div className={`w-16 h-16 ${deviceInfo?.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                <DeviceIcon className="w-8 h-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-sm font-semibold text-gray-600">{article.category}</span>
-                  <span
-                    className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      article.actionType === "System"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {article.actionType}
-                  </span>
-                  <span
-                    className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      article.priority === "High"
-                        ? "bg-red-100 text-red-600"
-                        : article.priority === "Medium"
-                        ? "bg-yellow-100 text-yellow-600"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {article.priority} Priority
-                  </span>
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{article.issue}</h1>
-                <p className="text-gray-600 flex items-center gap-4">
-                  <span>Device: {article.device}</span>
-                  <span>•</span>
-                  <span>Estimated time: {article.estimatedTime}</span>
-                  <span>•</span>
-                  <span>Difficulty: {article.difficulty}</span>
-                </p>
-              </div>
-            </div>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ModernArticleHeader {...articleHeaderProps} />
 
-            {/* Progress Bar */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Progress Completion
-                </span>
-                <span className="text-sm font-semibold text-cyan-600">{completionPercentage}% ({completedSteps.length}/{totalSteps})</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="bg-gradient-to-r from-cyan-500 to-cyan-600 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${completionPercentage}%` }}
-                ></div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="xl:col-span-2 space-y-8">
+              <ModernStepGuide
+                article={article}
+                completedSteps={completedSteps}
+                toggleStepCompletion={toggleStepCompletion}
+              />
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={resetProgress}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Reset Progress
-              </button>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Detailed Steps */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Step-by-step Guide */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-cyan-600" />
-                  Detailed Step-by-Step Guide
-                </h2>
-                <div className="space-y-4">
-                  {article.detailedSteps.map((step: string, index: number) => (
-                    <div
-                      key={index}
-                      className={`flex items-start space-x-4 p-4 rounded-lg border-2 transition-all duration-200 ${
-                        completedSteps.includes(index)
-                          ? "bg-green-50 border-green-200"
-                          : "bg-gray-50 border-gray-200 hover:border-cyan-200 hover:bg-cyan-50"
-                      }`}
-                    >
-                      <button
-                        onClick={() => toggleStepCompletion(index)}
-                        className={`flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                          completedSteps.includes(index)
-                            ? "bg-green-500 border-green-500 text-white"
-                            : "border-gray-300 hover:border-cyan-400 hover:bg-cyan-50"
-                        }`}
-                      >
-                        {completedSteps.includes(index) && <CheckCircle2 className="w-4 h-4" />}
-                      </button>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-gray-900">
-                            Step {index + 1}
-                          </span>
-                          {completedSteps.includes(index) && (
-                            <span className="text-xs text-green-600 font-medium bg-green-100 px-2 py-1 rounded-full">
-                              Completed
-                            </span>
-                          )}
-                        </div>
-                        <p
-                          className={`text-sm leading-relaxed ${
-                            completedSteps.includes(index) ? "text-green-700" : "text-gray-700"
-                          }`}
-                        >
-                          {step}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Troubleshooting */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-orange-600" />
-                  Additional Troubleshooting
-                </h3>
-                <div className="space-y-3">
-                  {article.troubleshooting.map((tip: string, index: number) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p className="text-sm text-orange-800">{tip}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ModernTroubleshooting article={article} />
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Visual Guide */}
-              {article.hasImage && article.images && article.images.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-blue-600" />
-                    Visual Guide
-                  </h3>
-                  <div className="space-y-4">
-                    {article.images.map((imageSrc: string, index: number) => (
-                      <div key={index} className="relative group">
-                        <div 
-                          className="relative cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-blue-200 hover:border-blue-400 transition-all duration-300 group-hover:shadow-lg"
-                          onClick={() => openImageModal(index)}
-                        >
-                          <img 
-                            src={imageSrc} 
-                            alt={`Guide step ${index + 1}`}
-                            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='16'%3EScreenshot Guide %23${index + 1}%3C/text%3E%3C/svg%3E`;
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-2">
-                              <ZoomIn className="w-5 h-5 text-gray-800" />
-                            </div>
-                          </div>
-                          <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                            Step {index + 1}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <ModernVisualGuide
+                article={article}
+                openImageModal={openImageModal}
+              />
 
-              {/* Quick Info */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Info className="w-5 h-5 text-gray-600" />
-                  Quick Information
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Device</span>
-                    <span className="text-sm font-medium text-gray-900">{article.device}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Action Type</span>
-                    <span className="text-sm font-medium text-gray-900">{article.actionType}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Priority</span>
-                    <span className="text-sm font-medium text-gray-900">{article.priority}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Difficulty</span>
-                    <span className="text-sm font-medium text-gray-900">{article.difficulty}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Est. Time</span>
-                    <span className="text-sm font-medium text-gray-900">{article.estimatedTime}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Total Steps</span>
-                    <span className="text-sm font-medium text-gray-900">{totalSteps}</span>
-                  </div>
-                </div>
-              </div>
+              <ModernQuickInfo
+                article={article}
+                totalSteps={totalSteps}
+              />
 
-              {/* Back to Help */}
-              <div className="bg-cyan-50 rounded-lg border border-cyan-200 p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-cyan-900 mb-2">Butuh Bantuan Lain?</h3>
-                <p className="text-sm text-cyan-700 mb-4">
-                  Jelajahi artikel bantuan lainnya untuk menyelesaikan masalah teknis Anda.
-                </p>
-                <Link 
-                  href="/help"
-                  className="w-full block text-center px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
-                >
-                  Kembali ke Bantuan
-                </Link>
-              </div>
+              <ModernBackToHelp />
             </div>
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 mt-12">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Modern Footer */}
+        <footer className="bg-white/80 backdrop-blur-sm border-t border-gray-200 mt-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="text-center">
-              <p className="text-gray-400 text-xs">
+              <p className="text-gray-500 text-xs">
                 © 2025 Radisson Blu Uluwatu. All rights reserved.
               </p>
             </div>
@@ -1037,41 +1288,58 @@ const HelpDetails: React.FC = () => {
         />
       )}
 
-      {/* Custom styles for animations */}
-      <style jsx>{`
-        @keyframes fadeIn {
+      {/* Custom Styles */}
+      <style jsx global>{`
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        @keyframes slideInFromBottom {
           from {
             opacity: 0;
+            transform: translateY(20px);
           }
           to {
             opacity: 1;
+            transform: translateY(0);
           }
         }
 
-        @keyframes zoomIn {
-          from {
-            opacity: 0;
-            transform: scale(0.8);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
+        .animate-slideIn {
+          animation: slideInFromBottom 0.6s ease-out forwards;
         }
 
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
+        .animate-slideIn:nth-child(1) {
+          animation-delay: 0.1s;
+        }
+        .animate-slideIn:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+        .animate-slideIn:nth-child(3) {
+          animation-delay: 0.3s;
+        }
+        .animate-slideIn:nth-child(4) {
+          animation-delay: 0.4s;
         }
 
-        .animate-zoomIn {
-          animation: zoomIn 0.3s ease-out;
+        .glass-effect {
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
         }
 
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-          .animate-zoomIn {
-            animation: fadeIn 0.3s ease-out;
-          }
+        .shadow-glow-blue {
+          box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+        }
+
+        .shadow-glow-green {
+          box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+        }
+
+        .text-shadow {
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       `}</style>
     </>
