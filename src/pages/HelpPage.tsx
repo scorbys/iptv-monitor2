@@ -508,7 +508,7 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-100 rounded-2xl shadow-2xl shadow-gray-900/10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="absolute z-[60] w-full mt-2 bg-white border-2 border-gray-100 rounded-2xl shadow-2xl shadow-gray-900/10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
           {/* Options */}
           <div className="max-h-64 overflow-y-auto">
             {options.map((option, index) => {
@@ -671,7 +671,8 @@ const FilterSection: React.FC<FilterSectionProps> = ({
   ].filter((filter) => filter !== "Semua").length;
 
   return (
-    <div className="bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-sm border-b border-gray-100/50 py-8">
+    <div className="bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-sm border-b border-gray-100/50 py-8 relative z-40">
+      {/* ... konten lainnya tetap sama */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

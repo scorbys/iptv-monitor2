@@ -559,7 +559,7 @@ export default function ChromecastPage() {
       {/* Header Stats */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-1">
@@ -575,7 +575,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-1">Online</p>
@@ -589,7 +589,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-1">
@@ -605,7 +605,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-1">
@@ -621,7 +621,7 @@ export default function ChromecastPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:-translate-y-1 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-1">
