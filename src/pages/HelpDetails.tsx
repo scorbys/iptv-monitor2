@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -14,8 +15,6 @@ import {
   LucideIcon,
   ImageIcon,
   Settings,
-  Clock,
-  BarChart3,
   AlertCircle,
   Info,
   X,
@@ -35,12 +34,10 @@ interface FAQ {
   detailedSteps: string[];
   troubleshooting: string[];
   hasImage: boolean;
-  actionType: string;
-  priority: string;
-  estimatedTime: string;
-  difficulty: string;
   slug: string;
   images?: string[];
+  visualGuideImages?: string[];
+  quickInfoImages?: string[];
 }
 
 interface DeviceConfig {
@@ -68,7 +65,7 @@ interface ModernVisualGuideProps {
 
 interface ModernQuickInfoProps {
   article: FAQ;
-  totalSteps: number;
+  openImageModal: (index: number) => void;
 }
 
 interface ModernTroubleshootingProps {
@@ -133,12 +130,14 @@ const faqData: FAQ[] = [
       "Periksa apakah firewall hotel memblokir koneksi Chromecast",
     ],
     hasImage: true,
-    actionType: "System",
-    priority: "High",
-    estimatedTime: "10-15 minutes",
-    difficulty: "Medium",
     slug: "no-device-found-chromecast",
-    images: ["/placeholder/100.jpeg", "/placeholder/101.jpeg"],
+    images: [
+      "/placeholder/100.jpeg",
+      "/placeholder/101.jpeg",
+      "/placeholder/cat-1.jpeg",
+    ],
+    visualGuideImages: ["/placeholder/100.jpeg", "/placeholder/101.jpeg"],
+    quickInfoImages: ["/placeholder/cat-1.jpeg"],
   },
   {
     id: 2,
@@ -167,12 +166,14 @@ const faqData: FAQ[] = [
       "Coba gunakan port LAN yang berbeda jika tersedia di wall outlet",
     ],
     hasImage: true,
-    actionType: "On Site",
-    priority: "Medium",
-    estimatedTime: "5-10 minutes",
-    difficulty: "Easy",
     slug: "weak-or-no-signal",
-    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
+    images: [
+      "/placeholder/23110.jpeg",
+      "/placeholder/23111.jpeg",
+      "/placeholder/cat-2.jpeg",
+    ],
+    visualGuideImages: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
+    quickInfoImages: ["/placeholder/cat-2.jpeg"],
   },
   {
     id: 3,
@@ -202,12 +203,14 @@ const faqData: FAQ[] = [
       "Jika tersedia, test dengan kabel LAN yang berbeda",
     ],
     hasImage: true,
-    actionType: "On Site",
-    priority: "High",
-    estimatedTime: "5-8 minutes",
-    difficulty: "Easy",
     slug: "unplug-lan-tv",
-    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
+    images: [
+      "/placeholder/23110.jpeg",
+      "/placeholder/23111.jpeg",
+      "/placeholder/cat-3.jpeg",
+    ],
+    visualGuideImages: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
+    quickInfoImages: ["/placeholder/cat-3.jpeg"],
   },
   {
     id: 4,
@@ -240,12 +243,10 @@ const faqData: FAQ[] = [
       "Jika setup gagal, reset Chromecast dengan menekan tombol di device selama 25 detik",
     ],
     hasImage: true,
-    actionType: "System",
-    priority: "Medium",
-    estimatedTime: "8-12 minutes",
-    difficulty: "Medium",
     slug: "chromecast-setup-ios",
-    images: ["/placeholder/400.jpeg"],
+    images: ["/placeholder/400.jpeg", "/placeholder/cat-4.jpeg"],
+    visualGuideImages: ["/placeholder/400.jpeg"],
+    quickInfoImages: ["/placeholder/cat-4.jpeg"],
   },
   {
     id: 5,
@@ -269,15 +270,15 @@ const faqData: FAQ[] = [
       "Restart modem/router jika diperlukan",
     ],
     hasImage: true,
-    actionType: "System",
-    priority: "Medium",
-    estimatedTime: "10-15 minutes",
-    difficulty: "Medium",
     slug: "error-playing",
     images: [
       "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f3e5f5'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%237b1fa2' font-size='16'%3EVLC Testing Method%3C/text%3E%3C/svg%3E",
-      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23e8f5e8'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%232e7d32' font-size='16'%3ENetwork Stream Setup%3C/text%3E%3C/svg%3E",
+      "/placeholder/cat-5.jpeg",
     ],
+    visualGuideImages: [
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f3e5f5'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%237b1fa2' font-size='16'%3EVLC Testing Method%3C/text%3E%3C/svg%3E",
+    ],
+    quickInfoImages: ["/placeholder/cat-5.jpeg"],
   },
   {
     id: 6,
@@ -303,13 +304,16 @@ const faqData: FAQ[] = [
       "Catat pengaturan yang berhasil untuk referensi",
       "Hubungi support jika error persisten setelah reset",
     ],
-    hasImage: false,
-    actionType: "System",
-    priority: "High",
-    estimatedTime: "15-20 minutes",
-    difficulty: "Hard",
+    hasImage: true,
     slug: "error-player-error",
-    images: [],
+    images: [
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23fff8e1'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23f57f17' font-size='16'%3EHbrowser Error%3C/text%3E%3C/svg%3E",
+      "/placeholder/cat-6.jpeg",
+    ],
+    visualGuideImages: [
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23fff8e1'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23f57f17' font-size='16'%3EHbrowser Error%3C/text%3E%3C/svg%3E",
+    ],
+    quickInfoImages: ["/placeholder/cat-6.jpeg"],
   },
   {
     id: 7,
@@ -339,14 +343,15 @@ const faqData: FAQ[] = [
       "Monitor stabilitas koneksi setelah perubahan",
     ],
     hasImage: true,
-    actionType: "System",
-    priority: "Medium",
-    estimatedTime: "20-30 minutes",
-    difficulty: "Hard",
     slug: "connection-failure",
     images: [
       "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23fff8e1'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23f57f17' font-size='16'%3EIP Configuration%3C/text%3E%3C/svg%3E",
+      "/placeholder/cat-7.jpeg",
     ],
+    visualGuideImages: [
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23fff8e1'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23f57f17' font-size='16'%3EIP Configuration%3C/text%3E%3C/svg%3E",
+    ],
+    quickInfoImages: ["/placeholder/cat-7.jpeg"],
   },
   {
     id: 8,
@@ -375,14 +380,15 @@ const faqData: FAQ[] = [
       "Test fungsi basic setelah reset",
     ],
     hasImage: true,
-    actionType: "On Site",
-    priority: "Low",
-    estimatedTime: "10-15 minutes",
-    difficulty: "Easy",
     slug: "reset-configuration",
     images: [
       "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23ffebee'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23c62828' font-size='16'%3EChromecast Reset Button%3C/text%3E%3C/svg%3E",
+      "/placeholder/cat-8.jpeg",
     ],
+    visualGuideImages: [
+      "data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23ffebee'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23c62828' font-size='16'%3EChromecast Reset Button%3C/text%3E%3C/svg%3E",
+    ],
+    quickInfoImages: ["/placeholder/cat-8.jpeg"],
   },
   {
     id: 9,
@@ -410,12 +416,14 @@ const faqData: FAQ[] = [
       "Coba forget dan reconnect ke WiFi",
     ],
     hasImage: true,
-    actionType: "On Site",
-    priority: "High",
-    estimatedTime: "5-8 minutes",
-    difficulty: "Easy",
     slug: "no-device-logged",
-    images: ["/placeholder/900.jpeg", "/placeholder/901.jpeg"],
+    images: [
+      "/placeholder/900.jpeg",
+      "/placeholder/901.jpeg",
+      "/placeholder/cat-9.jpeg",
+    ],
+    visualGuideImages: ["/placeholder/900.jpeg", "/placeholder/901.jpeg"],
+    quickInfoImages: ["/placeholder/cat-9.jpeg"],
   },
   {
     id: 10,
@@ -439,12 +447,10 @@ const faqData: FAQ[] = [
       "Coba Chromecast di TV lain untuk isolasi masalah",
     ],
     hasImage: true,
-    actionType: "System",
-    priority: "Medium",
-    estimatedTime: "10-15 minutes",
-    difficulty: "Medium",
     slug: "chromecast-black-screen",
-    images: ["/placeholder/1000.jpeg"],
+    images: ["/placeholder/1000.jpeg", "/placeholder/cat-10.jpeg"],
+    visualGuideImages: ["/placeholder/1000.jpeg"],
+    quickInfoImages: ["/placeholder/cat-10.jpeg"],
   },
   {
     id: 11,
@@ -468,12 +474,14 @@ const faqData: FAQ[] = [
       "Hubungi technical support untuk verifikasi channel list",
     ],
     hasImage: true,
-    actionType: "System",
-    priority: "Low",
-    estimatedTime: "3-5 minutes",
-    difficulty: "Easy",
     slug: "channel-not-found",
-    images: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
+    images: [
+      "/placeholder/23110.jpeg",
+      "/placeholder/23111.jpeg",
+      "/placeholder/cat-11.jpeg",
+    ],
+    visualGuideImages: ["/placeholder/23110.jpeg", "/placeholder/23111.jpeg"],
+    quickInfoImages: ["/placeholder/cat-11.jpeg"],
   },
 ];
 
@@ -585,9 +593,11 @@ const ImageModal: React.FC<ImageModalProps> = ({
             </div>
           )}
 
-          <img
+          <Image
             src={currentImage}
             alt={`Guide step ${currentIndex + 1}`}
+            width={400}
+            height={300}
             className={`max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${
               isImageLoaded ? "opacity-100" : "opacity-0"
             } ${imageLoadError ? "hidden" : ""}`}
@@ -657,9 +667,7 @@ const ModernStepItem: React.FC<ModernStepItemProps> = ({
           </div>
         ) : (
           <div className="w-6 h-6 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center group-hover:border-blue-400">
-            <span className="text-xs font-bold text-gray-600">
-              {index + 1}
-            </span>
+            <span className="text-xs font-bold text-gray-600">{index + 1}</span>
           </div>
         )}
       </div>
@@ -733,18 +741,24 @@ const ModernArticleHeader: React.FC<ModernArticleHeaderProps> = ({
       {/* Article Info */}
       <div className="flex-1">
         <div className="flex items-center gap-3 mb-4">
-          <div className={`p-3 ${deviceInfo?.color || 'bg-gray-500'} rounded-xl`}>
+          <div
+            className={`p-3 ${deviceInfo?.color || "bg-gray-500"} rounded-xl`}
+          >
             <DeviceIcon className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{article.issue}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {article.issue}
+            </h1>
             <p className="text-gray-600">Device: {article.device}</p>
           </div>
         </div>
 
         {/* Quick Solutions */}
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Solutions:</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Quick Solutions:
+          </h3>
           <div className="flex flex-wrap gap-2">
             {article.solutions.map((solution: string, index: number) => (
               <span
@@ -762,7 +776,9 @@ const ModernArticleHeader: React.FC<ModernArticleHeaderProps> = ({
       <div className="lg:w-80">
         <div className="bg-gray-50 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-gray-700">Progress</span>
+            <span className="text-sm font-semibold text-gray-700">
+              Progress
+            </span>
             <span className="text-sm text-gray-600">
               {completedSteps.length}/{totalSteps} steps
             </span>
@@ -797,8 +813,13 @@ const ModernArticleHeader: React.FC<ModernArticleHeaderProps> = ({
 );
 
 // Modern Visual Guide Component
-const ModernVisualGuide: React.FC<ModernVisualGuideProps> = ({ article, openImageModal }) => {
-  if (!article.hasImage || !article.images?.length) return null;
+const ModernVisualGuide: React.FC<ModernVisualGuideProps> = ({
+  article,
+  openImageModal,
+}) => {
+  const imagesToShow = article.visualGuideImages || article.images || [];
+
+  if (!article.hasImage || !imagesToShow.length) return null;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
@@ -813,16 +834,18 @@ const ModernVisualGuide: React.FC<ModernVisualGuideProps> = ({ article, openImag
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {article.images.map((imageSrc: string, index: number) => (
+        {imagesToShow.map((imageSrc: string, index: number) => (
           <div key={index} className="relative group">
             <div
               className="relative cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-200 group-hover:border-blue-300 transition-all duration-300 aspect-video"
               onClick={() => openImageModal(index)}
             >
-              <img
+              <Image
                 src={imageSrc}
                 alt={`Guide step ${index + 1}`}
                 className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                width={400}
+                height={300}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EScreenshot Guide%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EStep ${
@@ -861,80 +884,74 @@ const ModernVisualGuide: React.FC<ModernVisualGuideProps> = ({ article, openImag
 };
 
 // Modern Quick Info Component
-const ModernQuickInfo: React.FC<ModernQuickInfoProps> = ({ article, totalSteps }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
-    <div className="flex items-center gap-3 mb-6">
-      <div className="p-2 bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl">
-        <Info className="w-5 h-5 text-white" />
-      </div>
-      <div>
-        <h3 className="text-lg font-bold text-gray-900">Quick Information</h3>
-        <p className="text-sm text-gray-500">Article details</p>
-      </div>
-    </div>
+const ModernQuickInfo: React.FC<ModernQuickInfoProps> = ({
+  article,
+  openImageModal,
+}) => {
+  const imagesToShow = article.quickInfoImages || [];
 
-    <div className="space-y-4">
-      {[
-        {
-          label: "Device Type",
-          value: article.device,
-          icon: Monitor,
-          color: "blue",
-        },
-        {
-          label: "Action Required",
-          value: article.actionType,
-          icon: Settings,
-          color: "green",
-        },
-        {
-          label: "Priority Level",
-          value: article.priority,
-          icon: AlertCircle,
-          color: "red",
-        },
-        {
-          label: "Difficulty",
-          value: article.difficulty,
-          icon: BarChart3,
-          color: "yellow",
-        },
-        {
-          label: "Est. Time",
-          value: article.estimatedTime,
-          icon: Clock,
-          color: "indigo",
-        },
-        {
-          label: "Total Steps",
-          value: totalSteps.toString(),
-          icon: CheckCircle2,
-          color: "emerald",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-gray-200 rounded-lg">
-              <item.icon className="w-4 h-4 text-gray-600" />
-            </div>
-            <span className="text-sm font-medium text-gray-600">
-              {item.label}
-            </span>
-          </div>
-          <span className="text-sm font-bold text-gray-900">
-            {item.value}
-          </span>
+  if (!article.hasImage || !article.images?.length) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl">
+          <Info className="w-5 h-5 text-white" />
         </div>
-      ))}
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Quick Information</h3>
+          <p className="text-sm text-gray-500">Article details</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {imagesToShow.map((imageSrc: string, index: number) => (
+          <div key={index} className="relative group">
+            <div
+              className="relative cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 group-hover:border-blue-300 transition-all duration-300 aspect-video"
+              onClick={() => {
+                const mainImageIndex =
+                  article.images?.findIndex((img) => img === imageSrc) || 0;
+                openImageModal(mainImageIndex);
+              }}
+            >
+              <Image
+                src={imageSrc}
+                alt={`Quick info ${index + 1}`}
+                className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                width={400}
+                height={300}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EQuick Info%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EInfo ${
+                    index + 1
+                  }%3C/text%3E%3C/svg%3E`;
+                }}
+              />
+
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 backdrop-blur-sm rounded-full p-3 transform scale-75 group-hover:scale-100">
+                  <ZoomIn className="w-5 h-5 text-gray-800" />
+                </div>
+              </div>
+
+              {/* Hover hint */}
+              <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/70 text-white text-xs px-2 py-1 rounded-lg">
+                Click to enlarge
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Modern Troubleshooting Section
-const ModernTroubleshooting: React.FC<ModernTroubleshootingProps> = ({ article }) => (
+const ModernTroubleshooting: React.FC<ModernTroubleshootingProps> = ({
+  article,
+}) => (
   <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-900/5">
     <div className="flex items-center gap-3 mb-6">
       <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl">
@@ -985,8 +1002,8 @@ const ModernBackToHelp: React.FC = () => (
       </div>
 
       <p className="text-sm text-blue-800 mb-6 leading-relaxed">
-        Browse our comprehensive knowledge base for more technical solutions
-        and troubleshooting guides.
+        Browse our comprehensive knowledge base for more technical solutions and
+        troubleshooting guides.
       </p>
 
       <Link
@@ -1014,9 +1031,7 @@ const ModernStepGuide: React.FC<ModernStepGuideProps> = ({
         <Settings className="w-5 h-5 text-white" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-gray-900">
-          Step-by-Step Guide
-        </h2>
+        <h2 className="text-xl font-bold text-gray-900">Step-by-Step Guide</h2>
         <p className="text-sm text-gray-500">
           Follow these instructions carefully
         </p>
@@ -1248,14 +1263,14 @@ const HelpDetails: React.FC = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <ModernVisualGuide
+              <ModernQuickInfo
                 article={article}
                 openImageModal={openImageModal}
               />
-
-              <ModernQuickInfo
+              
+              <ModernVisualGuide
                 article={article}
-                totalSteps={totalSteps}
+                openImageModal={openImageModal}
               />
 
               <ModernBackToHelp />
