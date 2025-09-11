@@ -14,6 +14,7 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
+import { useRouter } from "next/navigation";
 
 interface TV {
   id: number;
@@ -50,6 +51,12 @@ export default function TvPage() {
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
   );
+
+  const router = useRouter();
+  const handleTvClick = (tv: TV) => {
+    const tvId = tv.roomNo || tv.id;
+    router.push(`/hospitality/${encodeURIComponent(tvId)}`);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -166,13 +173,13 @@ export default function TvPage() {
 
     loadData();
 
-    // Auto-refresh every 30 minutes
+    // Auto-refresh every 2 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchTVs();
         fetchStats();
       }
-    }, 1800000);
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [mounted, fetchTVs, fetchStats]);
@@ -674,7 +681,8 @@ export default function TvPage() {
               {paginationData.paginatedTVs.map((tv, index) => (
                 <tr
                   key={`desktop-tv-${tv.id || tv.roomNo || index}`}
-                  className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group"
+                  className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group cursor-pointer"
+                  onClick={() => handleTvClick(tv)}
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -713,7 +721,10 @@ export default function TvPage() {
                   <td className="px-4 py-4 whitespace-nowrap">
                     <button
                       key={`desktop-check-${tv.roomNo}-${index}`}
-                      onClick={() => checkTVStatus(tv.roomNo)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        checkTVStatus(tv.roomNo);
+                      }}
                       disabled={!tv.roomNo || checkingId === tv.roomNo}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     >
@@ -735,45 +746,47 @@ export default function TvPage() {
         <div className="md:hidden divide-y divide-gray-100">
           {paginationData.paginatedTVs.map((tv, index) => (
             <div
-              key={`mobile-card-${tv.id}-${tv.roomNo}-${index}`} // More unique key
+              key={`mobile-card-${tv.id}-${tv.roomNo}-${index}`}
               className="p-4 hover:bg-gray-50 transition-colors"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <span className="text-xs font-bold text-white">
-                      {tv.roomNo || "-"}
-                    </span>
+              <div onClick={() => handleTvClick(tv)} className="cursor-pointer">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <span className="text-xs font-bold text-white">
+                        {tv.roomNo || "-"}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">
+                        Room {tv.roomNo || "Unknown"}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {tv.model || "Samsung Hospitality"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      Room {tv.roomNo || "Unknown"}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {tv.model || "Samsung Hospitality"}
-                    </p>
-                  </div>
-                </div>
-                <StatusBadge
-                  status={tv.status}
-                  responseTime={tv.responseTime}
-                />
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">IP Address:</span>
-                  <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs break-all">
-                    {tv.ipAddress || "N/A"}
-                  </code>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Last Checked:</span>
-                  <DateFormatter
-                    date={tv.lastChecked}
-                    fallback="Never checked"
-                    className="text-xs text-gray-600"
+                  <StatusBadge
+                    status={tv.status}
+                    responseTime={tv.responseTime}
                   />
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">IP Address:</span>
+                    <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs break-all">
+                      {tv.ipAddress || "N/A"}
+                    </code>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Last Checked:</span>
+                    <DateFormatter
+                      date={tv.lastChecked}
+                      fallback="Never checked"
+                      className="text-xs text-gray-600"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1030,7 +1043,7 @@ export default function TvPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 30 minutes
+            Auto-refresh every 2 minutes
           </div>
         </div>
       </div>

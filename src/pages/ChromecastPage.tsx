@@ -59,6 +59,11 @@ export default function ChromecastPage() {
   );
 
   const router = useRouter();
+  const handleDeviceClick = (device: Chromecast) => {
+    // Gunakan deviceName sebagai identifier utama karena API menggunakan deviceName
+    const deviceId = device.deviceName || device.idCast;
+    router.push(`/chromecast/${encodeURIComponent(deviceId)}`);
+  };
 
   // Effect untuk mounted state
   useEffect(() => {
@@ -178,14 +183,14 @@ export default function ChromecastPage() {
 
     loadData();
 
-    // Set up auto-refresh every 30 minutes
+    // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
       // Cek visibility dan authentication state
       if (document.visibilityState === "visible") {
         fetchChromecasts();
         fetchStats();
       }
-    }, 1800000);
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [mounted, fetchChromecasts, fetchStats]);
@@ -204,21 +209,69 @@ export default function ChromecastPage() {
 
   // Check specific channel status dengan better error handling
   const checkChromecastStatus = useCallback(async (deviceName: string) => {
-    if (!deviceName) return;
+    if (!deviceName || !deviceName.trim()) {
+      console.error("Device name is required for status check");
+      return;
+    }
 
-    setCheckingId(deviceName); // Start loading state for this device
+    setCheckingId(deviceName);
 
     try {
-      const response = await fetch(`/api/chromecast/${deviceName}/check`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
+      console.log(`Checking status for device: ${deviceName}`);
+
+      // Encode device name properly
+      const encodedDeviceName = encodeURIComponent(deviceName);
+      const response = await fetch(
+        `/api/chromecast/${encodedDeviceName}/check`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        }
+      );
+
+      console.log(`Response status: ${response.status}`);
 
       if (response.status === 401) {
         window.location.href = "/login";
+        return;
+      }
+
+      if (response.status === 400) {
+        const errorResult = await response.json();
+        console.error("Bad request:", errorResult);
+
+        setChromecasts((prev) =>
+          prev.map((device) =>
+            device.deviceName === deviceName
+              ? {
+                  ...device,
+                  error: errorResult.message || "Invalid request",
+                  isOnline: false,
+                }
+              : device
+          )
+        );
+        return;
+      }
+
+      if (response.status === 404) {
+        const errorResult = await response.json();
+        console.error("Device not found:", errorResult);
+
+        setChromecasts((prev) =>
+          prev.map((device) =>
+            device.deviceName === deviceName
+              ? {
+                  ...device,
+                  error: "Device not found on server",
+                  isOnline: false,
+                }
+              : device
+          )
+        );
         return;
       }
 
@@ -227,6 +280,7 @@ export default function ChromecastPage() {
       }
 
       const result = await response.json();
+      console.log("Check result:", result);
 
       if (result.success && result.data) {
         setChromecasts((prev) =>
@@ -237,35 +291,34 @@ export default function ChromecastPage() {
           )
         );
       } else {
-        // Handle API error response
         setChromecasts((prev) =>
           prev.map((device) =>
             device.deviceName === deviceName
               ? {
                   ...device,
                   error: result.message || "Check failed",
-                  status: "offline",
+                  isOnline: false,
                 }
               : device
           )
         );
       }
     } catch (error: unknown) {
-      console.error("Error checking channel status:", error);
-      // Update TV with error state
+      console.error("Error checking device status:", error);
+
       setChromecasts((prev) =>
         prev.map((device) =>
           device.deviceName === deviceName
             ? {
                 ...device,
                 error: error instanceof Error ? error.message : "Network error",
-                status: "offline",
+                isOnline: false,
               }
             : device
         )
       );
     } finally {
-      setCheckingId(null); // Clear loading state
+      setCheckingId(null);
     }
   }, []);
 
@@ -759,7 +812,14 @@ export default function ChromecastPage() {
               {paginationData.paginatedChromecasts.map((device, index) => (
                 <tr
                   key={`chromecast-${device.idCast || index}`}
-                  className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/30 transition-all duration-200 group"
+                  className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/30 transition-all duration-200 group cursor-pointer"
+                  onClick={(e) => {
+                    // Only navigate if not clicking on button
+                    const target = e.target as HTMLElement;
+                    if (!target.closest("button")) {
+                      handleDeviceClick(device);
+                    }
+                  }}
                 >
                   {/* Device Column */}
                   <td className="px-4 py-4">
@@ -770,11 +830,13 @@ export default function ChromecastPage() {
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {device.deviceName || "Unknown Device"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {device.type || "Chromecast"}
+                        <div className="text-left">
+                          <div className="text-sm font-medium text-gray-900 truncate hover:text-blue-600 transition-colors">
+                            {device.deviceName || "Unknown Device"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {device.type || "Chromecast"}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -828,8 +890,11 @@ export default function ChromecastPage() {
                   {/* Actions Column */}
                   <td className="px-4 py-4">
                     <button
-                      key={device.deviceName}
-                      onClick={() => checkChromecastStatus(device.deviceName)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click
+                        e.preventDefault(); // Prevent default action
+                        checkChromecastStatus(device.deviceName);
+                      }}
                       disabled={
                         !device.deviceName ||
                         checkingId === device.deviceName ||
@@ -842,7 +907,9 @@ export default function ChromecastPage() {
                           checkingId === device.deviceName ? "animate-spin" : ""
                         }`}
                       />
-                      {checkingId === device.deviceName ? "Check" : "Check"}
+                      {checkingId === device.deviceName
+                        ? "Checking..."
+                        : "Check"}
                     </button>
                   </td>
                 </tr>
@@ -856,61 +923,73 @@ export default function ChromecastPage() {
           {paginationData.paginatedChromecasts.map((device, index) => (
             <div
               key={`mobile-chromecast-${device.idCast || index}`}
-              className="p-4 hover:bg-gray-50 transition-colors"
+              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
+              <div
+                onClick={() => handleDeviceClick(device)}
+                className="cursor-pointer"
+              >
+                {/* Card content */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors">
+                        {device.deviceName || "Unknown Device"}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {device.type || "Chromecast"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      {device.deviceName || "Unknown Device"}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {device.type || "Chromecast"}
-                    </p>
-                  </div>
-                </div>
-                <StatusBadge
-                  isOnline={device.isOnline}
-                  isPingable={device.isPingable}
-                  responseTime={device.responseTime}
-                />
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">IP Address:</span>
-                  <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
-                    {device.ipAddr || "N/A"}
-                  </code>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Signal:</span>
-                  <span className="text-xs text-gray-600">
-                    {device.signalLevel || 0} dBm
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Speed:</span>
-                  <span className="text-xs text-gray-600">
-                    {device.speed || 0} Mbps
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Last Seen:</span>
-                  <DateFormatter
-                    date={device.lastSeen}
-                    fallback="Never seen"
-                    className="text-xs text-gray-600"
+                  <StatusBadge
+                    isOnline={device.isOnline}
+                    isPingable={device.isPingable}
+                    responseTime={device.responseTime}
                   />
                 </div>
+
+                {/* Device info content */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">IP Address:</span>
+                    <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
+                      {device.ipAddr || "N/A"}
+                    </code>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Signal:</span>
+                    <span className="text-xs text-gray-600">
+                      {device.signalLevel || 0} dBm
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Speed:</span>
+                    <span className="text-xs text-gray-600">
+                      {device.speed || 0} Mbps
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Last Seen:</span>
+                    <DateFormatter
+                      date={device.lastSeen}
+                      fallback="Never seen"
+                      className="text-xs text-gray-600"
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* Check button remains separate from onClick area */}
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
-                  onClick={() => checkChromecastStatus(device.deviceName)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent card click
+                    e.preventDefault(); // Prevent default action
+                    checkChromecastStatus(device.deviceName);
+                  }}
                   disabled={
                     !device.deviceName || checkingId === device.deviceName
                   }
@@ -926,7 +1005,7 @@ export default function ChromecastPage() {
                     : "Check Now"}
                 </button>
 
-                {/* Error message */}
+                {/* Error message display */}
                 {device.error && (
                   <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-xs text-red-600 break-words">
@@ -1156,7 +1235,7 @@ export default function ChromecastPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 30 minutes
+            Auto-refresh every 2 minutes
           </div>
         </div>
       </div>

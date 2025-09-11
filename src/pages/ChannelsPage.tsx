@@ -168,13 +168,13 @@ export default function ChannelsPage() {
 
     loadData();
 
-    // Set up auto-refresh every 30 minutes
+    // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
       // Cek visibility dan authentication state
       if (document.visibilityState === "visible") {
         Promise.all([fetchChannels(), fetchStats()]).catch(console.error);
       }
-    }, 1800000);
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [mounted, fetchChannels, fetchStats]);
@@ -1154,7 +1154,7 @@ export default function ChannelsPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 30 minutes
+            Auto-refresh every 2 minutes
           </div>
         </div>
       </div>
