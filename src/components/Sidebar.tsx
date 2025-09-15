@@ -72,7 +72,7 @@ function NavbarLink({
 
 const mockdata = [
   { name: "Dashboard", href: "/dashboard", icon: IconHome2 },
-  { name: "Channel", href: "/channel", icon: IconBroadcast },
+  { name: "Channel", href: "/channels", icon: IconBroadcast },
   { name: "Chromecast", href: "/chromecast", icon: IconCast },
   { name: "Hospitality", href: "/hospitality", icon: IconDeviceTv },
   { name: "Notifications", href: "/notifications", icon: IconInfoHexagon },

@@ -1,4 +1,3 @@
-// Fixed version for Next.js 15
 import { Suspense } from "react";
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
@@ -81,7 +80,6 @@ export default async function ChromecastDetail({ params }: PageProps) {
   );
 }
 
-// Fixed metadata generation - also needs to be async and await params
 export async function generateMetadata({ params }: PageProps) {
   try {
     const resolvedParams = await params;

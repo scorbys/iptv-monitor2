@@ -14,6 +14,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../components/DateFormatter";
+import { useRouter } from "next/navigation";
 
 interface Channel {
   id: number;
@@ -26,6 +27,7 @@ interface Channel {
   lastChecked: string;
   responseTime?: number;
   error?: string;
+  slug?: string;
 }
 
 interface ChannelStats {
@@ -65,6 +67,18 @@ export default function ChannelsPage() {
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
+  );
+
+  const router = useRouter();
+
+  const handleChannelClick = useCallback(
+    (channel: Channel) => {
+      // Gunakan channelNumber sebagai primary identifier
+      const channelIdentifier =
+        channel.channelNumber?.toString() || channel.id.toString();
+      router.push(`/channels/${channelIdentifier}`);
+    },
+    [router]
   );
 
   // Effect untuk mounted state
@@ -186,83 +200,95 @@ export default function ChannelsPage() {
     setRefreshing(true);
     try {
       await Promise.all([fetchChannels(), fetchStats()]);
-      console.log("Data refreshed successfully");
     } catch (error) {
       console.error("Error refreshing data:", error);
-      alert("Failed to refresh data. Please try again.");
+
+      if (error instanceof Error && !error.message.includes("401")) {
+        alert("Failed to refresh data. Please try again.");
+      }
     } finally {
       setRefreshing(false);
     }
   }, [refreshing, fetchChannels, fetchStats]);
 
   // Check specific channel status dengan better error handling
-  const checkChannelStatus = useCallback(async (channelId: number) => {
-    if (!channelId) return;
+  const checkChannelStatus = useCallback(
+    async (channel: Channel) => {
+      if (!channel) return;
 
-    setCheckingId(channelId);
+      // Gunakan channelNumber sebagai identifier untuk API call
+      const identifier =
+        channel.channelNumber?.toString() || channel.id.toString();
 
-    try {
-      const response = await fetch(`/api/channels/${channelId}/check`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
+      setCheckingId(channel.id);
 
-      if (response.status === 401) {
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
+      try {
+        const response = await fetch(`/api/channels/${identifier}/check`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+
+        if (response.status === 401) {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+          return;
         }
-        return;
-      }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (result.success && result.data) {
+        if (result.success && result.data) {
+          setChannels((prev) =>
+            prev.map((ch) =>
+              ch.id === channel.id
+                ? { ...ch, ...result.data, error: undefined }
+                : ch
+            )
+          );
+          // Also refresh stats after successful check
+          await fetchStats();
+        } else {
+          // Handle API error response
+          setChannels((prev) =>
+            prev.map((ch) =>
+              ch.id === channel.id
+                ? {
+                    ...ch,
+                    error: result.message || "Check failed",
+                    status: "offline" as const,
+                  }
+                : ch
+            )
+          );
+        }
+      } catch (error: unknown) {
+        console.error("Error checking channel status:", error);
+        // Update channel with error state
         setChannels((prev) =>
           prev.map((ch) =>
-            ch.id === channelId
-              ? { ...ch, ...result.data, error: undefined }
-              : ch
-          )
-        );
-      } else {
-        // Handle API error response
-        setChannels((prev) =>
-          prev.map((ch) =>
-            ch.id === channelId
+            ch.id === channel.id
               ? {
                   ...ch,
-                  error: result.message || "Check failed",
-                  status: "offline",
+                  error:
+                    error instanceof Error ? error.message : "Network error",
+                  status: "offline" as const,
                 }
               : ch
           )
         );
+      } finally {
+        setCheckingId(null);
       }
-    } catch (error: unknown) {
-      console.error("Error checking channel status:", error);
-      // Update TV with error state
-      setChannels((prev) =>
-        prev.map((ch) =>
-          ch.id === channelId
-            ? {
-                ...ch,
-                error: error instanceof Error ? error.message : "Network error",
-                status: "offline",
-              }
-            : ch
-        )
-      );
-    } finally {
-      setCheckingId(null);
-    }
-  }, []);
+    },
+    [fetchStats]
+  );
 
   // Memoized filtered channels untuk performance
   const filteredChannels = useMemo(() => {
@@ -757,7 +783,8 @@ export default function ChannelsPage() {
               {paginationData.paginatedChannels.map((channel, index) => (
                 <tr
                   key={`channel-${channel.id || index}`}
-                  className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group"
+                  onClick={() => handleChannelClick(channel)}
+                  className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group cursor-pointer"
                 >
                   <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -822,8 +849,10 @@ export default function ChannelsPage() {
                   </td>
                   <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <button
-                      key={channel.id}
-                      onClick={() => checkChannelStatus(channel.id)}
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                        e.stopPropagation(); // Prevent row click
+                        checkChannelStatus(channel);
+                      }}
                       disabled={!channel.id || checkingId === channel.id}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
                     >
@@ -832,7 +861,7 @@ export default function ChannelsPage() {
                           checkingId === channel.id ? "animate-spin" : ""
                         }`}
                       />
-                      {checkingId === channel.id ? "Check" : "Check"}
+                      {checkingId === channel.id ? "Checking..." : "Check"}
                     </button>
                   </td>
                 </tr>
@@ -846,7 +875,8 @@ export default function ChannelsPage() {
           {paginationData.paginatedChannels.map((channel, index) => (
             <div
               key={`mobile-channel-${channel.id || index}`}
-              className="p-4 hover:bg-gray-50 transition-colors"
+              onClick={() => handleChannelClick(channel)}
+              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
@@ -907,8 +937,11 @@ export default function ChannelsPage() {
 
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
-                  onClick={() => checkChannelStatus(channel.id)}
-                  disabled={!channel.id}
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.stopPropagation(); // Prevent row click
+                    checkChannelStatus(channel);
+                  }}
+                  disabled={!channel.id || checkingId === channel.id}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   Check Now
