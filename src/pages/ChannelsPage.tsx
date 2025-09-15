@@ -88,42 +88,42 @@ export default function ChannelsPage() {
 
   // Fetch channels data dengan error handling yang lebih baik
   const fetchChannels = useCallback(async () => {
-    if (!mounted) return;
+  if (!mounted) return;
 
-    try {
-      const response = await fetch("/api/channels", {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-        },
-      });
+  try {
+    const response = await fetch("/api/channels", {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+      },
+    });
 
-      if (response.status === 401) {
-        // Token expired atau invalid, redirect ke login
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
-        }
-        return;
+    if (response.status === 401) {
+      // Token expired atau invalid, redirect ke login
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
       }
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (result.success && Array.isArray(result.data)) {
-        setChannels(result.data);
-      } else {
-        console.error("Invalid channels data format:", result);
-        setChannels([]);
-      }
-    } catch (error) {
-      console.error("Error fetching channels:", error);
+    if (result.success && Array.isArray(result.data)) {
+      setChannels(result.data);
+    } else {
+      console.error("Invalid channels data format:", result);
       setChannels([]);
     }
-  }, [mounted]);
+  } catch (error) {
+    console.error("Error fetching channels:", error);
+    setChannels([]);
+  }
+}, [mounted]);
 
   // Fetch dashboard stats dengan error handling yang lebih baik
   const fetchStats = useCallback(async () => {
