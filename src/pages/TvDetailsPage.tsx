@@ -98,12 +98,14 @@ interface CustomTooltipProps {
   label?: string;
 }
 
+interface TvSuggestion {
+  id: number;
+  roomNo: string;
+}
+
 interface DebugInfo {
   searchingFor: string;
-  availableDevices: Array<{
-    id: number;
-    roomNo: string;
-  }>;
+  availableDevices: TvSuggestion[];
   exactMatch?: {
     roomNo: string;
     id: number;
@@ -172,24 +174,15 @@ const faqData: FAQ[] = [
     device: "IPTV",
     issue: "No Device Logged",
     solutions: [
-      "Pastikan Allow local Network pada Setingan Iphone",
-      "Check VPN and Cast settings",
+      "Pastikan Allow local Network pada Setingan iPhone",
+      "Periksa pengaturan VPN dan Cast",
+      "Restart aplikasi IPTV",
+      "Pastikan perangkat dalam satu jaringan WiFi yang sama",
     ],
     hasImage: true,
     actionType: "On Site",
     priority: "High",
     slug: "no-device-logged",
-  },
-  {
-    id: 11,
-    category: "Kategori-11",
-    device: "Channel",
-    issue: "Channel Not Found",
-    solutions: ["LAN Out Terpasang bukan LAN In"],
-    hasImage: true,
-    actionType: "System",
-    priority: "Low",
-    slug: "channel-not-found",
   },
 ];
 
@@ -263,8 +256,8 @@ const generateHistoricalData = (
 };
 
 export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
-  const [device, setDevice] = useState<TVDetail | null>(null);
-  const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>({
+  const [tvs, setTv] = useState<TVDetail | null>(null);
+  const [deviceStatus, setTvStatus] = useState<DeviceStatus>({
     power: "working",
     lanIp: "working",
     hdmi: "working",
@@ -297,42 +290,132 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   // Auto-refresh network data every 30 seconds
   useEffect(() => {
-    if (!device) return;
+    if (!mounted || !tvs) return;
 
-    const refreshNetworkData = async () => {
-      setNetworkMetrics((prevMetrics) => {
-        if (prevMetrics) {
-          setPreviousMetrics(prevMetrics);
-        }
-        return generateRandomNetworkData();
-      });
+    const fetchNetworkMetrics = async () => {
+      if (!tvs.id) {
+        console.warn("Tv ID not available for metrics");
+        setNetworkMetrics((prevMetrics) => {
+          if (prevMetrics) {
+            setPreviousMetrics(prevMetrics);
+          }
+          return generateRandomNetworkData();
+        });
+        return;
+      }
 
-      // Fetch real historical data or fallback to generated data
-      if (device.roomNo) {
-        await fetchNetworkHistory(device.roomNo, activeTab);
-      } else {
-        const newHistory = generateHistoricalData(
-          activeTab,
-          device.status === "online"
+      try {
+        const metricsIdentifier = tvs.roomNo || tvs.id;
+        const encodedIdentifier = encodeURIComponent(metricsIdentifier);
+
+        console.log("Fetching metrics for:", {
+          tvId: tvs.id,
+          tvsRoom: tvs.roomNo,
+          using: metricsIdentifier,
+        });
+
+        const response = await fetch(
+          `/api/hospitality/tvs/${encodedIdentifier}/metrics`,
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
         );
-        setNetworkHistory(newHistory);
+
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Metrics response:", result);
+
+          if (result.success && result.data) {
+            setNetworkMetrics((prevMetrics) => {
+              if (prevMetrics) {
+                setPreviousMetrics(prevMetrics);
+              }
+              return {
+                sent: result.data.sent || "0.0",
+                received: result.data.received || "0.0",
+                latency: result.data.latency || 0,
+                jitter: result.data.jitter || 0,
+                ttl: result.data.ttl || 0,
+                packetLoss: result.data.packetLoss || 0,
+                bandwidth: result.data.bandwidth || 0,
+                hops: result.data.hops || 0,
+                signalStrength:
+                  result.data.signalStrength || tvs.signalLevel || 0,
+                bitrate: result.data.bitrate || 0,
+              };
+            });
+          } else {
+            console.warn("Invalid metrics data structure:", result);
+
+            setNetworkMetrics((prevMetrics) => {
+              if (prevMetrics) {
+                setPreviousMetrics(prevMetrics);
+              }
+              return generateRandomNetworkData();
+            });
+          }
+        } else {
+          console.warn(
+            `Metrics API returned ${response.status}, using generated data`
+          );
+
+          setNetworkMetrics((prevMetrics) => {
+            if (prevMetrics) {
+              setPreviousMetrics(prevMetrics);
+            }
+            return generateRandomNetworkData();
+          });
+        }
+      } catch (error) {
+        console.warn("Error fetching network metrics:", error);
+
+        setNetworkMetrics((prevMetrics) => {
+          if (prevMetrics) {
+            setPreviousMetrics(prevMetrics);
+          }
+          return generateRandomNetworkData();
+        });
       }
     };
 
-    refreshNetworkData();
-    const interval = setInterval(refreshNetworkData, 30000);
+    fetchNetworkMetrics();
+    const interval = setInterval(fetchNetworkMetrics, 30000);
 
     return () => clearInterval(interval);
-  }, [device, activeTab]);
+  }, [tvs, mounted]);
 
+  // Function untuk handle tab change
   const handleTabChange = async (newTab: string) => {
+    if (!tvs) return;
+
     setActiveTab(newTab);
-    if (device?.roomNo) {
-      await fetchNetworkHistory(device.roomNo, newTab);
+    setLoadingMetrics(true);
+
+    try {
+      const historyIdentifier = tvs.roomNo || tvs.id;
+      await fetchNetworkHistory(historyIdentifier.toString(), newTab);
+    } catch (error) {
+      console.error("Error changing tab:", error);
+
+      const fallbackData = generateHistoricalData(
+        newTab,
+        Boolean(tvs?.isOnline)
+      );
+      setNetworkHistory(fallbackData);
+    } finally {
+      setLoadingMetrics(false);
     }
   };
 
-  // Enhanced error handling function
+  // Error handling function
   const handleApiError = (error: unknown, context: string) => {
     console.error(`Error in ${context}:`, error);
 
@@ -359,188 +442,82 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   useEffect(() => {
     if (!mounted || !tvId) return;
 
-    const fetchTVDetails = async () => {
+    const fetchTvDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-        setDebugInfo(null);
 
         if (!tvId.trim()) {
-          setError("Invalid TV identifier");
+          setError("Invalid tv identifier");
           return;
         }
 
-        console.log("=== TV FETCH DEBUG ===");
-        console.log("Original tvId:", tvId);
+        const encodedTvId = encodeURIComponent(tvId);
+        console.log("Fetching tv with ID:", tvId);
+        console.log("Encoded tvId:", encodedTvId);
 
-        // Try multiple API approaches
-        const apiAttempts = [
-          {
-            url: `/api/hospitality/tvs/${encodeURIComponent(tvId)}`,
-            method: "direct_room",
-            identifier: tvId,
+        const response = await fetch(`/api/hospitality/tvs/${encodedTvId}`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
           },
-          {
-            url: `/api/hospitality/tvs/${tvId}`,
-            method: "raw",
-            identifier: tvId,
-          },
-        ];
+        });
 
-        let success = false;
-        let lastError: Record<string, unknown> | null = null;
+        if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
 
-        // First, get all TVs to see what's available
-        try {
-          const allTvsResponse = await fetch("/api/hospitality/tvs", {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+          if (response.status === 404) {
+            const errorResult = await response.json();
+            console.log("404 Error details:", errorResult);
 
-          if (allTvsResponse.ok) {
-            const allTvsResult = await allTvsResponse.json();
-            if (allTvsResult.success) {
-              const availableDevices = allTvsResult.data.map((d: TVDetail) => ({
-                id: d.id,
-                roomNo: d.roomNo,
-              }));
+            const suggestions: TvSuggestion[] =
+              errorResult.details?.suggestions || [];
+            let errorMessage = `Room "${tvId}" not found.`;
 
-              console.log("Available TVs from API:", availableDevices);
+            if (suggestions.length > 0) {
+              errorMessage += `\n\nSuggestions:\n${suggestions
+                .map((s) => `• Room ${s.id}: ${s.roomNo || "Unnamed"}`)
+                .join("\n")}`;
+            }
 
-              const exactMatch = availableDevices.find(
-                (d: { roomNo: string }) => d.roomNo === tvId
-              );
-              const caseInsensitiveMatch = availableDevices.find(
-                (d: { roomNo: string }) =>
-                  d.roomNo && d.roomNo.toLowerCase() === tvId.toLowerCase()
-              );
-              const partialMatch = availableDevices.find(
-                (d: { roomNo: string }) =>
-                  d.roomNo &&
-                  (d.roomNo.includes(tvId) || tvId.includes(d.roomNo))
-              );
+            setError(errorMessage);
 
+            if (errorResult.details) {
               setDebugInfo({
                 searchingFor: tvId,
-                availableDevices: availableDevices.slice(0, 10),
-                exactMatch: exactMatch || undefined,
-                caseInsensitiveMatch: caseInsensitiveMatch || undefined,
-                partialMatch: partialMatch || undefined,
-                totalDevices: availableDevices.length,
+                availableDevices: suggestions,
+                totalDevices: errorResult.details.totalDevices || 0,
               });
-
-              if (exactMatch && exactMatch.id) {
-                apiAttempts.unshift({
-                  url: `/api/hospitality/tvs/${exactMatch.id}`,
-                  method: "by_id",
-                  identifier: exactMatch.id.toString(),
-                });
-              }
             }
+            return;
           }
-        } catch (devicesError) {
-          console.warn("Could not fetch TV list for debugging:", devicesError);
+
+          const errorResult = await response.json().catch(() => ({
+            message: `HTTP ${response.status}`,
+          }));
+          throw new Error(errorResult.message || `HTTP ${response.status}`);
         }
+        const result = await response.json();
+        console.log("API Response:", result);
 
-        // Try each API approach
-        for (const attempt of apiAttempts) {
-          if (success) break;
-
-          try {
-            console.log(`Trying ${attempt.method} approach: ${attempt.url}`);
-
-            const response = await fetch(attempt.url, {
-              credentials: "include",
-              headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "no-cache",
-              },
-            });
-
-            console.log(`${attempt.method} response status:`, response.status);
-
-            if (response.status === 401) {
-              window.location.href = "/login";
-              return;
-            }
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log(`${attempt.method} response:`, result);
-
-              if (result.success && result.data) {
-                setDevice(result.data);
-                generateDeviceStatus(result.data);
-                success = true;
-                console.log(
-                  `Successfully found TV using ${attempt.method} method`
-                );
-                break;
-              }
-            } else if (response.status === 404) {
-              const errorResult = await response.json();
-              lastError = errorResult;
-              console.log(`${attempt.method} returned 404:`, errorResult);
-            } else {
-              const errorResult = await response
-                .json()
-                .catch(() => ({ message: `HTTP ${response.status}` }));
-              lastError = errorResult;
-              console.log(`${attempt.method} failed:`, errorResult);
-            }
-          } catch (attemptError) {
-            console.warn(`${attempt.method} attempt failed:`, attemptError);
-            lastError = {
-              message: `${attempt.method} request failed: ${attemptError}`,
-            };
-          }
-        }
-
-        if (!success) {
-          const errorDetails =
-            (
-              lastError as {
-                details?: { availableDevices?: Array<{ roomNo: string }> };
-              }
-            )?.details || {};
-          const suggestions =
-            errorDetails.availableDevices || debugInfo?.availableDevices || [];
-
-          let errorMessage = `Unable to find TV "${tvId}".`;
-
-          if (suggestions.length > 0) {
-            errorMessage += ` Available rooms: ${suggestions
-              .map((d: { roomNo: string }) => d.roomNo)
-              .filter(Boolean)
-              .slice(0, 5)
-              .join(", ")}`;
-
-            const similarDevice = suggestions.find(
-              (d: { roomNo: string }) =>
-                d.roomNo &&
-                (d.roomNo.toLowerCase().includes(tvId.toLowerCase()) ||
-                  tvId.toLowerCase().includes(d.roomNo.toLowerCase()))
-            );
-
-            if (similarDevice) {
-              errorMessage += `. Did you mean "${similarDevice.roomNo}"?`;
-            }
-          }
-
-          setError(errorMessage);
+        if (result.success && result.data) {
+          setTv(result.data);
+          generateDeviceStatus(result.data);
+        } else {
+          throw new Error(result.message || "Invalid response from server");
         }
       } catch (error) {
-        handleApiError(error, "fetching TV details");
+        handleApiError(error, "fetchTvDetails");
       } finally {
         setLoading(false);
-        console.log("=== TV FETCH DEBUG END ===");
       }
     };
-
-    fetchTVDetails();
-  }, [tvId, mounted, activeTab]);
+    fetchTvDetails();
+  }, [tvId, mounted]);
 
   // Generate device status based on device data
   const generateDeviceStatus = (deviceData: TVDetail) => {
@@ -551,17 +528,18 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       network: deviceData.status === "online" ? "working" : "error",
       other: deviceData.error ? "error" : "working",
     };
-    setDeviceStatus(status);
+    setTvStatus(status);
   };
 
-  // Check TV status function
+  // Check tv status function
   const handleCheckTV = async () => {
-    if (!device || checking) return;
+    if (!tvs || checking) return;
 
     setChecking(true);
     try {
+      const encodedTvId = encodeURIComponent(tvId);
       const response = await fetch(
-        `/api/hospitality/tvs/${encodeURIComponent(device.roomNo)}/check`,
+        `/api/hospitality/tvs/${encodedTvId}/check`,
         {
           method: "POST",
           credentials: "include",
@@ -579,7 +557,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          setDevice(result.data);
+          setTv(result.data);
           generateDeviceStatus(result.data);
         }
       } else {
@@ -592,26 +570,30 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
-  // Enhanced troubleshooting detection function
+  // Troubleshooting detection function
   const detectIssues = () => {
-    if (!device) return [];
+    if (!tvs) return [];
 
     const issues = [];
 
-    if (device.status === "offline") {
+    if (tvs.status === "offline") {
       issues.push(faqData.find((faq) => faq.slug === "weak-or-no-signal"));
     }
-    if (device.error && device.error.includes("network")) {
+    if (tvs.error && tvs.error.includes("network")) {
       issues.push(faqData.find((faq) => faq.slug === "unplug-lan-tv"));
     }
-    if (device.error && device.error.includes("channel")) {
-      issues.push(faqData.find((faq) => faq.slug === "channel-not-found"));
+    if (
+      tvs.error &&
+      tvs.error.includes("login") &&
+      tvs.error.includes("device")
+    ) {
+      issues.push(faqData.find((faq) => faq.slug === "no-device-logged"));
     }
 
     return issues.filter(Boolean) as FAQ[];
   };
 
-  const detectedIssues = useMemo(() => detectIssues(), [device]);
+  const detectedIssues = useMemo(() => detectIssues(), [tvs]);
 
   // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
@@ -631,12 +613,33 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
-  const fetchNetworkHistory = async (deviceId: string, timeRange = "24h") => {
+  // Fetch network history
+  const fetchNetworkHistory = async (
+    tvIdentifier: string,
+    timeRange = "24h"
+  ) => {
+    if (!tvIdentifier) {
+      console.warn("No tv identifier provided for history");
+      const fallbackData = generateHistoricalData(
+        timeRange,
+        Boolean(tvs?.isOnline)
+      );
+      setNetworkHistory(fallbackData);
+      return;
+    }
+
     try {
       setLoadingMetrics(true);
-      const encodedDeviceId = encodeURIComponent(deviceId);
+      const encodedIdentifier = encodeURIComponent(tvIdentifier);
+
+      console.log("Fetching history for:", {
+        identifier: tvIdentifier,
+        encoded: encodedIdentifier,
+        timeRange,
+      });
+
       const response = await fetch(
-        `/api/hospitality/tvs/${encodedDeviceId}/history?timeRange=${timeRange}`,
+        `/api/hospitality/tvs/${encodedIdentifier}/history?timeRange=${timeRange}`,
         {
           credentials: "include",
           headers: {
@@ -652,30 +655,47 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success) {
+        console.log("History response:", result);
+
+        if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
+        } else {
+          console.warn("Invalid history data structure, using fallback");
+          const fallbackData = generateHistoricalData(
+            timeRange,
+            Boolean(tvs?.isOnline)
+          );
+          setNetworkHistory(fallbackData);
         }
       } else {
-        console.warn(`Network history not available (${response.status})`);
-        // Fallback to generated data
+        console.warn(
+          `Network history API returned ${response.status}, using fallback`
+        );
         const fallbackData = generateHistoricalData(
           timeRange,
-          device?.status === "online"
+          Boolean(tvs?.isOnline)
         );
         setNetworkHistory(fallbackData);
       }
     } catch (error) {
-      console.warn("Network history unavailable:", error);
-      // Fallback to generated data
+      console.warn("Network history fetch error:", error);
       const fallbackData = generateHistoricalData(
         timeRange,
-        device?.status === "online"
+        Boolean(tvs?.isOnline)
       );
       setNetworkHistory(fallbackData);
     } finally {
       setLoadingMetrics(false);
     }
   };
+
+  useEffect(() => {
+    if (!mounted || !tvs) return;
+    console.log("Fetching initial network history for device:", tvs);
+
+    const historyIdentifier = tvs.roomNo || tvs.id;
+    fetchNetworkHistory(historyIdentifier.toString(), activeTab);
+  }, [tvs, mounted]);
 
   const TrendIndicator = React.useCallback(({ trend }: { trend: string }) => {
     if (trend === "up") {
@@ -992,9 +1012,32 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading TV details...</span>
+        <div className="max-w-6xl mx-auto">
+          {/* Skeleton loading untuk header */}
+          <div className="mb-6">
+            <div className="h-4 bg-gray-200 rounded animate-pulse mb-2 w-48"></div>
+          </div>
+
+          {/* Skeleton loading untuk main content */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="animate-pulse">
+              <div className="h-6 bg-gray-200 rounded mb-4 w-32"></div>
+              <div className="h-16 bg-gray-100 rounded mb-4"></div>
+              <div className="grid grid-cols-7 gap-4">
+                {[...Array(7)].map((_, i) => (
+                  <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Loading message */}
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">
+              Loading device details...
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -1004,12 +1047,13 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
+          {/* Breadcrumb */}
           <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
             <button
               onClick={() => router.push("/hospitality")}
               className="hover:text-blue-600 transition-colors"
             >
-              Hospitality TVs
+              Hospitality TV
             </button>
             <ChevronRightIcon className="w-4 h-4" />
             <span className="text-gray-400">Error</span>
@@ -1024,6 +1068,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
               <p className="text-gray-600 mb-6">{error}</p>
             </div>
 
+            {/* Debug Information */}
             {debugInfo && (
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 <h4 className="font-semibold text-gray-900 mb-3">
@@ -1062,16 +1107,16 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                         <ul className="mt-2 ml-4 space-y-1">
                           {debugInfo.availableDevices
                             .slice(0, 5)
-                            .map((device, index) => (
+                            .map((tvs, index) => (
                               <li
                                 key={index}
                                 className="flex items-center space-x-2"
                               >
                                 <code className="bg-gray-200 px-2 py-1 rounded text-xs">
-                                  {device.roomNo || "Unnamed"}
+                                  {tvs.roomNo || "Unnamed"}
                                 </code>
                                 <span className="text-gray-500 text-xs">
-                                  ({device.id})
+                                  ({tvs.id})
                                 </span>
                               </li>
                             ))}
@@ -1113,32 +1158,34 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     );
   }
 
-  if (!device) return null;
+  if (!tvs) return null;
 
   // Show troubleshooting panel
   if (showTroubleshooting) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
+          {/* Breadcrumb */}
           <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
             <button
               onClick={() => router.push("/hospitality")}
               className="hover:text-blue-600 transition-colors"
             >
-              Hospitality TVs
+              Hospitality TV
             </button>
             <ChevronRightIcon className="w-4 h-4" />
             <button
               onClick={() => setShowTroubleshooting(false)}
               className="hover:text-blue-600 transition-colors"
             >
-              Room {device.roomNo}
+              Room {tvs.roomNo}
             </button>
             <ChevronRightIcon className="w-4 h-4" />
             <span className="text-gray-400">Troubleshooting</span>
           </nav>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            {/* Header */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -1148,7 +1195,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   <p className="text-gray-600 mt-1">
                     Detected {detectedIssues.length} issue
                     {detectedIssues.length !== 1 ? "s" : ""} with Room{" "}
-                    {device.roomNo}
+                    {tvs.roomNo}
                   </p>
                 </div>
                 <button
@@ -1160,6 +1207,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
               </div>
             </div>
 
+            {/* Issues List */}
             <div className="p-6 space-y-4">
               {detectedIssues.length === 0 ? (
                 <div className="text-center py-8">
@@ -1288,19 +1336,21 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   return (
     <div className="p-6 bg-blue-50 min-h-screen">
       <div className="max-w-6xl mx-auto">
+        {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <button
             onClick={() => router.push("/hospitality")}
             className="hover:text-blue-600 transition-colors"
           >
-            Hospitality TVs
+            Hospitality TV
           </button>
           <ChevronRightIcon className="w-4 h-4" />
-          <span className="text-gray-400">Room {device.roomNo}</span>
+          <span className="text-gray-400">Room {tvs.roomNo}</span>
         </nav>
 
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          {/* Table Layout */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -1336,48 +1386,48 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          Room {device.roomNo}
+                          Room {tvs.roomNo}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {device.model || "Samsung Hospitality"}
+                          {tvs.model || "Samsung Hospitality"}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 font-mono">
-                      {device.ipAddress || "N/A"}
+                      {tvs.ipAddress || "N/A"}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        device.status === "online"
+                        tvs.status === "online"
                           ? "bg-green-100 text-green-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
                       <div
                         className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                          device.status === "online"
+                          tvs.status === "online"
                             ? "bg-green-500"
                             : "bg-red-500"
                         }`}
                       ></div>
-                      {device.status
-                        ? device.status.charAt(0).toUpperCase() +
-                          device.status.slice(1)
+                      {tvs.status
+                        ? tvs.status.charAt(0).toUpperCase() +
+                          tvs.status.slice(1)
                         : "Unknown"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200">
-                      {device.model || "Samsung Hospitality"}
+                      {tvs.model || "Samsung Hospitality"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
-                      date={device.lastChecked}
+                      date={tvs.lastChecked}
                       fallback="Never checked"
                       className="text-xs"
                     />
@@ -1557,7 +1607,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="latency"
                     unit="ms"
                     label="Jitter"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
 
                   <MetricCard
@@ -1566,7 +1616,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="bandwidth"
                     unit=""
                     label="TTL"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
 
                   <MetricCard
@@ -1575,7 +1625,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="packetLoss"
                     unit="%"
                     label="Packet Loss"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
 
                   <MetricCard
@@ -1588,7 +1638,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="data_sent"
                     unit="GB"
                     label="Data Sent"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
                 </div>
               )}
@@ -1602,7 +1652,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="latency"
                     unit=""
                     label="Hops"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
 
                   <MetricCard
@@ -1611,16 +1661,16 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="bandwidth"
                     unit="Mbps"
                     label="Bandwidth"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
 
                   <MetricCard
-                    value={networkMetrics?.latency || device?.responseTime || 0}
+                    value={networkMetrics?.latency || tvs?.responseTime || 0}
                     previousValue={previousMetrics?.latency}
                     type="latency"
                     unit="ms"
                     label="Latency"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
 
                   <MetricCard
@@ -1633,7 +1683,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     type="data_received"
                     unit="GB"
                     label="Data Received"
-                    isOnline={device.status === "online"}
+                    isOnline={tvs.status === "online"}
                   />
                 </div>
               )}
@@ -1696,12 +1746,12 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
           {/* Sidebar */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Device Status */}
+            {/* TV Status */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Device Status
+                    TV Status
                   </h2>
                   <p className="text-sm text-gray-500 mt-1">
                     Real-time connectivity monitoring
@@ -1717,7 +1767,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   status={deviceStatus.power}
                   label="Power"
                   icon={PowerIcon}
-                  value={device.status === "online" ? "On" : "Off"}
+                  value={tvs.status === "online" ? "On" : "Off"}
                   unit=""
                 />
                 <StatusBadge
@@ -1725,9 +1775,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   label="Network / IP"
                   icon={GlobeAltIcon}
                   value={
-                    device.status === "online"
-                      ? device.ipAddress
-                      : "Disconnected"
+                    tvs.status === "online" ? tvs.ipAddress : "Disconnected"
                   }
                   unit=""
                 />
@@ -1735,7 +1783,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   status={deviceStatus.hdmi}
                   label="HDMI Input"
                   icon={ComputerDesktopIcon}
-                  value={device.status === "online" ? "HDMI-1" : "No Signal"}
+                  value={tvs.status === "online" ? "HDMI-1" : "No Signal"}
                   unit=""
                 />
                 <StatusBadge
@@ -1743,9 +1791,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   label="Network Connection"
                   icon={WifiIcon}
                   value={
-                    device.responseTime
-                      ? `${device.responseTime}ms`
-                      : "No Response"
+                    tvs.responseTime ? `${tvs.responseTime}ms` : "No Response"
                   }
                   unit=""
                 />
@@ -1753,7 +1799,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   status={deviceStatus.other}
                   label="System Health"
                   icon={WrenchScrewdriverIcon}
-                  value={device.error ? "Error" : "Normal"}
+                  value={tvs.error ? "Error" : "Normal"}
                   unit=""
                 />
               </div>

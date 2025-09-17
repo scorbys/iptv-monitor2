@@ -146,52 +146,68 @@ interface StatusBadgeProps {
 // FAQ Data for Channel issues
 const faqData: FAQ[] = [
   {
-    id: 1,
-    category: "Kategori-1",
+    id: 5,
+    category: "Kategori-5",
     device: "Channel",
-    issue: "Channel Signal Weak",
+    issue: "Error Playing",
     solutions: [
-      "Check multicast IP configuration",
-      "Verify network routing settings",
-      "Test stream connectivity",
-      "Check encoder output quality",
-    ],
-    hasImage: true,
-    actionType: "System",
-    priority: "High",
-    slug: "channel-signal-weak",
-  },
-  {
-    id: 2,
-    category: "Kategori-2",
-    device: "Channel",
-    issue: "Stream Quality Issues",
-    solutions: [
-      "Check bitrate settings",
-      "Verify network bandwidth",
-      "Monitor packet loss",
-      "Review encoder configuration",
+      "Channel issue dari Biznet (Testing VIA VLC)",
+      "Restart streaming service",
+      "Check network bandwidth and stability",
+      "Update codec or media player",
     ],
     hasImage: true,
     actionType: "System",
     priority: "Medium",
-    slug: "stream-quality-issues",
+    slug: "error-playing",
   },
   {
-    id: 3,
-    category: "Kategori-3",
+    id: 6,
+    category: "Kategori-6",
     device: "Channel",
-    issue: "Channel Offline",
+    issue: "Error_Player_Error_Err",
     solutions: [
-      "Check stream source connectivity",
-      "Verify multicast address configuration",
-      "Test network connectivity to encoder",
-      "Review streaming server status",
+      "Hbrowser & Widget Solution incorrect",
+      "Channel issue Biznet (Testing VLC)",
+      "Update browser to latest version",
+      "Clear browser cache and cookies",
     ],
     hasImage: true,
-    actionType: "On Site",
+    actionType: "System",
     priority: "High",
-    slug: "channel-offline",
+    slug: "error-player-error",
+  },
+  {
+    id: 7,
+    category: "Kategori-7",
+    device: "Channel",
+    issue: "Connection_Failure",
+    solutions: [
+      "Reinstall Widget Solution",
+      "Reload IGCMP",
+      "Confirmed IP conflict, changed IP, issue resolved",
+      "Check firewall settings and open required ports",
+    ],
+    hasImage: true,
+    actionType: "System",
+    priority: "Medium",
+    slug: "connection-failure",
+  },
+  {
+    id: 11,
+    category: "Kategori-11",
+    device: "Channel",
+    issue: "Channel Not Found",
+    solutions: [
+      "LAN Out Terpasang bukan LAN In",
+      "Verify correct cable connection (LAN In vs LAN Out)",
+      "Refresh channel list or rescan channels",
+      "Check IGMP configuration",
+    ],
+    hasImage: true,
+    actionType: "System",
+    priority: "Low",
+    slug: "channel-not-found",
   },
 ];
 
@@ -319,7 +335,6 @@ export default function ChannelDetailsPage({
     const fetchNetworkMetrics = async () => {
       if (!channel.id) {
         console.warn("Channel ID not available for metrics");
-        // Fallback to generated data
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
@@ -330,7 +345,6 @@ export default function ChannelDetailsPage({
       }
 
       try {
-        // Gunakan channel.id atau channel.channelNumber, bukan channelId dari props
         const metricsIdentifier =
           channel.slug || channel.channelNumber || channel.id;
         const encodedIdentifier = encodeURIComponent(metricsIdentifier);
@@ -383,7 +397,7 @@ export default function ChannelDetailsPage({
             });
           } else {
             console.warn("Invalid metrics data structure:", result);
-            // Fallback to generated data
+
             setNetworkMetrics((prevMetrics) => {
               if (prevMetrics) {
                 setPreviousMetrics(prevMetrics);
@@ -395,7 +409,7 @@ export default function ChannelDetailsPage({
           console.warn(
             `Metrics API returned ${response.status}, using generated data`
           );
-          // Fallback to generated data
+
           setNetworkMetrics((prevMetrics) => {
             if (prevMetrics) {
               setPreviousMetrics(prevMetrics);
@@ -405,7 +419,7 @@ export default function ChannelDetailsPage({
         }
       } catch (error) {
         console.warn("Error fetching network metrics:", error);
-        // Fallback to generated data
+
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
@@ -415,15 +429,13 @@ export default function ChannelDetailsPage({
       }
     };
 
-    // Fetch immediately when channel is loaded
     fetchNetworkMetrics();
-
-    // Set up interval untuk refresh
-    const interval = setInterval(fetchNetworkMetrics, 30000); // Refresh setiap 30 detik
+    const interval = setInterval(fetchNetworkMetrics, 30000);
 
     return () => clearInterval(interval);
   }, [channel, mounted]);
 
+  // Function untuk handle tab change
   const handleTabChange = async (newTab: string) => {
     if (!channel) return;
 
@@ -431,13 +443,12 @@ export default function ChannelDetailsPage({
     setLoadingMetrics(true);
 
     try {
-      // Gunakan identifier yang konsisten
       const historyIdentifier =
         channel.slug || channel.channelNumber || channel.id;
       await fetchNetworkHistory(historyIdentifier.toString(), newTab);
     } catch (error) {
       console.error("Error changing tab:", error);
-      // Generate fallback data
+
       const fallbackData = generateHistoricalData(
         newTab,
         channel.status === "online"
@@ -448,7 +459,7 @@ export default function ChannelDetailsPage({
     }
   };
 
-  // Enhanced error handling function
+  // Error handling function
   const handleApiError = (error: unknown, context: string) => {
     console.error(`Error in ${context}:`, error);
 
@@ -484,7 +495,6 @@ export default function ChannelDetailsPage({
           return;
         }
 
-        // PERBAIKAN: Hapus validasi numerik - terima semua identifier
         const encodedChannelId = encodeURIComponent(channelId);
         console.log("Fetching channel with ID:", channelId);
         console.log("Encoded channelId:", encodedChannelId);
@@ -566,12 +576,11 @@ export default function ChannelDetailsPage({
     const status: DeviceStatus = {
       power: channelData.status === "online" ? "working" : "error",
       network: channelData.status === "online" ? "working" : "error",
-      signal: "error", // default ke error dulu
+      signal: "error",
       stream: channelData.status === "online" ? "working" : "error",
       other: channelData.error ? "error" : "working",
     };
 
-    // Fix signal status logic
     if (channelData.status === "online") {
       if (
         channelData.signalLevel !== undefined &&
@@ -579,7 +588,6 @@ export default function ChannelDetailsPage({
       ) {
         status.signal = channelData.signalLevel > 50 ? "working" : "error";
       } else {
-        // Jika signalLevel tidak tersedia tapi channel online, anggap working
         status.signal = "working";
       }
     } else {
@@ -625,20 +633,23 @@ export default function ChannelDetailsPage({
     }
   };
 
-  // Enhanced troubleshooting detection function
+  // Troubleshooting detection function
   const detectIssues = () => {
     if (!channel) return [];
 
     const issues = [];
 
     if (channel.status === "offline") {
-      issues.push(faqData.find((faq) => faq.slug === "channel-offline"));
+      issues.push(faqData.find((faq) => faq.slug === "connection-failure"));
     }
     if (channel.signalLevel && channel.signalLevel < 50) {
-      issues.push(faqData.find((faq) => faq.slug === "channel-signal-weak"));
+      issues.push(faqData.find((faq) => faq.slug === "channel-not-found"));
     }
     if (channel.error && channel.error.includes("quality")) {
-      issues.push(faqData.find((faq) => faq.slug === "stream-quality-issues"));
+      issues.push(faqData.find((faq) => faq.slug === "error-playing"));
+    }
+    if (channel.error && channel.error.includes("player")) {
+      issues.push(faqData.find((faq) => faq.slug === "error-player-error"));
     }
 
     return issues.filter(Boolean) as FAQ[];
@@ -664,6 +675,7 @@ export default function ChannelDetailsPage({
     }
   };
 
+  // Fetch network history
   const fetchNetworkHistory = async (
     channelIdentifier: string,
     timeRange = "24h"
@@ -741,10 +753,8 @@ export default function ChannelDetailsPage({
 
   useEffect(() => {
     if (!mounted || !channel) return;
-
     console.log("Fetching initial network history for channel:", channel);
 
-    // Fetch initial network history setelah channel data tersedia
     const historyIdentifier =
       channel.slug || channel.channelNumber || channel.id;
     fetchNetworkHistory(historyIdentifier.toString(), activeTab);
@@ -1140,6 +1150,7 @@ export default function ChannelDetailsPage({
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
+          {/* Breadcrumb */}
           <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
             <button
               onClick={() => router.push("/channels")}
@@ -1160,6 +1171,7 @@ export default function ChannelDetailsPage({
               <p className="text-gray-600 mb-6">{error}</p>
             </div>
 
+            {/* Debug Information */}
             {debugInfo && (
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
                 <h4 className="font-semibold text-gray-900 mb-3">
@@ -1268,6 +1280,7 @@ export default function ChannelDetailsPage({
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
+          {/* Breadcrumb */}
           <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
             <button
               onClick={() => router.push("/channels")}
@@ -1287,6 +1300,7 @@ export default function ChannelDetailsPage({
           </nav>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            {/* Header */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
@@ -1308,6 +1322,7 @@ export default function ChannelDetailsPage({
               </div>
             </div>
 
+            {/* Issues List */}
             <div className="p-6 space-y-4">
               {detectedIssues.length === 0 ? (
                 <div className="text-center py-8">
@@ -1436,6 +1451,7 @@ export default function ChannelDetailsPage({
   return (
     <div className="p-6 bg-blue-50 min-h-screen">
       <div className="max-w-6xl mx-auto">
+        {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <button
             onClick={() => router.push("/channels")}
@@ -1449,6 +1465,7 @@ export default function ChannelDetailsPage({
 
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          {/* Table Layout */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">

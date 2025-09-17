@@ -73,10 +73,8 @@ export default function ChannelsPage() {
 
   const handleChannelClick = useCallback(
     (channel: Channel) => {
-      // Gunakan channelNumber sebagai primary identifier
-      const channelIdentifier =
-        channel.channelNumber?.toString() || channel.id.toString();
-      router.push(`/channels/${channelIdentifier}`);
+      const channelId = channel.channelName || channel.id;
+      router.push(`/channels/${channelId}`);
     },
     [router]
   );
@@ -86,46 +84,45 @@ export default function ChannelsPage() {
     setMounted(true);
   }, []);
 
-  // Fetch channels data dengan error handling yang lebih baik
+  // Fetch channels data
   const fetchChannels = useCallback(async () => {
-  if (!mounted) return;
+    if (!mounted) return;
 
-  try {
-    const response = await fetch("/api/channels", {
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
-      },
-    });
+    try {
+      const response = await fetch("/api/channels", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+      });
 
-    if (response.status === 401) {
-      // Token expired atau invalid, redirect ke login
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        return;
       }
-      return;
-    }
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (result.success && Array.isArray(result.data)) {
-      setChannels(result.data);
-    } else {
-      console.error("Invalid channels data format:", result);
+      if (result.success && Array.isArray(result.data)) {
+        setChannels(result.data);
+      } else {
+        console.error("Invalid channels data format:", result);
+        setChannels([]);
+      }
+    } catch (error) {
+      console.error("Error fetching channels:", error);
       setChannels([]);
     }
-  } catch (error) {
-    console.error("Error fetching channels:", error);
-    setChannels([]);
-  }
-}, [mounted]);
+  }, [mounted]);
 
-  // Fetch dashboard stats dengan error handling yang lebih baik
+  // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
     if (!mounted) return;
 
@@ -139,7 +136,6 @@ export default function ChannelsPage() {
       });
 
       if (response.status === 401) {
-        // Token expired atau invalid, redirect ke login
         if (typeof window !== "undefined") {
           window.location.href = "/login";
         }
@@ -164,14 +160,13 @@ export default function ChannelsPage() {
     }
   }, [mounted]);
 
-  // Effect untuk initial data load dengan better error handling
+  // Effect untuk initial data load
   useEffect(() => {
     if (!mounted) return;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load data secara sequential untuk better error handling
         await Promise.all([fetchChannels(), fetchStats()]);
       } catch (error) {
         console.error("Error loading initial data:", error);
@@ -184,7 +179,6 @@ export default function ChannelsPage() {
 
     // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
-      // Cek visibility dan authentication state
       if (document.visibilityState === "visible") {
         Promise.all([fetchChannels(), fetchStats()]).catch(console.error);
       }
@@ -211,12 +205,11 @@ export default function ChannelsPage() {
     }
   }, [refreshing, fetchChannels, fetchStats]);
 
-  // Check specific channel status dengan better error handling
+  // Check specific channel status
   const checkChannelStatus = useCallback(
     async (channel: Channel) => {
       if (!channel) return;
 
-      // Gunakan channelNumber sebagai identifier untuk API call
       const identifier =
         channel.channelNumber?.toString() || channel.id.toString();
 
@@ -252,10 +245,8 @@ export default function ChannelsPage() {
                 : ch
             )
           );
-          // Also refresh stats after successful check
           await fetchStats();
         } else {
-          // Handle API error response
           setChannels((prev) =>
             prev.map((ch) =>
               ch.id === channel.id
@@ -270,7 +261,6 @@ export default function ChannelsPage() {
         }
       } catch (error: unknown) {
         console.error("Error checking channel status:", error);
-        // Update channel with error state
         setChannels((prev) =>
           prev.map((ch) =>
             ch.id === channel.id
@@ -410,7 +400,6 @@ export default function ChannelsPage() {
     setExportLoading(true);
 
     try {
-      // Header CSV
       const headers = [
         "Channel Number",
         "Channel Name",
@@ -422,7 +411,6 @@ export default function ChannelsPage() {
         "Logo URL",
       ];
 
-      // Convert filtered data ke CSV format
       const csvData = filteredChannels.map((channel) => [
         channel.channelNumber?.toString() || "",
         (channel.channelName || "").replace(/"/g, '""'),
@@ -434,13 +422,11 @@ export default function ChannelsPage() {
         channel.logo || "",
       ]);
 
-      // Gabungkan header dan data
       const csvContent = [headers, ...csvData]
         .map((row) =>
           row
             .map((field) => {
               const stringField = String(field);
-              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
               if (
                 stringField.includes(",") ||
                 stringField.includes('"') ||
@@ -455,7 +441,6 @@ export default function ChannelsPage() {
         )
         .join("\n");
 
-      // Buat file dan download
       const bom = "\uFEFF";
       const blob = new Blob([bom + csvContent], {
         type: "text/csv;charset=utf-8;",
@@ -466,7 +451,6 @@ export default function ChannelsPage() {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
 
-        // Generate filename dengan timestamp
         const timestamp = new Date()
           .toISOString()
           .slice(0, 19)
@@ -514,7 +498,6 @@ export default function ChannelsPage() {
       );
       const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-      // Adjust start page if we're near the end
       if (endPage - startPage < maxVisiblePages - 1) {
         startPage = Math.max(1, endPage - maxVisiblePages + 1);
       }

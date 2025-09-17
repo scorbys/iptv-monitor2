@@ -8,243 +8,478 @@ import {
   CheckCircleIcon,
   ComputerDesktopIcon,
   DevicePhoneMobileIcon,
+  SignalIcon,
+  ClockIcon,
+  XMarkIcon,
+  WrenchScrewdriverIcon,
+  LightBulbIcon,
+  CheckBadgeIcon,
+  ArrowDownTrayIcon,
+  BellIcon,
+  ShieldCheckIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 import {
   Notification,
   fetchAllNotifications,
+  cleanOldNotifications,
 } from "../app/notifications/notifUtils";
 
 const ITEMS_PER_PAGE = 12;
 
+interface NotificationStats {
+  totalNotifications: number;
+  activeIssues: number;
+  recentRecoveries: number;
+  avgResponseTime: number;
+  topErrorCategory: string;
+  last24HourAlerts: number;
+  lastUpdated: string;
+}
+
 export default function NotifPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [stats, setStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
+    "desktop"
+  );
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("notif-cache");
-      if (stored) {
-        const parsed: Notification[] = JSON.parse(stored);
-        const recent = parsed.filter(
-          (n) => Date.now() - new Date(n.rawDate).getTime() <= 2 * 86400000
-        );
-        setNotifications(recent);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
       }
-    } catch (e) {
-      console.error("Failed to parse notif-cache", e);
-    } finally {
-      setMounted(true);
+    };
+
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
     }
   }, []);
 
+  // Calculate stats from notifications
+  const calculateStats = useCallback(
+    (notifications: Notification[]): NotificationStats => {
+      const now = new Date();
+      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const activeIssues = notifications.filter(
+        (n) => n.currentStatus === "offline"
+      ).length;
+      const recentRecoveries = notifications.filter(
+        (n) => n.isStatusChange && n.currentStatus === "online"
+      ).length;
+
+      const recentAlerts = notifications.filter(
+        (n) =>
+          new Date(n.rawDate) > last24Hours && n.currentStatus === "offline"
+      ).length;
+
+      const responseTimes = notifications
+        .filter((n) => n.responseTime && n.responseTime > 0)
+        .map((n) => n.responseTime!);
+
+      const avgResponseTime =
+        responseTimes.length > 0
+          ? Math.round(
+              responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+            )
+          : 0;
+
+      const errorCategories = notifications.reduce((acc, n) => {
+        if (n.errorCategory && n.currentStatus === "offline") {
+          acc[n.errorCategory] = (acc[n.errorCategory] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      const topErrorCategory =
+        Object.entries(errorCategories).sort(([, a], [, b]) => b - a)[0]?.[0] ||
+        "None";
+
+      return {
+        totalNotifications: notifications.length,
+        activeIssues,
+        recentRecoveries,
+        avgResponseTime,
+        topErrorCategory,
+        last24HourAlerts: recentAlerts,
+        lastUpdated: now.toISOString(),
+      };
+    },
+    []
+  );
+
+  // Enhanced fetchNotifications with stats calculation
   const fetchNotifications = useCallback(async () => {
-    setLoading(true);
-    const recent = await fetchAllNotifications();
-    setNotifications(recent);
-    setLoading(false);
-  }, []);
+    if (!mounted) return;
+
+    try {
+      const recent = await fetchAllNotifications();
+      const cleaned = cleanOldNotifications(recent);
+      setNotifications(cleaned);
+      setStats(calculateStats(cleaned));
+
+      // Update localStorage
+      localStorage.setItem("notif-cache", JSON.stringify(cleaned));
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      setNotifications([]);
+      setStats(null);
+    }
+  }, [mounted, calculateStats]);
 
   useEffect(() => {
     if (!mounted) return;
-    fetchNotifications();
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") fetchNotifications();
-    }, 120000);
-    return () => clearInterval(interval);
-  }, [mounted, fetchNotifications]);
 
-  const handleRefresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    await fetchNotifications();
-    setRefreshing(false);
-  };
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Load from cache first
+        const stored = localStorage.getItem("notif-cache");
+        if (stored) {
+          const parsed: Notification[] = JSON.parse(stored);
+          const cleaned = cleanOldNotifications(parsed);
+          setNotifications(cleaned);
+          setStats(calculateStats(cleaned));
+        }
 
-  const filtered = useMemo(() => {
-    const s = searchTerm.toLowerCase();
-    return notifications.filter((n) => {
-      const matchesSearch =
-        n.title?.toLowerCase().includes(s) ||
-        n.message?.toLowerCase().includes(s) ||
-        n.deviceName?.toLowerCase().includes(s) ||
-        n.roomNo?.toLowerCase().includes(s) ||
-        n.ipAddr?.includes(s);
-      const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
-      return matchesSearch && matchesSource;
-    });
-  }, [notifications, searchTerm, sourceFilter]);
-
-  const pagination = useMemo(() => {
-    const total = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    const end = Math.min(start + ITEMS_PER_PAGE, filtered.length);
-    return {
-      total,
-      start,
-      end,
-      pageData: filtered.slice(start, end),
-    };
-  }, [filtered, currentPage]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, sourceFilter]);
-
-  // === Sub-komponen dalam file ===
-  const NotificationCard = ({ notification }: { notification: Notification }) => {
-    const getIcon = () => {
-      switch (notification.source) {
-        case "tv":
-          return <ComputerDesktopIcon className="w-5 h-5" />;
-        case "chromecast":
-          return <DevicePhoneMobileIcon className="w-5 h-5" />;
-        case "channel":
-          return <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />;
-        default:
-          return <ExclamationTriangleIcon className="w-5 h-5" />;
+        // Then fetch fresh data
+        await fetchNotifications();
+      } catch (error) {
+        console.error("Error loading notifications:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    return (
-      <div className="flex items-start gap-4 px-6 py-5">
-        <div
-          className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-            notification.type === "warning"
-              ? "bg-yellow-100 text-yellow-600"
-              : notification.type === "success"
-              ? "bg-green-100 text-green-600"
-              : "bg-blue-100 text-blue-600"
-          }`}
-        >
-          {getIcon()}
-        </div>
+    loadData();
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <h3 className="text-lg font-semibold text-gray-900">{notification.title}</h3>
-            <span className="text-sm text-gray-600">{notification.date}</span>
-          </div>
-          <p className="text-gray-600 mb-3">{notification.message}</p>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-            {notification.roomNo && (
-              <span>
-                <strong>Room:</strong> {notification.roomNo}
-              </span>
-            )}
-            {notification.deviceName && !notification.roomNo && (
-              <span>
-                <strong>Device:</strong> {notification.deviceName}
-              </span>
-            )}
-            {notification.ipAddr && (
-              <span>
-                <strong>IP:</strong>{" "}
-                <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">
-                  {notification.ipAddr}
-                </code>
-              </span>
-            )}
-            <span>
-              <strong>Source:</strong>{" "}
-              {notification.source.charAt(0).toUpperCase() + notification.source.slice(1)}
-            </span>
-            <span>{notification.time}</span>
-          </div>
-        </div>
-      </div>
+    // Auto-refresh every 15 minutes
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchNotifications();
+      }
+    }, 900000);
+
+    return () => clearInterval(interval);
+  }, [mounted, fetchNotifications, calculateStats]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await fetchNotifications();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, fetchNotifications]);
+
+  // Manual cleanup
+  const handleCleanup = useCallback(() => {
+    try {
+      const cleaned = cleanOldNotifications(notifications);
+      if (cleaned.length !== notifications.length) {
+        setNotifications(cleaned);
+        setStats(calculateStats(cleaned));
+        localStorage.setItem("notif-cache", JSON.stringify(cleaned));
+        console.log(
+          `Manual cleanup: removed ${
+            notifications.length - cleaned.length
+          } old notifications`
+        );
+
+        alert(
+          `Cleaned ${notifications.length - cleaned.length} old notifications`
+        );
+      } else {
+        alert("No old notifications to clean up");
+      }
+    } catch (error) {
+      console.error("Manual cleanup failed:", error);
+      alert("Cleanup failed. Please try again.");
+    }
+  }, [notifications, calculateStats]);
+
+  // Filtered notifications
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((n) => {
+      const matchesSearch =
+        n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.deviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.roomNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.ipAddr?.includes(searchTerm) ||
+        n.errorCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.error?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.suggestedSolutions?.some((sol) =>
+          sol.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
+      const matchesType = typeFilter === "all" || n.type === typeFilter;
+
+      return matchesSearch && matchesSource && matchesType;
+    });
+  }, [notifications, searchTerm, sourceFilter, typeFilter]);
+
+  // Pagination
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedNotifications = filteredNotifications.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
     );
+
+    return {
+      totalPages,
+      startIndex,
+      paginatedNotifications,
+      endIndex: Math.min(
+        startIndex + ITEMS_PER_PAGE,
+        filteredNotifications.length
+      ),
+    };
+  }, [filteredNotifications, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
-  const SearchFilter = () => (
-    <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-      <div className="relative flex-1 max-w-md">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search notifications..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sourceFilter, typeFilter]);
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 min-w-[120px] justify-between">
-              <span className="text-sm font-medium text-gray-700">
-                {sourceFilter.charAt(0).toUpperCase() + sourceFilter.slice(1)}
-              </span>
-              <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-            </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
-              {["all", "tv", "chromecast", "channel"].map((source) => (
-                <DropdownMenu.Item
-                  key={source}
-                  className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer outline-none"
-                  onClick={() => setSourceFilter(source)}
-                >
-                  {source.charAt(0).toUpperCase() + source.slice(1)}
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+  // Export to CSV
+  const exportToCSV = useCallback(() => {
+    if (exportLoading) return;
 
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all duration-200"
+    setExportLoading(true);
+
+    try {
+      const headers = [
+        "Date",
+        "Time",
+        "Title",
+        "Message",
+        "Source",
+        "Type",
+        "Device",
+        "Room",
+        "IP Address",
+        "Status",
+        "Error Category",
+        "Response Time",
+        "Signal Level",
+      ];
+
+      const csvData = filteredNotifications.map((notification) => [
+        notification.date || "N/A",
+        notification.time || "N/A",
+        notification.title || "N/A",
+        notification.message || "N/A",
+        notification.source || "N/A",
+        notification.type || "N/A",
+        notification.deviceName || "N/A",
+        notification.roomNo || "N/A",
+        notification.ipAddr || "N/A",
+        notification.currentStatus || "N/A",
+        notification.errorCategory || "N/A",
+        notification.responseTime || "N/A",
+        notification.signalLevel || "N/A",
+      ]);
+
+      const csvContent = [headers, ...csvData]
+        .map((row) =>
+          row
+            .map((field) => {
+              const stringField = String(field);
+              if (
+                stringField.includes(",") ||
+                stringField.includes('"') ||
+                stringField.includes("\n") ||
+                stringField.includes("\r")
+              ) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+              }
+              return stringField;
+            })
+            .join(",")
+        )
+        .join("\n");
+
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:-]/g, "");
+        const filename = `notifications_export_${timestamp}.csv`;
+        link.setAttribute("download", filename);
+
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      alert("Failed to export CSV. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  }, [filteredNotifications, exportLoading]);
+
+  // Helper components
+  const StatusBadge = useCallback(
+    ({
+      status,
+      isStatusChange,
+    }: {
+      status: string;
+      isStatusChange?: boolean;
+    }) => (
+      <div className="flex flex-col gap-1">
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            status === "online"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
         >
-          <ArrowPathIcon className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          <span className="text-sm font-medium">
-            {refreshing ? "Refreshing..." : "Refresh"}
+          <div
+            className={`w-1.5 h-1.5 rounded-full mr-1 ${
+              status === "online" ? "bg-green-500" : "bg-red-500"
+            }`}
+          ></div>
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
+        {isStatusChange && (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <ClockIcon className="w-3 h-3 mr-1" />
+            Changed
           </span>
-        </button>
+        )}
       </div>
-    </div>
+    ),
+    []
   );
 
-  const PaginationControl = () =>
-    pagination.total > 1 ? (
-      <div className="mt-6 flex justify-center gap-2">
-        <button
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-          disabled={currentPage === 1}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Prev
-        </button>
-        {Array.from({ length: pagination.total }).map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentPage(i + 1)}
-            className={`px-3 py-1 border rounded ${
-              currentPage === i + 1 ? "bg-blue-600 text-white" : ""
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-        <button
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, pagination.total))}
-          disabled={currentPage === pagination.total}
-          className="px-3 py-1 border rounded disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
-    ) : null;
+  const TypeBadge = useCallback(({ type }: { type: string }) => {
+    const getTypeConfig = (type: string) => {
+      switch (type) {
+        case "warning":
+          return {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            icon: ExclamationTriangleIcon,
+          };
+        case "success":
+          return {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            icon: CheckCircleIcon,
+          };
+        case "info":
+          return {
+            bg: "bg-blue-100",
+            text: "text-blue-800",
+            icon: InformationCircleIcon,
+          };
+        default:
+          return { bg: "bg-gray-100", text: "text-gray-800", icon: BellIcon };
+      }
+    };
+
+    const config = getTypeConfig(type);
+    const Icon = config.icon;
+
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
+      >
+        <Icon className="w-3 h-3 mr-1" />
+        {type.charAt(0).toUpperCase() + type.slice(1)}
+      </span>
+    );
+  }, []);
+
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number, screenSize: string) => {
+      let maxVisiblePages: number;
+      let showFirstLast: boolean;
+
+      switch (screenSize) {
+        case "mobile":
+          maxVisiblePages = 3;
+          showFirstLast = false;
+          break;
+        case "tablet":
+          maxVisiblePages = 5;
+          showFirstLast = true;
+          break;
+        default: // desktop
+          maxVisiblePages = 7;
+          showFirstLast = true;
+          break;
+      }
+
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      return {
+        startPage,
+        endPage,
+        maxVisiblePages,
+        showFirstLast,
+        showEllipsis: {
+          start: showFirstLast && startPage > 2,
+          end: showFirstLast && endPage < totalPages - 1,
+        },
+      };
+    },
+    []
+  );
 
   if (!mounted || loading) {
     return (
@@ -259,52 +494,900 @@ export default function NotifPage() {
 
   return (
     <div className="p-6 bg-blue-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-            <p className="text-gray-600 mt-1">
-              Monitor device status and system alerts
-            </p>
+      {/* Header Stats */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+          {/* Total Notifications Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Total Notifications
+                </p>
+                <p className="text-2xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
+                  {stats.totalNotifications}
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
+                  <BellIcon className="w-5 h-5 text-blue-600" />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-sm text-gray-500">
-            {filtered.length} notification{filtered.length !== 1 ? "s" : ""}
+
+          {/* Active Issues Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Active Issues
+                </p>
+                <p className="text-2xl font-bold text-red-600 group-hover:text-red-700 transition-colors">
+                  {stats.activeIssues}
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                </div>
+              </div>
+            </div>
+            {stats.activeIssues > 0 && (
+              <div className="mt-2 pt-2 border-t border-red-100">
+                <div className="flex items-center text-xs text-red-600">
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse mr-1" />
+                  Requires attention
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Recoveries Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Recoveries
+                </p>
+                <p className="text-2xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
+                  {stats.recentRecoveries}
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                </div>
+              </div>
+            </div>
+            {stats.recentRecoveries > 0 && (
+              <div className="mt-2 pt-2 border-t border-green-100">
+                <div className="flex items-center text-xs text-green-600">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1" />
+                  Recently resolved
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 24h Alerts Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  24h Alerts
+                </p>
+                <p className="text-2xl font-bold text-orange-600 group-hover:text-orange-700 transition-colors">
+                  {stats.last24HourAlerts}
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
+                  <ClockIcon className="w-5 h-5 text-orange-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Average Response Time Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Avg Response
+                </p>
+                <p className="text-2xl font-bold text-purple-600 group-hover:text-purple-700 transition-colors">
+                  {stats.avgResponseTime}ms
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
+                  <SignalIcon className="w-5 h-5 text-purple-600" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-purple-100">
+              <span
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  stats.avgResponseTime < 100
+                    ? "bg-green-100 text-green-700"
+                    : stats.avgResponseTime < 300
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {stats.avgResponseTime < 100
+                  ? "Excellent"
+                  : stats.avgResponseTime < 300
+                  ? "Good"
+                  : "Slow"}
+              </span>
+            </div>
+          </div>
+
+          {/* Top Issue Category Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Top Issue
+                </p>
+                <p className="text-lg font-bold text-indigo-600 group-hover:text-indigo-700 transition-colors truncate">
+                  {stats.topErrorCategory}
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg">
+                  <WrenchScrewdriverIcon className="w-5 h-5 text-indigo-600" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-indigo-100">
+              <div className="text-xs text-indigo-600 font-medium">
+                Most common error
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            <div className="relative flex-1 max-w-md">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search notifications, error categories, solutions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Source Filter */}
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[120px] justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      {sourceFilter.charAt(0).toUpperCase() +
+                        sourceFilter.slice(1)}
+                    </span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                    {["all", "tv", "chromecast", "channel", "system"].map(
+                      (source) => (
+                        <DropdownMenu.Item
+                          key={`source-${source}`}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                          onClick={() => setSourceFilter(source)}
+                        >
+                          <span className="capitalize">
+                            {source === "all" ? "All Sources" : source}
+                          </span>
+                        </DropdownMenu.Item>
+                      )
+                    )}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+
+              {/* Type Filter */}
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[120px] justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      {typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)}
+                    </span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                    {["all", "warning", "info", "success"].map((type) => (
+                      <DropdownMenu.Item
+                        key={`type-${type}`}
+                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                        onClick={() => setTypeFilter(type)}
+                      >
+                        <span className="capitalize">
+                          {type === "all" ? "All Types" : type}
+                        </span>
+                      </DropdownMenu.Item>
+                    ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+
+              {/* Control Buttons */}
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className={`flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  refreshing ? "animate-pulse" : ""
+                }`}
+              >
+                <ArrowPathIcon
+                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                />
+                <span className="text-sm font-medium">
+                  {refreshing ? "Refreshing..." : "Refresh"}
+                </span>
+              </button>
+
+              <button
+                onClick={handleCleanup}
+                className="flex items-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all duration-200 transform hover:scale-105 active:scale-95"
+              >
+                <WrenchScrewdriverIcon className="w-4 h-4" />
+                <span className="text-sm font-medium">Cleanup</span>
+              </button>
+
+              <button
+                onClick={exportToCSV}
+                disabled={exportLoading}
+                className={`flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  exportLoading ? "animate-pulse" : ""
+                }`}
+              >
+                <ArrowDownTrayIcon
+                  className={`w-4 h-4 ${exportLoading ? "animate-bounce" : ""}`}
+                />
+                <span className="text-sm font-medium">
+                  {exportLoading ? "Exporting..." : "Export CSV"}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <SearchFilter />
-      </div>
+      {/* Notifications Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden backdrop-blur-sm">
+        {/* Desktop Table Layout */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            {/* Table Headers */}
+            <thead className="bg-gradient-to-r from-gray-50 to-slate-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Notification
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Device Info
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Performance
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Timestamp
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {paginationData.paginatedNotifications.map(
+                (notification, index) => (
+                  <tr
+                    key={`notification-${notification.id || index}`}
+                    className="hover:bg-slate-50/50 transition-all duration-200 group border-l-4 border-l-transparent hover:border-l-blue-400"
+                  >
+                    {/* Icon and Message Column */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-start gap-4">
+                        {/* Status-aware icon */}
+                        <div className="flex-shrink-0 relative">
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg ${
+                              notification.currentStatus === "offline"
+                                ? "bg-gradient-to-br from-red-500 to-red-600"
+                                : notification.isStatusChange &&
+                                  notification.currentStatus === "online"
+                                ? "bg-gradient-to-br from-green-500 to-emerald-600 animate-pulse"
+                                : notification.type === "warning"
+                                ? "bg-gradient-to-br from-amber-500 to-orange-600"
+                                : notification.type === "success"
+                                ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                                : notification.type === "info"
+                                ? "bg-gradient-to-br from-blue-500 to-indigo-600"
+                                : "bg-gradient-to-br from-gray-500 to-gray-600"
+                            }`}
+                          >
+                            {notification.source === "tv" ? (
+                              <ComputerDesktopIcon className="w-6 h-6 text-white drop-shadow-sm" />
+                            ) : notification.source === "chromecast" ? (
+                              <DevicePhoneMobileIcon className="w-6 h-6 text-white drop-shadow-sm" />
+                            ) : notification.source === "channel" ? (
+                              <SignalIcon className="w-6 h-6 text-white drop-shadow-sm" />
+                            ) : (
+                              <BellIcon className="w-6 h-6 text-white drop-shadow-sm" />
+                            )}
+                          </div>
 
-      {/* Notification List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-        {pagination.pageData.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="mx-auto w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <CheckCircleIcon className="w-10 h-10 text-gray-400" />
+                          {/* Status change indicator */}
+                          {notification.isStatusChange && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full shadow-sm flex items-center justify-center">
+                              {notification.currentStatus === "online" ? (
+                                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                              ) : (
+                                <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Message content */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">
+                            {notification.title}
+                          </h4>
+                          <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">
+                            {notification.message}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Device Info Column */}
+                    <td className="px-6 py-5">
+                      <div className="space-y-2">
+                        {notification.roomNo && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 min-w-0">
+                              Room:
+                            </span>
+                            <code className="text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-mono border border-blue-200">
+                              {notification.roomNo}
+                            </code>
+                          </div>
+                        )}
+                        {notification.deviceName && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 min-w-0">
+                              Device:
+                            </span>
+                            <span className="text-sm text-gray-700 font-medium truncate">
+                              {notification.deviceName}
+                            </span>
+                          </div>
+                        )}
+                        {notification.ipAddr && (
+                          <div className="mt-1">
+                            <code className="text-xs bg-gray-50 text-gray-700 px-2 py-1 rounded-md font-mono border border-gray-200">
+                              {notification.ipAddr}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Status Column */}
+                    <td className="px-6 py-5">
+                      <div className="space-y-2">
+                        <StatusBadge
+                          status={notification.currentStatus || "unknown"}
+                          isStatusChange={notification.isStatusChange}
+                        />
+                        <TypeBadge type={notification.type || "info"} />
+                      </div>
+                    </td>
+
+                    {/* Category Column */}
+                    <td className="px-6 py-5">
+                      <div className="space-y-2">
+                        {/* Source badge */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500">
+                            Source:
+                          </span>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              notification.source === "tv"
+                                ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                : notification.source === "chromecast"
+                                ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                : notification.source === "channel"
+                                ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                            }`}
+                          >
+                            {notification.source.charAt(0).toUpperCase() +
+                              notification.source.slice(1)}
+                          </span>
+                        </div>
+
+                        {/* Error category */}
+                        {notification.errorCategory && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500">
+                              Error:
+                            </span>
+                            <span className="bg-red-50 text-red-700 px-3 py-1 rounded-full text-xs font-semibold border border-red-200">
+                              {notification.errorCategory}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Performance Column */}
+                    <td className="px-6 py-5">
+                      <div className="space-y-2">
+                        {notification.responseTime && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 min-w-0">
+                              Response:
+                            </span>
+                            <span
+                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${
+                                notification.responseTime < 100
+                                  ? "bg-green-50 text-green-700 border-green-200"
+                                  : notification.responseTime < 300
+                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                  : "bg-red-50 text-red-700 border-red-200"
+                              }`}
+                            >
+                              {notification.responseTime}ms
+                            </span>
+                          </div>
+                        )}
+                        {notification.signalLevel && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 min-w-0">
+                              Signal:
+                            </span>
+                            <span
+                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${
+                                notification.signalLevel > 70
+                                  ? "bg-green-50 text-green-700 border-green-200"
+                                  : notification.signalLevel > 40
+                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                  : "bg-red-50 text-red-700 border-red-200"
+                              }`}
+                            >
+                              {notification.signalLevel}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Timestamp Column */}
+                    <td className="px-6 py-5">
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900 mb-1">
+                          {notification.date}
+                        </div>
+                        <div className="text-xs text-gray-500 font-medium">
+                          {notification.time}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card Layout */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {paginationData.paginatedNotifications.map((notification, index) => (
+            <div
+              key={`mobile-notification-${notification.id || index}`}
+              className="p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      notification.type === "warning"
+                        ? "bg-gradient-to-br from-yellow-500 to-orange-600"
+                        : notification.type === "success"
+                        ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                        : notification.type === "info"
+                        ? "bg-gradient-to-br from-blue-500 to-indigo-600"
+                        : "bg-gradient-to-br from-gray-500 to-gray-600"
+                    }`}
+                  >
+                    {notification.source === "tv" ? (
+                      <ComputerDesktopIcon className="w-5 h-5 text-white" />
+                    ) : notification.source === "chromecast" ? (
+                      <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
+                    ) : notification.source === "channel" ? (
+                      <SignalIcon className="w-5 h-5 text-white" />
+                    ) : (
+                      <BellIcon className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">
+                      {notification.title}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {notification.source.charAt(0).toUpperCase() +
+                        notification.source.slice(1)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 items-end">
+                  <StatusBadge
+                    status={notification.currentStatus || "unknown"}
+                    isStatusChange={notification.isStatusChange}
+                  />
+                  <TypeBadge type={notification.type || "info"} />
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-3">
+                {notification.message}
+              </p>
+
+              <div className="space-y-2 text-sm">
+                {notification.roomNo && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Room:</span>
+                    <code className="text-gray-900 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                      {notification.roomNo}
+                    </code>
+                  </div>
+                )}
+                {notification.deviceName && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Device:</span>
+                    <span className="text-xs text-gray-600">
+                      {notification.deviceName}
+                    </span>
+                  </div>
+                )}
+                {notification.ipAddr && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">IP Address:</span>
+                    <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
+                      {notification.ipAddr}
+                    </code>
+                  </div>
+                )}
+                {notification.errorCategory && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Error Category:</span>
+                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
+                      {notification.errorCategory}
+                    </span>
+                  </div>
+                )}
+                {notification.responseTime && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Response Time:</span>
+                    <span
+                      className={`px-2 py-1 rounded text-xs ${
+                        notification.responseTime < 100
+                          ? "bg-green-100 text-green-700"
+                          : notification.responseTime < 300
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {notification.responseTime}ms
+                    </span>
+                  </div>
+                )}
+                {notification.signalLevel && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Signal Level:</span>
+                    <span
+                      className={`px-2 py-1 rounded text-xs ${
+                        notification.signalLevel > 70
+                          ? "bg-green-100 text-green-700"
+                          : notification.signalLevel > 40
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {notification.signalLevel}%
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Timestamp:</span>
+                  <span className="text-xs text-gray-600">
+                    {notification.date} {notification.time}
+                  </span>
+                </div>
+              </div>
+
+              {/* Suggested Solutions for Mobile */}
+              {notification.suggestedSolutions &&
+                notification.suggestedSolutions.length > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <LightBulbIcon className="w-4 h-4 text-amber-600" />
+                      <span className="font-medium text-amber-900 text-sm">
+                        Suggested Solutions (
+                        {notification.suggestedSolutions.length})
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {notification.suggestedSolutions
+                        .slice(0, 2)
+                        .map((solution, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            <CheckBadgeIcon className="w-3 h-3 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <span className="text-amber-800">{solution}</span>
+                          </div>
+                        ))}
+                      {notification.suggestedSolutions.length > 2 && (
+                        <div className="text-xs text-amber-700 mt-1">
+                          +{notification.suggestedSolutions.length - 2} more
+                          solutions...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No notifications found
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredNotifications.length === 0 && (
+          <div className="text-center py-16">
+            <div className="mx-auto w-24 h-24 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+              {searchTerm || sourceFilter !== "all" || typeFilter !== "all" ? (
+                <MagnifyingGlassIcon className="w-12 h-12 text-gray-400" />
+              ) : (
+                <ShieldCheckIcon className="w-12 h-12 text-green-500" />
+              )}
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm || sourceFilter !== "all" || typeFilter !== "all"
+                ? "No notifications found"
+                : "All systems running smoothly"}
             </h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              {searchTerm || sourceFilter !== "all"
-                ? "No notifications match your current filters."
-                : "All devices are running smoothly. No notifications to display."}
+            <p className="text-gray-500 mb-4 max-w-md mx-auto">
+              {searchTerm || sourceFilter !== "all" || typeFilter !== "all"
+                ? "No notifications match your current filters"
+                : "No issues detected. All notifications are automatically cleaned after 7 days."}
             </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {pagination.pageData.map((n) => (
-              <NotificationCard key={n.id} notification={n} />
-            ))}
+            {(searchTerm || sourceFilter !== "all" || typeFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setSourceFilter("all");
+                  setTypeFilter("all");
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all hover:scale-105 active:scale-95"
+              >
+                <XMarkIcon className="w-4 h-4 mr-2" />
+                Clear all filters
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      <PaginationControl />
+      {/* Pagination */}
+      {paginationData.totalPages > 1 && (
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${
+              screenSize === "mobile"
+                ? "flex-col space-y-3"
+                : "flex-col sm:flex-row"
+            }`}
+          >
+            {/* Info Text */}
+            <div
+              className={`text-xs sm:text-sm text-gray-600 ${
+                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+              }`}
+            >
+              {screenSize === "mobile" ? (
+                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+                  <span className="font-medium">
+                    Page {currentPage} of {paginationData.totalPages}
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    ({paginationData.startIndex + 1}-{paginationData.endIndex}{" "}
+                    of {filteredNotifications.length} notifications)
+                  </span>
+                </div>
+              ) : (
+                <>
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.startIndex + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.endIndex}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {filteredNotifications.length}
+                  </span>{" "}
+                  notifications
+                </>
+              )}
+            </div>
+
+            {/* Pagination Controls */}
+            <div
+              className={`flex items-center gap-1 sm:gap-2 ${
+                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+              }`}
+            >
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
+              >
+                <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Previous</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Prev</span>
+                )}
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const { totalPages } = paginationData;
+                  const { startPage, endPage, showFirstLast, showEllipsis } =
+                    getVisiblePages(currentPage, totalPages, screenSize);
+
+                  const pages = [];
+
+                  // First page + ellipsis (desktop/tablet only)
+                  if (showFirstLast && startPage > 1) {
+                    pages.push(
+                      <button
+                        key="page-1"
+                        onClick={() => handlePageChange(1)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === 1
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        1
+                      </button>
+                    );
+
+                    if (showEllipsis.start) {
+                      pages.push(
+                        <span
+                          key="ellipsis-start"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+
+                  // Main page numbers
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={`page-${i}-${currentPage}`}
+                        onClick={() => handlePageChange(i)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === i
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  // Ellipsis + last page (desktop/tablet only)
+                  if (showFirstLast && endPage < totalPages) {
+                    if (showEllipsis.end) {
+                      pages.push(
+                        <span
+                          key="ellipsis-end"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    pages.push(
+                      <button
+                        key={`page-${totalPages}`}
+                        onClick={() => handlePageChange(totalPages)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                          currentPage === totalPages
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
+              </div>
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === paginationData.totalPages}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  screenSize === "mobile" ? "min-w-[60px]" : ""
+                }`}
+              >
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Next</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Next</span>
+                )}
+                <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer Info */}
+      <div className="mt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-4">
+            {stats && stats.lastUpdated && (
+              <span className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Last updated: {new Date(stats.lastUpdated).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500">
+            Auto-refresh every 15 minutes • Auto-cleanup after 7 days
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

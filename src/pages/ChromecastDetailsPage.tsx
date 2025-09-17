@@ -100,23 +100,25 @@ interface CustomTooltipProps {
   label?: string;
 }
 
+interface DeviceSuggestion {
+  idCast: number;
+  deviceName: string | null;
+}
+
 interface DebugInfo {
   searchingFor: string;
-  availableDevices: Array<{
-    id: number;
-    name: string;
-  }>;
+  availableDevices: DeviceSuggestion[];
   exactMatch?: {
-    name: string;
-    id: number;
+    deviceName: string;
+    idCast: number;
   };
   caseInsensitiveMatch?: {
-    name: string;
-    id: number;
+    deviceName: string;
+    idCast: number;
   };
   partialMatch?: {
-    name: string;
-    id: number;
+    deviceName: string;
+    idCast: number;
   };
   totalDevices: number;
 }
@@ -146,7 +148,6 @@ const faqData: FAQ[] = [
       "Restart Chromecast & WIFI",
       "Radisson Guest Must Be Login",
       "Forget WIFI Radisson Guest",
-      "Logout WIFI (log-out.me)",
     ],
     hasImage: true,
     actionType: "System",
@@ -177,6 +178,8 @@ const faqData: FAQ[] = [
     solutions: [
       "Restart Chromecast",
       "Reset Chromecast dibawa ke ruang server pencet tombol poer 10 Detik",
+      "Factory reset melalui aplikasi Google Home",
+      "Cabut kabel power selama 30 detik lalu hubungkan kembali",
     ],
     hasImage: false,
     actionType: "On Site",
@@ -188,7 +191,12 @@ const faqData: FAQ[] = [
     category: "Kategori-10",
     device: "Chromecast",
     issue: "Chromecast Black Screen",
-    solutions: ["Chromecast Power Adaptor Rusak", "Check Adaptor Chromecast"],
+    solutions: [
+      "Chromecast Power Adaptor Rusak",
+      "Check Adaptor Chromecast",
+      "Coba port HDMI yang berbeda pada TV",
+      "Periksa koneksi kabel HDMI",
+    ],
     hasImage: true,
     actionType: "System",
     priority: "Medium",
@@ -302,34 +310,132 @@ export default function ChromecastDetailPage({
 
   // Auto-refresh network data every 30 seconds
   useEffect(() => {
-    if (!device) return;
+    if (!mounted || !device) return;
 
-    const refreshNetworkData = () => {
-      // Gunakan functional update untuk mengakses previous state
-      setNetworkMetrics((prevMetrics) => {
-        // Simpan metrics sebelumnya
-        if (prevMetrics) {
-          setPreviousMetrics(prevMetrics);
+    const fetchNetworkMetrics = async () => {
+      if (!device.idCast) {
+        console.warn("Chromecast ID not available for metrics");
+        setNetworkMetrics((prevMetrics) => {
+          if (prevMetrics) {
+            setPreviousMetrics(prevMetrics);
+          }
+          return generateRandomNetworkData();
+        });
+        return;
+      }
+
+      try {
+        const metricsIdentifier = device.deviceName || device.idCast;
+        const encodedIdentifier = encodeURIComponent(metricsIdentifier);
+
+        console.log("Fetching metrics for:", {
+          deviceId: device.idCast,
+          deviceName: device.deviceName,
+          using: metricsIdentifier,
+        });
+
+        const response = await fetch(
+          `/api/channels/${encodedIdentifier}/metrics`,
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
         }
 
-        // Generate new metrics
-        return generateRandomNetworkData();
-      });
+        if (response.ok) {
+          const result = await response.json();
+          console.log("Metrics response:", result);
 
-      const newHistory = generateHistoricalData(activeTab, device.isOnline);
-      setNetworkHistory(newHistory);
+          if (result.success && result.data) {
+            setNetworkMetrics((prevMetrics) => {
+              if (prevMetrics) {
+                setPreviousMetrics(prevMetrics);
+              }
+              return {
+                sent: result.data.sent || "0.0",
+                received: result.data.received || "0.0",
+                latency: result.data.latency || 0,
+                jitter: result.data.jitter || 0,
+                ttl: result.data.ttl || 0,
+                packetLoss: result.data.packetLoss || 0,
+                bandwidth: result.data.bandwidth || 0,
+                hops: result.data.hops || 0,
+                signalStrength:
+                  result.data.signalStrength || device.signalLevel || 0,
+                bitrate: result.data.bitrate || 0,
+              };
+            });
+          } else {
+            console.warn("Invalid metrics data structure:", result);
+
+            setNetworkMetrics((prevMetrics) => {
+              if (prevMetrics) {
+                setPreviousMetrics(prevMetrics);
+              }
+              return generateRandomNetworkData();
+            });
+          }
+        } else {
+          console.warn(
+            `Metrics API returned ${response.status}, using generated data`
+          );
+
+          setNetworkMetrics((prevMetrics) => {
+            if (prevMetrics) {
+              setPreviousMetrics(prevMetrics);
+            }
+            return generateRandomNetworkData();
+          });
+        }
+      } catch (error) {
+        console.warn("Error fetching network metrics:", error);
+
+        setNetworkMetrics((prevMetrics) => {
+          if (prevMetrics) {
+            setPreviousMetrics(prevMetrics);
+          }
+          return generateRandomNetworkData();
+        });
+      }
     };
 
-    // Initial load
-    refreshNetworkData();
-
-    // Set up interval for auto-refresh
-    const interval = setInterval(refreshNetworkData, 30000); // Every 30 seconds
+    fetchNetworkMetrics();
+    const interval = setInterval(fetchNetworkMetrics, 30000);
 
     return () => clearInterval(interval);
-  }, [device, activeTab]);
+  }, [device, mounted]);
 
-  // Enhanced error handling function
+  // Function untuk handle tab change
+  const handleTabChange = async (newTab: string) => {
+    if (!device) return;
+
+    setActiveTab(newTab);
+    setLoadingMetrics(true);
+
+    try {
+      const historyIdentifier = device.deviceName || device.idCast;
+      await fetchNetworkHistory(historyIdentifier.toString(), newTab);
+    } catch (error) {
+      console.error("Error changing tab:", error);
+
+      const fallbackData = generateHistoricalData(
+        newTab,
+        Boolean(device?.isOnline)
+      );
+      setNetworkHistory(fallbackData);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  };
+
+  // Error handling function
   const handleApiError = (error: unknown, context: string) => {
     console.error(`Error in ${context}:`, error);
 
@@ -352,20 +458,118 @@ export default function ChromecastDetailPage({
     }
   };
 
-  // Function untuk fetch network metrics with better error handling
-  const fetchNetworkMetrics = async (deviceId: string) => {
-    try {
-      // Ensure deviceId is properly encoded for URL
-      const encodedDeviceId = encodeURIComponent(deviceId);
-      const response = await fetch(
-        `/api/chromecast/${encodedDeviceId}/metrics`,
-        {
+  // Fetch Chromecast details
+  useEffect(() => {
+    if (!mounted || !deviceId) return;
+
+    const fetchDeviceDetails = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (!deviceId.trim()) {
+          setError("Invalid chromecast identifier");
+          return;
+        }
+
+        const encodedDeviceId = encodeURIComponent(deviceId);
+        console.log("Fetching chromecast with ID:", deviceId);
+        console.log("Encoded devicelId:", encodedDeviceId);
+
+        const response = await fetch(`/api/chromecast/${encodedDeviceId}`, {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
           },
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+
+          if (response.status === 404) {
+            const errorResult = await response.json();
+            console.log("404 Error details:", errorResult);
+
+            const suggestions: DeviceSuggestion[] =
+              errorResult.details?.suggestions || [];
+            let errorMessage = `Device "${deviceId}" not found.`;
+
+            if (suggestions.length > 0) {
+              errorMessage += `\n\nSuggestions:\n${suggestions
+                .map(
+                  (s) => `• Device ${s.idCast}: ${s.deviceName || "Unnamed"}`
+                )
+                .join("\n")}`;
+            }
+
+            setError(errorMessage);
+
+            if (errorResult.details) {
+              setDebugInfo({
+                searchingFor: deviceId,
+                availableDevices: suggestions,
+                totalDevices: errorResult.details.totalDevices || 0,
+              });
+            }
+            return;
+          }
+
+          const errorResult = await response.json().catch(() => ({
+            message: `HTTP ${response.status}`,
+          }));
+          throw new Error(errorResult.message || `HTTP ${response.status}`);
         }
-      );
+        const result = await response.json();
+        console.log("API Response:", result);
+
+        if (result.success && result.data) {
+          setDevice(result.data);
+          generateDeviceStatus(result.data);
+        } else {
+          throw new Error(result.message || "Invalid response from server");
+        }
+      } catch (error) {
+        handleApiError(error, "fetchDeviceDetails");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDeviceDetails();
+  }, [deviceId, mounted]);
+
+  // Generate device status based on channel data
+  const generateDeviceStatus = (deviceData: ChromecastDetail) => {
+    const status: DeviceStatus = {
+      power: deviceData.isOnline ? "working" : "error",
+      lanIp: deviceData.isPingable ? "working" : "error",
+      wifi:
+        deviceData.signalLevel && deviceData.signalLevel > -100
+          ? "working"
+          : "error",
+      loginSurname: deviceData.isOnline ? "working" : "error",
+      other: deviceData.error ? "error" : "working",
+    };
+    setDeviceStatus(status);
+  };
+
+  // Check device status function
+  const handleCheckDevice = async () => {
+    if (!device || checking) return;
+
+    setChecking(true);
+    try {
+      const encodedDeviceId = encodeURIComponent(deviceId);
+      const response = await fetch(`/api/chromecast/${encodedDeviceId}/check`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       if (response.status === 401) {
         window.location.href = "/login";
@@ -375,24 +579,92 @@ export default function ChromecastDetailPage({
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          setNetworkMetrics(result.data);
+          setDevice(result.data);
+          generateDeviceStatus(result.data);
         }
       } else {
-        console.warn(`Network metrics not available (${response.status})`);
+        console.warn("Check device failed:", response.status);
       }
     } catch (error) {
-      console.warn("Network metrics unavailable:", error);
-      // Don't set error state for metrics as it's not critical
+      console.error("Error checking device:", error);
+    } finally {
+      setChecking(false);
     }
   };
 
-  // Function untuk fetch network history with better error handling
-  const fetchNetworkHistory = async (deviceId: string, timeRange = "24h") => {
+  // Troubleshooting detection function
+  const detectIssues = () => {
+    if (!device) return [];
+
+    const issues = [];
+
+    if (!device.isOnline) {
+      issues.push(
+        faqData.find((faq) => faq.slug === "no-device-found-chromecast")
+      );
+    }
+    if (device.error && device.error.includes("black screen")) {
+      issues.push(
+        faqData.find((faq) => faq.slug === "chromecast-black-screen")
+      );
+    }
+    if (!device.isPingable) {
+      issues.push(faqData.find((faq) => faq.slug === "reset-configuration"));
+    }
+    if (device.signalLevel && device.signalLevel < -70) {
+      issues.push(faqData.find((faq) => faq.slug === "chromecast-setup-ios"));
+    }
+
+    return issues.filter(Boolean) as FAQ[];
+  };
+
+  const detectedIssues = useMemo(() => detectIssues(), [device]);
+
+  // Repair Action Function
+  const handleRepairAction = async (issue: FAQ) => {
+    try {
+      console.log("Attempting automated repair for:", issue.issue);
+      setChecking(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await handleCheckDevice();
+
+      alert(`Repair attempt completed for: ${issue.issue}`);
+    } catch (error) {
+      console.error("Repair failed:", error);
+      alert("Automated repair failed. Please try manual troubleshooting.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Fetch network history
+  const fetchNetworkHistory = async (
+    deviceIdentifier: string,
+    timeRange = "24h"
+  ) => {
+    if (!deviceIdentifier) {
+      console.warn("No chromecast identifier provided for history");
+      const fallbackData = generateHistoricalData(
+        timeRange,
+        Boolean(device?.isOnline)
+      );
+      setNetworkHistory(fallbackData);
+      return;
+    }
+
     try {
       setLoadingMetrics(true);
-      const encodedDeviceId = encodeURIComponent(deviceId);
+      const encodedIdentifier = encodeURIComponent(deviceIdentifier);
+
+      console.log("Fetching history for:", {
+        identifier: deviceIdentifier,
+        encoded: encodedIdentifier,
+        timeRange,
+      });
+
       const response = await fetch(
-        `/api/chromecast/${encodedDeviceId}/history?timeRange=${timeRange}`,
+        `/api/chromecast/${encodedIdentifier}/history?timeRange=${timeRange}`,
         {
           credentials: "include",
           headers: {
@@ -408,30 +680,47 @@ export default function ChromecastDetailPage({
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success) {
+        console.log("History response:", result);
+
+        if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
+        } else {
+          console.warn("Invalid history data structure, using fallback");
+          const fallbackData = generateHistoricalData(
+            timeRange,
+            Boolean(device?.isOnline)
+          );
+          setNetworkHistory(fallbackData);
         }
       } else {
-        console.warn(`Network history not available (${response.status})`);
-        // Fallback to generated data
+        console.warn(
+          `Network history API returned ${response.status}, using fallback`
+        );
         const fallbackData = generateHistoricalData(
           timeRange,
-          device?.isOnline || false
+          Boolean(device?.isOnline)
         );
         setNetworkHistory(fallbackData);
       }
     } catch (error) {
-      console.warn("Network history unavailable:", error);
-      // Fallback to generated data
+      console.warn("Network history fetch error:", error);
       const fallbackData = generateHistoricalData(
         timeRange,
-        device?.isOnline || false
+        Boolean(device?.isOnline)
       );
       setNetworkHistory(fallbackData);
     } finally {
       setLoadingMetrics(false);
     }
   };
+
+  useEffect(() => {
+    if (!mounted || !device) return;
+    console.log("Fetching initial network history for device:", device);
+
+    const historyIdentifier = device.deviceName || device.idCast;
+    fetchNetworkHistory(historyIdentifier.toString(), activeTab);
+  }, [device, mounted]);
 
   const TrendIndicator = useCallback(({ trend }: { trend: string }) => {
     if (trend === "up") {
@@ -657,234 +946,6 @@ export default function ChromecastDetailPage({
 
   MetricCard.displayName = "MetricCard";
 
-  // useEffect for fetching device details with better error handling
-  useEffect(() => {
-    if (!mounted || !deviceId) return;
-
-    const fetchDeviceDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null); // Clear previous errors
-        setDebugInfo(null); // Clear debug info
-
-        // Validate deviceId before making request
-        if (!deviceId.trim()) {
-          setError("Invalid device identifier");
-          return;
-        }
-
-        // Enhanced debugging
-        console.log("=== DEVICE FETCH DEBUG ===");
-        console.log("Original deviceId:", deviceId);
-        console.log("DeviceId type:", typeof deviceId);
-        console.log("DeviceId length:", deviceId.length);
-        console.log("DeviceId encoded:", encodeURIComponent(deviceId));
-
-        // Try multiple API approaches
-        const apiAttempts = [
-          // Approach 1: Use device name as-is (most common case)
-          {
-            url: `/api/chromecast/${encodeURIComponent(deviceId)}`,
-            method: "direct_name",
-            identifier: deviceId,
-          },
-          // Approach 2: Try without encoding (in case it's already encoded)
-          {
-            url: `/api/chromecast/${deviceId}`,
-            method: "raw",
-            identifier: deviceId,
-          },
-          // Approach 3: Double encoding (sometimes needed)
-          {
-            url: `/api/chromecast/${encodeURIComponent(
-              encodeURIComponent(deviceId)
-            )}`,
-            method: "double_encoded",
-            identifier: deviceId,
-          },
-        ];
-
-        let success = false;
-        let lastError: Record<string, unknown> | null = null;
-
-        // First, try to get all devices to see what's available
-        try {
-          const allDevicesResponse = await fetch("/api/chromecast", {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-
-          if (allDevicesResponse.ok) {
-            const allDevicesResult = await allDevicesResponse.json();
-            if (allDevicesResult.success) {
-              const availableDevices = allDevicesResult.data.map(
-                (d: ChromecastDetail) => ({
-                  id: d.idCast || d.idCast,
-                  name: d.deviceName,
-                })
-              );
-
-              console.log("Available devices from API:", availableDevices);
-
-              // Check if our device exists in the list
-              const exactMatch = availableDevices.find(
-                (d: { name: string }) => d.name === deviceId
-              );
-              const caseInsensitiveMatch = availableDevices.find(
-                (d: { name: string }) =>
-                  d.name && d.name.toLowerCase() === deviceId.toLowerCase()
-              );
-              const partialMatch = availableDevices.find(
-                (d: { name: string }) =>
-                  d.name &&
-                  (d.name.includes(deviceId) || deviceId.includes(d.name))
-              );
-
-              setDebugInfo({
-                searchingFor: deviceId,
-                availableDevices: availableDevices.slice(0, 10), // Limit for display
-                exactMatch: exactMatch || undefined,
-                caseInsensitiveMatch: caseInsensitiveMatch || undefined,
-                partialMatch: partialMatch || undefined,
-                totalDevices: availableDevices.length,
-              });
-
-              // If we found an exact match by name, try to fetch it by ID instead
-              if (exactMatch && exactMatch.id) {
-                apiAttempts.unshift({
-                  url: `/api/chromecast/${exactMatch.id}`,
-                  method: "by_id",
-                  identifier: exactMatch.id.toString(),
-                });
-              }
-            }
-          }
-        } catch (devicesError) {
-          console.warn(
-            "Could not fetch device list for debugging:",
-            devicesError
-          );
-        }
-
-        // Try each API approach
-        for (const attempt of apiAttempts) {
-          if (success) break;
-
-          try {
-            console.log(`Trying ${attempt.method} approach: ${attempt.url}`);
-
-            const response = await fetch(attempt.url, {
-              credentials: "include",
-              headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "no-cache",
-              },
-            });
-
-            console.log(`${attempt.method} response status:`, response.status);
-
-            if (response.status === 401) {
-              window.location.href = "/login";
-              return;
-            }
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log(`${attempt.method} response:`, result);
-
-              if (result.success && result.data) {
-                setDevice(result.data);
-                generateDeviceStatus(result.data);
-                success = true;
-
-                console.log(
-                  `Successfully found device using ${attempt.method} method`
-                );
-
-                // Try to fetch network data (non-blocking)
-                fetchNetworkMetrics(deviceId).catch(console.warn);
-                fetchNetworkHistory(deviceId, activeTab).catch(console.warn);
-                break;
-              }
-            } else if (response.status === 404) {
-              const errorResult = await response.json();
-              lastError = errorResult;
-              console.log(`${attempt.method} returned 404:`, errorResult);
-            } else {
-              const errorResult = await response
-                .json()
-                .catch(() => ({ message: `HTTP ${response.status}` }));
-              lastError = errorResult;
-              console.log(`${attempt.method} failed:`, errorResult);
-            }
-          } catch (attemptError) {
-            console.warn(`${attempt.method} attempt failed:`, attemptError);
-            lastError = {
-              message: `${attempt.method} request failed: ${attemptError}`,
-            };
-          }
-        }
-
-        if (!success) {
-          // Enhanced error message with debugging info
-          const errorDetails =
-            (
-              lastError as {
-                details?: { availableDevices?: Array<{ name: string }> };
-              }
-            )?.details || {};
-          const suggestions =
-            errorDetails.availableDevices || debugInfo?.availableDevices || [];
-
-          let errorMessage = `Unable to find device "${deviceId}".`;
-
-          if (suggestions.length > 0) {
-            errorMessage += ` Available devices: ${suggestions
-              .map((d: { name: string }) => d.name)
-              .filter(Boolean)
-              .slice(0, 5)
-              .join(", ")}`;
-
-            // Check for similar names
-            const similarDevice = suggestions.find(
-              (d: { name: string }) =>
-                d.name &&
-                (d.name.toLowerCase().includes(deviceId.toLowerCase()) ||
-                  deviceId.toLowerCase().includes(d.name.toLowerCase()))
-            );
-
-            if (similarDevice) {
-              errorMessage += `. Did you mean "${similarDevice.name}"?`;
-            }
-          }
-
-          setError(errorMessage);
-        }
-      } catch (error) {
-        handleApiError(error, "fetching device details");
-      } finally {
-        setLoading(false);
-        console.log("=== DEVICE FETCH DEBUG END ===");
-      }
-    };
-
-    fetchDeviceDetails();
-  }, [deviceId, mounted, activeTab]);
-
-  // Effect untuk update network history saat tab berubah
-  useEffect(() => {
-    if (device && !loading) {
-      fetchNetworkHistory(deviceId, activeTab).catch(console.warn);
-    }
-  }, [activeTab, device]);
-
-  // Function untuk handle tab change
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-  };
-
   // Custom Tooltip untuk chart
   const CustomTooltip: React.FC<CustomTooltipProps> = ({
     active,
@@ -919,115 +980,6 @@ export default function ChromecastDetailPage({
   };
 
   // Generate device status based on device data
-  const generateDeviceStatus = (deviceData: ChromecastDetail) => {
-    const status: DeviceStatus = {
-      power: deviceData.isOnline ? "working" : "error",
-      lanIp: deviceData.isPingable ? "working" : "error",
-      wifi:
-        deviceData.signalLevel && deviceData.signalLevel > -100
-          ? "working"
-          : "error",
-      loginSurname: deviceData.isOnline ? "working" : "error",
-      other: deviceData.error ? "error" : "working",
-    };
-    setDeviceStatus(status);
-  };
-
-  // Enhanced Check device status function
-  const handleCheckDevice = async () => {
-    if (!device || checking) return;
-
-    setChecking(true);
-    try {
-      // Try using deviceName first (as per original code logic), then fallback to idCast
-      const deviceIdentifier = device.deviceName || device.idCast;
-      const encodedIdentifier = encodeURIComponent(deviceIdentifier.toString());
-
-      const response = await fetch(
-        `/api/chromecast/${encodedIdentifier}/check`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setDevice(result.data);
-          generateDeviceStatus(result.data);
-        }
-      } else {
-        console.warn("Check device failed:", response.status);
-      }
-    } catch (error) {
-      console.error("Error checking device:", error);
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  // Enhanced troubleshooting detection function
-  const detectIssues = () => {
-    if (!device) return [];
-
-    const issues = [];
-
-    // Check various device conditions
-    if (!device.isOnline) {
-      issues.push(
-        faqData.find((faq) => faq.slug === "no-device-found-chromecast")
-      );
-    }
-    if (device.error && device.error.includes("black screen")) {
-      issues.push(
-        faqData.find((faq) => faq.slug === "chromecast-black-screen")
-      );
-    }
-    if (!device.isPingable) {
-      issues.push(faqData.find((faq) => faq.slug === "reset-configuration"));
-    }
-
-    // Add network-based issue detection
-    if (device.signalLevel && device.signalLevel < -70) {
-      issues.push(faqData.find((faq) => faq.slug === "chromecast-setup-ios")); // WiFi issue
-    }
-
-    return issues.filter(Boolean) as FAQ[];
-  };
-
-  const detectedIssues = useMemo(() => detectIssues(), [device]);
-
-  // Repair Action Function
-  const handleRepairAction = async (issue: FAQ) => {
-    try {
-      console.log("Attempting automated repair for:", issue.issue);
-      // Show loading state
-      setChecking(true);
-
-      // Simulate repair process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Refresh device status after repair attempt
-      await handleCheckDevice();
-
-      // Show success message
-      alert(`Repair attempt completed for: ${issue.issue}`);
-    } catch (error) {
-      console.error("Repair failed:", error);
-      alert("Automated repair failed. Please try manual troubleshooting.");
-    } finally {
-      setChecking(false);
-    }
-  };
 
   // StatusBadge component
   const StatusBadge: React.FC<StatusBadgeProps> = ({
@@ -1106,9 +1058,32 @@ export default function ChromecastDetailPage({
   if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading device details...</span>
+        <div className="max-w-6xl mx-auto">
+          {/* Skeleton loading untuk header */}
+          <div className="mb-6">
+            <div className="h-4 bg-gray-200 rounded animate-pulse mb-2 w-48"></div>
+          </div>
+
+          {/* Skeleton loading untuk main content */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="animate-pulse">
+              <div className="h-6 bg-gray-200 rounded mb-4 w-32"></div>
+              <div className="h-16 bg-gray-100 rounded mb-4"></div>
+              <div className="grid grid-cols-7 gap-4">
+                {[...Array(7)].map((_, i) => (
+                  <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Loading message */}
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">
+              Loading device details...
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -1159,7 +1134,7 @@ export default function ChromecastDetailPage({
                         Exact match found:
                       </span>
                       <code className="ml-2 bg-green-100 px-2 py-1 rounded">
-                        {debugInfo.exactMatch.name}
+                        {debugInfo.exactMatch.deviceName}
                       </code>
                     </div>
                   )}
@@ -1170,7 +1145,7 @@ export default function ChromecastDetailPage({
                         Case-insensitive match:
                       </span>
                       <code className="ml-2 bg-yellow-100 px-2 py-1 rounded">
-                        {debugInfo.caseInsensitiveMatch.name}
+                        {debugInfo.caseInsensitiveMatch.deviceName}
                       </code>
                     </div>
                   )}
@@ -1183,7 +1158,7 @@ export default function ChromecastDetailPage({
                           Partial match:
                         </span>
                         <code className="ml-2 bg-blue-100 px-2 py-1 rounded">
-                          {debugInfo.partialMatch.name}
+                          {debugInfo.partialMatch.deviceName}
                         </code>
                       </div>
                     )}
@@ -1210,10 +1185,10 @@ export default function ChromecastDetailPage({
                                 className="flex items-center space-x-2"
                               >
                                 <code className="bg-gray-200 px-2 py-1 rounded text-xs">
-                                  {device.name || "Unnamed"}
+                                  {device.deviceName || "Unnamed"}
                                 </code>
                                 <span className="text-gray-500 text-xs">
-                                  ({device.id})
+                                  ({device.idCast})
                                 </span>
                               </li>
                             ))}
@@ -1560,7 +1535,7 @@ export default function ChromecastDetailPage({
                           checking ? "animate-spin" : ""
                         }`}
                       />
-                      Check
+                      {checking ? "Checking..." : "Check"}
                     </button>
                   </td>
                 </tr>
@@ -1570,7 +1545,7 @@ export default function ChromecastDetailPage({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Device Information */}
+          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Network Performance Chart */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

@@ -7,42 +7,17 @@ import { Button } from "@radix-ui/themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-interface Notification {
-  id: string | number;
-  title: string;
-  message: string;
-  time: string;
-  date: string;
-  rawDate: string;
-  type: "warning" | "info" | "success";
-  deviceName?: string;
-  roomNo?: string;
-  ipAddr?: string;
-  source: "chromecast" | "tv" | "channel" | "system";
-}
+import {
+  Notification,
+  fetchAllNotifications,
+  cleanOldNotifications,
+} from "../app/notifications/notifUtils";
 
-interface ChromecastDevice {
-  idCast?: string;
-  deviceName?: string;
-  ipAddr?: string;
-  isOnline?: boolean;
-  lastSeen?: string;
-}
-
-interface TVDevice {
-  id?: string;
-  roomNo?: string;
-  ipAddress?: string;
-  status?: string;
-  lastChecked?: string;
-}
-
-interface Channel {
-  id?: string | number;
-  channelName?: string;
-  ipMulticast?: string;
-  status?: string;
-  lastChecked?: string;
+interface NotificationStats {
+  totalNotifications: number;
+  activeIssues: number;
+  recentRecoveries: number;
+  last24HourAlerts: number;
 }
 
 const getReadIds = (): string[] => {
@@ -61,6 +36,7 @@ export default function Topbar() {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [stats, setStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState({
     username: "Loading...",
@@ -71,6 +47,33 @@ export default function Topbar() {
   });
   const [userLoading, setUserLoading] = useState(true);
   const router = useRouter();
+
+  // Calculate stats dari notifications
+  const calculateStats = useCallback(
+    (notifications: Notification[]): NotificationStats => {
+      const now = new Date();
+      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const activeIssues = notifications.filter(
+        (n) => n.currentStatus === "offline"
+      ).length;
+      const recentRecoveries = notifications.filter(
+        (n) => n.isStatusChange && n.currentStatus === "online"
+      ).length;
+      const last24HourAlerts = notifications.filter(
+        (n) =>
+          new Date(n.rawDate) > last24Hours && n.currentStatus === "offline"
+      ).length;
+
+      return {
+        totalNotifications: notifications.length,
+        activeIssues,
+        recentRecoveries,
+        last24HourAlerts,
+      };
+    },
+    []
+  );
 
   // Fetch user data
   const fetchUserData = useCallback(async () => {
@@ -112,192 +115,42 @@ export default function Topbar() {
     }
   }, []);
 
-  const fetchOfflineDevices = useCallback(async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const notifications: Notification[] = [];
 
-      // Chromecast
-      try {
-        const res = await fetch("/api/chromecast", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache",
-          },
-        });
-        if (res.ok) {
-          const result = await res.json();
-          if (result.success && Array.isArray(result.data)) {
-            const offline = (result.data as ChromecastDevice[]).filter(
-              (d) => !d.isOnline
-            );
-            offline.forEach((d, i) => {
-              const rawDate = d.lastSeen || new Date().toISOString();
-              notifications.push({
-                id: `chromecast-${d.idCast || i}`,
-                title: "Chromecast Device Offline",
-                message: `${d.deviceName || "Unknown"} is offline`,
-                time: getRelativeTime(rawDate),
-                date: formatDate(rawDate),
-                rawDate,
-                type: "warning",
-                deviceName: d.deviceName,
-                ipAddr: d.ipAddr,
-                source: "chromecast",
-              });
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Chromecast fetch failed", err);
+      // Load from cache first
+      const cached = localStorage.getItem("notif-cache");
+      if (cached) {
+        const parsed: Notification[] = JSON.parse(cached);
+        const cleaned = cleanOldNotifications(parsed);
+        const recent = cleaned.slice(0, 20); // Limit untuk topbar
+        setNotifications(recent);
+        setStats(calculateStats(recent));
       }
 
-      // TV
-      try {
-        const res = await fetch("/api/hospitality/tvs", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache",
-          },
-        });
-        if (res.ok) {
-          const result = await res.json();
-          if (result.success && Array.isArray(result.data)) {
-            const offline = (result.data as TVDevice[]).filter(
-              (d) => d.status === "offline"
-            );
-            offline.forEach((d, i) => {
-              const rawDate = d.lastChecked || new Date().toISOString();
-              notifications.push({
-                id: `tv-${d.id || i}`,
-                title: "TV Device Offline",
-                message: `Room ${d.roomNo || "Unknown"} TV is offline`,
-                time: getRelativeTime(rawDate),
-                date: formatDate(rawDate),
-                rawDate,
-                type: "warning",
-                roomNo: d.roomNo,
-                deviceName: `Room ${d.roomNo}`,
-                ipAddr: d.ipAddress,
-                source: "tv",
-              });
-            });
-          }
-        }
-      } catch (err) {
-        console.error("TV fetch failed", err);
-      }
-
-      // Channel
-      try {
-        const res = await fetch("/api/channels", {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache",
-          },
-        });
-        if (res.ok) {
-          const result = await res.json();
-          if (result.success && Array.isArray(result.data)) {
-            const offline = (result.data as Channel[]).filter(
-              (ch) => ch.status === "offline"
-            );
-            offline.forEach((ch, i) => {
-              const rawDate = ch.lastChecked || new Date().toISOString();
-              notifications.push({
-                id: `channel-${ch.id || i}`,
-                title: "Channel Offline",
-                message: `${ch.channelName || "Unknown"} is offline`,
-                time: getRelativeTime(rawDate),
-                date: formatDate(rawDate),
-                rawDate,
-                type: "warning",
-                deviceName: ch.channelName,
-                ipAddr: ch.ipMulticast,
-                source: "channel",
-              });
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Channel fetch failed", err);
-      }
-
-      // Filter & sort ≤ 2 hari
-      const now = new Date().getTime();
-      const recent = notifications
-        .filter(
-          (n) => now - new Date(n.rawDate).getTime() <= 2 * 24 * 60 * 60 * 1000
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
-        );
-
-      if (recent.length > 5) {
-        recent.unshift({
-          id: "summary",
-          title: "Multiple Devices Offline",
-          message: `${recent.length} devices are currently offline`,
-          time: "Now",
-          date: formatDate(new Date().toISOString()),
-          rawDate: new Date().toISOString(),
-          type: "warning",
-          source: "system",
-        });
-      }
-
-      setNotifications(recent.slice(0, 5));
-      localStorage.setItem("offline-notifications", JSON.stringify(recent));
-    } catch (err) {
-      console.error("Fetch error:", err);
+      // Fetch fresh data
+      const fresh = await fetchAllNotifications();
+      const recent = fresh.slice(0, 20); // Limit untuk topbar
+      setNotifications(recent);
+      setStats(calculateStats(recent));
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      setNotifications([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
-
-  const getRelativeTime = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const mins = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins} min ago`;
-    if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-    return `${days} day${days > 1 ? "s" : ""} ago`;
-  };
+  }, [calculateStats]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("offline-notifications");
-    if (stored) {
-      const parsed: Notification[] = JSON.parse(stored);
-      const now = new Date().getTime();
-      const recent = parsed.filter(
-        (n) => now - new Date(n.rawDate).getTime() <= 2 * 24 * 60 * 60 * 1000
-      );
-      setNotifications(recent);
-    }
-    fetchOfflineDevices();
+    fetchNotifications();
     fetchUserData();
 
-    const interval = setInterval(fetchOfflineDevices, 120000);
+    // Auto-refresh every 2 minutes untuk topbar
+    const interval = setInterval(fetchNotifications, 120000);
     return () => clearInterval(interval);
-  }, [fetchOfflineDevices, fetchUserData]);
+  }, [fetchNotifications, fetchUserData]);
 
   const handleViewAllNotifications = () => {
     setNotificationOpen(false);
@@ -307,6 +160,68 @@ export default function Topbar() {
   const handleAccountClick = () => {
     setUserMenuOpen(false);
     router.push("/account");
+  };
+
+  // Helper untuk mendapatkan icon berdasarkan source dengan status color
+  const getNotificationIcon = (notification: Notification) => {
+    const iconClass = "w-3 h-3 flex-shrink-0";
+    const isOnline = notification.currentStatus === "online";
+    const isRecovered = notification.isStatusChange && isOnline;
+
+    // Base color berdasarkan source
+    let baseColor = "";
+    switch (notification.source) {
+      case "tv":
+        baseColor = isRecovered
+          ? "bg-yellow-500"
+          : isOnline
+          ? "bg-green-500"
+          : "bg-red-500";
+        break;
+      case "chromecast":
+        baseColor = isRecovered
+          ? "bg-blue-500"
+          : isOnline
+          ? "bg-green-500"
+          : "bg-red-500";
+        break;
+      case "channel":
+        baseColor = isRecovered
+          ? "bg-purple-500"
+          : isOnline
+          ? "bg-green-500"
+          : "bg-red-500";
+        break;
+      default:
+        baseColor = isRecovered
+          ? "bg-gray-500"
+          : isOnline
+          ? "bg-green-500"
+          : "bg-red-500";
+        break;
+    }
+
+    return (
+      <div
+        className={`${iconClass} ${baseColor} rounded-full ${
+          isRecovered ? "animate-pulse" : ""
+        }`}
+      />
+    );
+  };
+
+  // Helper untuk format status
+  const getStatusColor = (notification: Notification) => {
+    if (
+      notification.currentStatus === "online" &&
+      notification.isStatusChange
+    ) {
+      return "text-green-600"; // Recovery
+    }
+    if (notification.currentStatus === "offline") {
+      return "text-red-600"; // Offline
+    }
+    return "text-gray-600"; // Default
   };
 
   return (
@@ -387,14 +302,33 @@ export default function Topbar() {
 
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              className="w-80 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1 z-50 max-h-96 overflow-y-auto"
+              className="w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-1 z-50 max-h-96 overflow-y-auto"
               sideOffset={8}
               align="end"
             >
-              <div className="px-4 py-3 border-b border-slate-100 bg-blue-200 dark:border-slate-700">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Notifications ({notifications.length})
-                </h3>
+              {/* Header dengan stats */}
+              <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Notifications ({notifications.length})
+                  </h3>
+                  {stats && (
+                    <div className="flex items-center gap-3 text-xs">
+                      {stats.activeIssues > 0 && (
+                        <span className="flex items-center gap-1 text-red-600 font-medium">
+                          <div className="w-2 h-2 bg-red-500 rounded-full" />
+                          {stats.activeIssues} offline
+                        </span>
+                      )}
+                      {stats.recentRecoveries > 0 && (
+                        <span className="flex items-center gap-1 text-green-600 font-medium">
+                          <div className="w-2 h-2 bg-green-500 rounded-full" />
+                          {stats.recentRecoveries} recovered
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {loading ? (
@@ -406,58 +340,108 @@ export default function Topbar() {
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-gray-500">No notifications</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    All devices are online
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg
+                      className="w-6 h-6 text-green-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-900 font-medium">
+                    All systems running smoothly
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    No issues detected
                   </p>
                 </div>
               ) : (
                 notifications.map((notification) => (
                   <DropdownMenu.Item key={notification.id} asChild>
-                    <div className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
+                    <div className="px-4 py-3 hover:bg-slate-50 cursor-pointer">
                       <div className="flex items-start gap-3">
-                        <div
-                          className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-                          style={{
-                            backgroundColor:
-                              notification.source === "tv"
-                                ? "#facc15"
-                                : notification.source === "chromecast"
-                                ? "#38bdf8"
-                                : notification.source === "channel"
-                                ? "#f87171"
-                                : "#94a3b8",
-                          }}
-                        />
+                        {/* Status indicator */}
+                        <div className="flex flex-col items-center gap-1 mt-1">
+                          {getNotificationIcon(notification)}
+                          {notification.isStatusChange && (
+                            <div
+                              className={`w-1 h-4 rounded-full transition-colors ${
+                                notification.currentStatus === "online"
+                                  ? "bg-green-400 shadow-sm shadow-green-400/50"
+                                  : "bg-red-400 shadow-sm shadow-red-400/50"
+                              }`}
+                            />
+                          )}
+                        </div>
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-tight">
+                            <h4
+                              className={`text-sm font-medium leading-tight ${getStatusColor(
+                                notification
+                              )}`}
+                            >
                               {notification.title}
                             </h4>
-                            <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                              {notification.date}
+                            <span className="text-xs text-slate-500 whitespace-nowrap">
+                              {notification.time}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-tight">
+
+                          <p className="text-sm text-slate-600 mt-1 leading-tight">
                             {notification.message}
                           </p>
-                          {(notification.deviceName || notification.roomNo) && (
-                            <p className="text-xs text-slate-500 mt-1">
-                              {notification.source === "tv"
-                                ? `Room: ${notification.roomNo}`
-                                : notification.source === "channel"
-                                ? `Channel: ${notification.deviceName}`
-                                : `Device: ${notification.deviceName}`}
-                            </p>
+
+                          {/* Device info */}
+                          <div className="flex items-center gap-3 mt-2 text-xs">
+                            {notification.deviceName && (
+                              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                                {notification.deviceName}
+                              </span>
+                            )}
+                            {notification.currentStatus && (
+                              <span
+                                className={`px-2 py-1 rounded font-medium ${
+                                  notification.currentStatus === "online"
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {notification.currentStatus}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Error category */}
+                          {notification.errorCategory && (
+                            <div className="mt-1">
+                              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                                {notification.errorCategory}
+                              </span>
+                            </div>
                           )}
-                          {notification.ipAddr && (
-                            <p className="text-xs text-slate-500">
-                              IP: {notification.ipAddr}
-                            </p>
+
+                          {/* Performance metrics */}
+                          {(notification.responseTime ||
+                            notification.signalLevel) && (
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                              {notification.responseTime && (
+                                <span>
+                                  Response: {notification.responseTime}ms
+                                </span>
+                              )}
+                              {notification.signalLevel && (
+                                <span>Signal: {notification.signalLevel}%</span>
+                              )}
+                            </div>
                           )}
-                          <p className="text-xs text-slate-500 mt-1">
-                            {notification.time}
-                          </p>
                         </div>
                       </div>
                     </div>
@@ -466,19 +450,41 @@ export default function Topbar() {
               )}
 
               {notifications.length > 0 && (
-                <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700">
+                <div className="px-2 py-2 border-t border-slate-100">
                   <button
                     onClick={handleViewAllNotifications}
-                    className="relative inline-block text-sm text-lime-600 dark:text-lime-400 hover:text-lime-700 dark:hover:text-lime-300 font-medium text-left
-               before:content-[''] before:absolute before:bottom-0 before:left-0 before:h-[1.5px] before:w-full before:bg-current
-               before:scale-x-0 before:origin-left before:transition-transform before:duration-300 hover:before:scale-x-100"
+                    className="w-full group relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
                   >
-                    View all notifications
+                    {/* Background animation */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+
+                    {/* Button content */}
+                    <div className="relative flex items-center justify-center gap-2">
+                      <span className="text-sm">View all notifications</span>
+
+                      {/* Animated arrow */}
+                      <svg
+                        className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
+
+                    {/* Subtle shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 skew-x-12" />
                   </button>
                 </div>
               )}
 
-              <DropdownMenu.Arrow className="fill-white dark:fill-slate-800" />
+              <DropdownMenu.Arrow className="fill-white" />
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
@@ -581,13 +587,13 @@ export default function Topbar() {
 
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              className="w-72 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-xl shadow-xl border border-white/20 dark:border-slate-700/50 p-1 z-50"
+              className="w-72 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-1 z-50"
               sideOffset={8}
               align="end"
             >
               {user && (
                 <>
-                  <div className="px-4 py-4 border-b border-slate-100/50 dark:border-slate-700/50">
+                  <div className="px-4 py-4 border-b border-slate-100/50">
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         {user.avatar ? (
@@ -624,15 +630,13 @@ export default function Topbar() {
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
+                        <h4 className="text-base font-semibold text-slate-900">
                           {user.username}
                         </h4>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-                          {user.email}
-                        </p>
+                        <p className="text-sm text-slate-600">{user.email}</p>
                         {user.provider === "google" && (
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100text-blue-700 rounded-full">
                               <svg
                                 className="w-3 h-3"
                                 viewBox="0 0 24 24"
@@ -655,14 +659,14 @@ export default function Topbar() {
                     <DropdownMenu.Item asChild>
                       <button
                         onClick={handleAccountClick}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-700/50 rounded-lg transition-colors text-left group"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-100/70 rounded-lg transition-colors text-left group"
                       >
-                        <div className="w-8 h-8 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition-colors">
-                          <IconSettings className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                          <IconSettings className="w-4 h-4 text-slate-600" />
                         </div>
                         <div>
                           <div className="font-medium">Account Settings</div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
+                          <div className="text-xs text-slate-500">
                             Manage your profile and preferences
                           </div>
                         </div>
@@ -672,7 +676,7 @@ export default function Topbar() {
                 </>
               )}
 
-              <DropdownMenu.Arrow className="fill-white/95 dark:fill-slate-800/95" />
+              <DropdownMenu.Arrow className="fill-white/95" />
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

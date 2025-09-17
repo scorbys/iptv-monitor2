@@ -60,7 +60,6 @@ export default function ChromecastPage() {
 
   const router = useRouter();
   const handleDeviceClick = (device: Chromecast) => {
-    // Gunakan deviceName sebagai identifier utama karena API menggunakan deviceName
     const deviceId = device.deviceName || device.idCast;
     router.push(`/chromecast/${encodeURIComponent(deviceId)}`);
   };
@@ -82,7 +81,6 @@ export default function ChromecastPage() {
       }
     };
 
-    // Set initial value
     if (typeof window !== "undefined") {
       handleResize();
       window.addEventListener("resize", handleResize);
@@ -104,7 +102,6 @@ export default function ChromecastPage() {
       });
 
       if (response.status === 401) {
-        // Token expired atau invalid, redirect ke login
         window.location.href = "/login";
         return;
       }
@@ -141,7 +138,6 @@ export default function ChromecastPage() {
       });
 
       if (response.status === 401) {
-        // Token expired atau invalid, redirect ke login
         window.location.href = "/login";
         return;
       }
@@ -164,14 +160,13 @@ export default function ChromecastPage() {
     }
   }, [mounted]);
 
-  // Effect untuk initial data load dengan better error handling
+  // Effect untuk initial data load
   useEffect(() => {
     if (!mounted) return;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load data secara sequential untuk better error handling
         await fetchChromecasts();
         await fetchStats();
       } catch (error) {
@@ -185,7 +180,6 @@ export default function ChromecastPage() {
 
     // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
-      // Cek visibility dan authentication state
       if (document.visibilityState === "visible") {
         fetchChromecasts();
         fetchStats();
@@ -207,7 +201,7 @@ export default function ChromecastPage() {
     }
   }, [refreshing, fetchChromecasts, fetchStats]);
 
-  // Check specific channel status dengan better error handling
+  // Check specific channel status
   const checkChromecastStatus = useCallback(async (deviceName: string) => {
     if (!deviceName || !deviceName.trim()) {
       console.error("Device name is required for status check");
@@ -219,7 +213,6 @@ export default function ChromecastPage() {
     try {
       console.log(`Checking status for device: ${deviceName}`);
 
-      // Encode device name properly
       const encodedDeviceName = encodeURIComponent(deviceName);
       const response = await fetch(
         `/api/chromecast/${encodedDeviceName}/check`,
@@ -469,7 +462,6 @@ export default function ChromecastPage() {
     setExportLoading(true);
 
     try {
-      // Header CSV
       const headers = [
         "Device Name",
         "Type",
@@ -482,7 +474,6 @@ export default function ChromecastPage() {
         "Last Seen",
       ];
 
-      // Convert filtered data ke CSV format
       const csvData = filteredChromecasts.map((device) => [
         device.deviceName || "Unknown Device",
         device.type || "Chromecast",
@@ -495,13 +486,11 @@ export default function ChromecastPage() {
         device.lastSeen || "Never seen",
       ]);
 
-      // Gabungkan header dan data
       const csvContent = [headers, ...csvData]
         .map((row) =>
           row
             .map((field) => {
               const stringField = String(field);
-              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
               if (
                 stringField.includes(",") ||
                 stringField.includes('"') ||
@@ -516,7 +505,6 @@ export default function ChromecastPage() {
         )
         .join("\n");
 
-      // Buat file dan download
       const bom = "\uFEFF";
       const blob = new Blob([bom + csvContent], {
         type: "text/csv;charset=utf-8;",
@@ -527,7 +515,6 @@ export default function ChromecastPage() {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
 
-        // Generate filename dengan timestamp
         const timestamp = new Date()
           .toISOString()
           .slice(0, 19)
@@ -539,11 +526,11 @@ export default function ChromecastPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url); // Cleanup URL object
+        URL.revokeObjectURL(url);
       }
     } catch (error) {
       console.error("Error exporting CSV:", error);
-      alert("Failed to export CSV. Please try again."); // Tambahkan user feedback
+      alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);
     }
@@ -575,7 +562,6 @@ export default function ChromecastPage() {
       );
       const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-      // Adjust start page if we're near the end
       if (endPage - startPage < maxVisiblePages - 1) {
         startPage = Math.max(1, endPage - maxVisiblePages + 1);
       }
