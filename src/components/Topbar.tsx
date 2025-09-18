@@ -20,6 +20,105 @@ interface NotificationStats {
   last24HourAlerts: number;
 }
 
+const faqData = [
+  {
+    category: "Kategori-1",
+    keywords: ["no device found", "chromecast", "offline"],
+    device: "Chromecast",
+  },
+  {
+    category: "Kategori-2",
+    keywords: ["weak", "signal", "no signal", "tv offline"],
+    device: "IPTV",
+  },
+  {
+    category: "Kategori-3",
+    keywords: ["unplug", "lan", "cable"],
+    device: "IPTV",
+  },
+  {
+    category: "Kategori-4",
+    keywords: ["setup", "ios", "iphone"],
+    device: "Chromecast",
+  },
+  {
+    category: "Kategori-5",
+    keywords: ["error playing", "playing", "stream"],
+    device: "Channel",
+  },
+  {
+    category: "Kategori-6",
+    keywords: ["player error", "hbrowser", "widget"],
+    device: "Channel",
+  },
+  {
+    category: "Kategori-7",
+    keywords: ["connection failure", "ip conflict"],
+    device: "Channel",
+  },
+  {
+    category: "Kategori-8",
+    keywords: ["reset", "configuration", "restart"],
+    device: "Chromecast",
+  },
+  {
+    category: "Kategori-9",
+    keywords: ["no device logged", "logged", "login"],
+    device: "IPTV",
+  },
+  {
+    category: "Kategori-10",
+    keywords: ["black screen", "adaptor", "power"],
+    device: "Chromecast",
+  },
+  {
+    category: "Kategori-11",
+    keywords: ["channel not found", "not found", "missing"],
+    device: "Channel",
+  },
+];
+
+// Local FAQ category function
+const getSpecificFAQCategory = (notification: Notification): string | null => {
+  const notifText = [
+    notification.title?.toLowerCase() || "",
+    notification.message?.toLowerCase() || "",
+    notification.error?.toLowerCase() || "",
+    notification.deviceName?.toLowerCase() || "",
+    notification.errorCategory?.toLowerCase() || "",
+  ].join(" ");
+
+  const sourceToDevice: Record<string, string> = {
+    chromecast: "Chromecast",
+    tv: "IPTV",
+    channel: "Channel",
+  };
+
+  const expectedDevice = sourceToDevice[notification.source];
+
+  // Find matching categories
+  const matches = faqData.map((faq) => {
+    let score = 0;
+
+    // Device match
+    if (faq.device === expectedDevice) score += 10;
+
+    // Keyword matching
+    const keywordMatches = faq.keywords.filter((keyword) =>
+      notifText.includes(keyword.toLowerCase())
+    );
+    score += keywordMatches.length * 5;
+
+    return { category: faq.category, score };
+  });
+
+  const bestMatch = matches
+    .filter((match) => match.score > 5)
+    .sort((a, b) => b.score - a.score)[0];
+
+  return bestMatch ? bestMatch.category : null;
+};
+
 const getReadIds = (): string[] => {
   try {
     return JSON.parse(localStorage.getItem("read-notif-ids") || "[]");
@@ -162,68 +261,6 @@ export default function Topbar() {
     router.push("/account");
   };
 
-  // Helper untuk mendapatkan icon berdasarkan source dengan status color
-  const getNotificationIcon = (notification: Notification) => {
-    const iconClass = "w-3 h-3 flex-shrink-0";
-    const isOnline = notification.currentStatus === "online";
-    const isRecovered = notification.isStatusChange && isOnline;
-
-    // Base color berdasarkan source
-    let baseColor = "";
-    switch (notification.source) {
-      case "tv":
-        baseColor = isRecovered
-          ? "bg-yellow-500"
-          : isOnline
-          ? "bg-green-500"
-          : "bg-red-500";
-        break;
-      case "chromecast":
-        baseColor = isRecovered
-          ? "bg-blue-500"
-          : isOnline
-          ? "bg-green-500"
-          : "bg-red-500";
-        break;
-      case "channel":
-        baseColor = isRecovered
-          ? "bg-purple-500"
-          : isOnline
-          ? "bg-green-500"
-          : "bg-red-500";
-        break;
-      default:
-        baseColor = isRecovered
-          ? "bg-gray-500"
-          : isOnline
-          ? "bg-green-500"
-          : "bg-red-500";
-        break;
-    }
-
-    return (
-      <div
-        className={`${iconClass} ${baseColor} rounded-full ${
-          isRecovered ? "animate-pulse" : ""
-        }`}
-      />
-    );
-  };
-
-  // Helper untuk format status
-  const getStatusColor = (notification: Notification) => {
-    if (
-      notification.currentStatus === "online" &&
-      notification.isStatusChange
-    ) {
-      return "text-green-600"; // Recovery
-    }
-    if (notification.currentStatus === "offline") {
-      return "text-red-600"; // Offline
-    }
-    return "text-gray-600"; // Default
-  };
-
   return (
     <header className="fixed top-0 left-0 right-0 w-full h-[80px] bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 shadow-lg border-b border-blue-700/30 flex items-center justify-between px-4 sm:px-6 z-50 backdrop-blur-xl">
       {/* Decorative gradient overlay */}
@@ -302,169 +339,54 @@ export default function Topbar() {
 
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              className="w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-1 z-50 max-h-96 overflow-y-auto"
+              className="w-96 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50"
               sideOffset={8}
               align="end"
             >
-              {/* Header dengan stats */}
-              <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+              {/* Header - Simple dan Clean */}
+              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Notifications ({notifications.length})
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Notifications
                   </h3>
+
                   {stats && (
-                    <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-4">
                       {stats.activeIssues > 0 && (
-                        <span className="flex items-center gap-1 text-red-600 font-medium">
+                        <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 bg-red-500 rounded-full" />
-                          {stats.activeIssues} offline
-                        </span>
+                          <span className="text-sm text-red-600 font-medium">
+                            {stats.activeIssues} offline
+                          </span>
+                        </div>
                       )}
                       {stats.recentRecoveries > 0 && (
-                        <span className="flex items-center gap-1 text-green-600 font-medium">
+                        <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 bg-green-500 rounded-full" />
-                          {stats.recentRecoveries} recovered
-                        </span>
+                          <span className="text-sm text-green-600 font-medium">
+                            {stats.recentRecoveries} recovered
+                          </span>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {loading ? (
-                <div className="px-4 py-8 text-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                  <p className="text-sm text-gray-500">
-                    Loading notifications...
-                  </p>
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg
-                      className="w-6 h-6 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+              {/* Content - Lebih Clean */}
+              <div className="max-h-96 overflow-y-auto">
+                {loading ? (
+                  <div className="px-6 py-12 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-sm text-gray-600">
+                      Loading notifications...
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-900 font-medium">
-                    All systems running smoothly
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    No issues detected
-                  </p>
-                </div>
-              ) : (
-                notifications.map((notification) => (
-                  <DropdownMenu.Item key={notification.id} asChild>
-                    <div className="px-4 py-3 hover:bg-slate-50 cursor-pointer">
-                      <div className="flex items-start gap-3">
-                        {/* Status indicator */}
-                        <div className="flex flex-col items-center gap-1 mt-1">
-                          {getNotificationIcon(notification)}
-                          {notification.isStatusChange && (
-                            <div
-                              className={`w-1 h-4 rounded-full transition-colors ${
-                                notification.currentStatus === "online"
-                                  ? "bg-green-400 shadow-sm shadow-green-400/50"
-                                  : "bg-red-400 shadow-sm shadow-red-400/50"
-                              }`}
-                            />
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4
-                              className={`text-sm font-medium leading-tight ${getStatusColor(
-                                notification
-                              )}`}
-                            >
-                              {notification.title}
-                            </h4>
-                            <span className="text-xs text-slate-500 whitespace-nowrap">
-                              {notification.time}
-                            </span>
-                          </div>
-
-                          <p className="text-sm text-slate-600 mt-1 leading-tight">
-                            {notification.message}
-                          </p>
-
-                          {/* Device info */}
-                          <div className="flex items-center gap-3 mt-2 text-xs">
-                            {notification.deviceName && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                                {notification.deviceName}
-                              </span>
-                            )}
-                            {notification.currentStatus && (
-                              <span
-                                className={`px-2 py-1 rounded font-medium ${
-                                  notification.currentStatus === "online"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-red-100 text-red-700"
-                                }`}
-                              >
-                                {notification.currentStatus}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Error category */}
-                          {notification.errorCategory && (
-                            <div className="mt-1">
-                              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                                {notification.errorCategory}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Performance metrics */}
-                          {(notification.responseTime ||
-                            notification.signalLevel) && (
-                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                              {notification.responseTime && (
-                                <span>
-                                  Response: {notification.responseTime}ms
-                                </span>
-                              )}
-                              {notification.signalLevel && (
-                                <span>Signal: {notification.signalLevel}%</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </DropdownMenu.Item>
-                ))
-              )}
-
-              {notifications.length > 0 && (
-                <div className="px-2 py-2 border-t border-slate-100">
-                  <button
-                    onClick={handleViewAllNotifications}
-                    className="w-full group relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
-                  >
-                    {/* Background animation */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
-
-                    {/* Button content */}
-                    <div className="relative flex items-center justify-center gap-2">
-                      <span className="text-sm">View all notifications</span>
-
-                      {/* Animated arrow */}
+                ) : notifications.length === 0 ? (
+                  <div className="px-6 py-12 text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg
-                        className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"
+                        className="w-8 h-8 text-green-500"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -473,13 +395,120 @@ export default function Topbar() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M9 5l7 7-7 7"
+                          d="M5 13l4 4L19 7"
                         />
                       </svg>
                     </div>
+                    <p className="text-sm text-gray-800 font-medium mb-1">
+                      All systems running smoothly
+                    </p>
+                    <p className="text-xs text-gray-500">No issues detected</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {notifications.map((notification) => (
+                      <DropdownMenu.Item key={notification.id} asChild>
+                        <div className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                          <div className="flex items-start gap-3">
+                            {/* Status Indicator */}
+                            <div className="flex-shrink-0 mt-1">
+                              <div
+                                className={`w-3 h-3 rounded-full ${
+                                  notification.currentStatus === "offline"
+                                    ? "bg-red-500"
+                                    : "bg-green-500"
+                                }`}
+                              />
+                            </div>
 
-                    {/* Subtle shine effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 skew-x-12" />
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              {/* Header with Title and Time */}
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex-1">
+                                  <h4
+                                    className={`text-sm font-medium ${
+                                      notification.currentStatus === "offline"
+                                        ? "text-red-700"
+                                        : "text-gray-900"
+                                    }`}
+                                  >
+                                    {notification.title}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 mt-0.5 truncate">
+                                    {notification.message}
+                                  </p>
+                                </div>
+                                <span className="text-xs text-gray-400 whitespace-nowrap">
+                                  {notification.time}
+                                </span>
+                              </div>
+
+                              {/* Tags - Minimal dan Organized */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {/* Status */}
+                                <span
+                                  className={`px-2 py-1 text-xs rounded font-medium ${
+                                    notification.currentStatus === "online"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {notification.currentStatus}
+                                </span>
+
+                                {/* FAQ Category */}
+                                {(() => {
+                                  const faqCategory =
+                                    getSpecificFAQCategory(notification);
+                                  if (faqCategory) {
+                                    return (
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                        {faqCategory.replace("Kategori-", "K-")}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+
+                                {/* Error Category (jika ada) */}
+                                {notification.errorCategory && (
+                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded font-medium">
+                                    {notification.errorCategory}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </DropdownMenu.Item>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Button */}
+              {notifications.length > 0 && (
+                <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+                  <button
+                    onClick={handleViewAllNotifications}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <span>View All Notifications</span>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
                   </button>
                 </div>
               )}

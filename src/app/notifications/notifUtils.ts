@@ -22,14 +22,18 @@ export interface Notification {
 }
 
 interface ChromecastDevice {
-  idCast?: string | number;
+  idCast: string | number;
   deviceName?: string;
   ipAddr?: string;
   isOnline?: boolean;
+  isPingable?: boolean;
   lastSeen?: string;
   error?: string;
   responseTime?: number;
   signalLevel?: number;
+  speed?: number;
+  type?: string;
+  model?: string;
 }
 
 interface TVDevice {
@@ -47,12 +51,26 @@ interface TVDevice {
 interface ChannelDevice {
   id?: string | number;
   channelName?: string;
+  channelNumber?: number;
   ipMulticast?: string;
   status?: string;
   lastChecked?: string;
   error?: string;
   responseTime?: number;
   signalLevel?: number;
+  bitrate?: number;
+  networkStats?: {
+    sent?: string;
+    received?: string;
+    latency?: number;
+    jitter?: number;
+    ttl?: number;
+    packetLoss?: number;
+    bandwidth?: number;
+    hops?: number;
+    signalStrength?: number;
+    bitrate?: number;
+  };
 }
 
 interface FetchSource {
@@ -62,89 +80,107 @@ interface FetchSource {
 }
 
 // Error categorization system
-export function getErrorCategory(error?: string, status?: string): string {
-  if (!error && status === "offline") return "Connection";
-  if (!error) return "Unknown";
+export function getErrorCategory(
+  error?: string,
+  status?: string,
+  source?: string
+): string {
+  // If explicitly offline status, categorize as Connection
+  if (status === "offline" && !error) {
+    return "Connection";
+  }
+
+  if (!error) return "System";
 
   const errorLower = error.toLowerCase();
 
-  // Network/Connection issues
+  // Device-specific categorization
+  if (source === "chromecast") {
+    if (
+      errorLower.includes("no device found") ||
+      errorLower.includes("not found") ||
+      errorLower.includes("offline")
+    ) {
+      return "Device";
+    }
+    if (
+      errorLower.includes("black screen") ||
+      errorLower.includes("adaptor") ||
+      errorLower.includes("power")
+    ) {
+      return "Power";
+    }
+    if (
+      errorLower.includes("setup") ||
+      errorLower.includes("local network") ||
+      errorLower.includes("authentication")
+    ) {
+      return "Auth";
+    }
+  }
+
+  if (source === "tv") {
+    if (
+      errorLower.includes("weak signal") ||
+      errorLower.includes("no signal") ||
+      errorLower.includes("offline")
+    ) {
+      return "Signal";
+    }
+    if (
+      errorLower.includes("lan") ||
+      errorLower.includes("cable") ||
+      errorLower.includes("unplug")
+    ) {
+      return "Cable";
+    }
+  }
+
+  if (source === "channel") {
+    if (
+      errorLower.includes("playing") ||
+      errorLower.includes("player") ||
+      errorLower.includes("stream")
+    ) {
+      return "Stream";
+    }
+    if (errorLower.includes("not found") || errorLower.includes("missing")) {
+      return "Missing";
+    }
+  }
+
+  // Generic categorization
   if (
     errorLower.includes("network") ||
     errorLower.includes("connection") ||
     errorLower.includes("timeout") ||
-    errorLower.includes("connection_failure") ||
-    errorLower.includes("weak signal") ||
-    errorLower.includes("no signal")
+    errorLower.includes("offline")
   ) {
     return "Network";
   }
 
-  // Power/Hardware issues
   if (
     errorLower.includes("power") ||
     errorLower.includes("boot") ||
-    errorLower.includes("adaptor") ||
-    errorLower.includes("black screen") ||
-    errorLower.includes("no device found")
+    errorLower.includes("hardware")
   ) {
     return "Power";
   }
 
-  // HDMI/Display/Signal issues
-  if (
-    errorLower.includes("hdmi") ||
-    errorLower.includes("signal") ||
-    errorLower.includes("display") ||
-    errorLower.includes("unplug lan") ||
-    errorLower.includes("lan out") ||
-    errorLower.includes("lan in")
-  ) {
-    return "Display";
-  }
-
-  // Authentication/Setup issues
   if (
     errorLower.includes("authentication") ||
     errorLower.includes("login") ||
-    errorLower.includes("credential") ||
-    errorLower.includes("setup") ||
-    errorLower.includes("white list") ||
-    errorLower.includes("local network")
+    errorLower.includes("credential")
   ) {
-    return "Authentication";
+    return "Auth";
   }
 
-  // Configuration issues
   if (
     errorLower.includes("configuration") ||
     errorLower.includes("setting") ||
-    errorLower.includes("widget") ||
-    errorLower.includes("hbrowser") ||
-    errorLower.includes("ip conflict")
+    errorLower.includes("setup")
   ) {
-    return "Configuration";
-  }
-
-  // Channel/Stream specific errors
-  if (
-    errorLower.includes("channel") ||
-    errorLower.includes("playing") ||
-    errorLower.includes("player") ||
-    errorLower.includes("stream") ||
-    errorLower.includes("biznet") ||
-    errorLower.includes("vlc")
-  ) {
-    return "Channel";
-  }
-
-  // Device/Hardware specific
-  if (
-    errorLower.includes("hardware") ||
-    errorLower.includes("device") ||
-    (errorLower.includes("chromecast") && errorLower.includes("rusak"))
-  ) {
-    return "Hardware";
+    return "Config";
   }
 
   return "System";
@@ -370,11 +406,12 @@ export function createNotification(
   source: "tv" | "chromecast" | "channel" | "system",
   extras?: Partial<Notification>
 ): Notification {
-  const statusChange = checkStatusChange(
-    id,
-    extras?.currentStatus || "offline"
-  );
-  const errorCategory = getErrorCategory(extras?.error, extras?.currentStatus);
+  const currentStatus = extras?.currentStatus || "offline";
+  const statusChange = checkStatusChange(id, currentStatus);
+
+  // Don't override explicitly passed status values
+  const errorCategory =
+    extras?.errorCategory || getErrorCategory(extras?.error, currentStatus);
   const suggestedSolutions = getSuggestedSolutions(
     extras?.error,
     source,
@@ -391,11 +428,14 @@ export function createNotification(
     type,
     source,
     errorCategory,
-    previousStatus: statusChange.previousStatus as
-      | "online"
-      | "offline"
-      | undefined,
-    isStatusChange: statusChange.isStatusChange,
+    currentStatus, // Use the explicitly passed status
+    previousStatus:
+      extras?.previousStatus ||
+      (statusChange.previousStatus as "online" | "offline" | undefined),
+    isStatusChange:
+      extras?.isStatusChange !== undefined
+        ? extras.isStatusChange
+        : statusChange.isStatusChange,
     suggestedSolutions,
     ...extras,
   };
@@ -467,19 +507,19 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   const fetchSources: FetchSource[] = [
     {
       name: "chromecast",
-      url: "/api/chromecast",
+      url: "/api/chromecast", // Endpoint yang mengembalikan semua device
       processor: (data: unknown[]) =>
         processChromecastNotifications(data as ChromecastDevice[], all),
     },
     {
       name: "tv",
-      url: "/api/hospitality/tvs",
+      url: "/api/hospitality/tvs", // Endpoint yang mengembalikan semua TV
       processor: (data: unknown[]) =>
         processTVNotifications(data as TVDevice[], all),
     },
     {
       name: "channel",
-      url: "/api/channels",
+      url: "/api/channels", // Endpoint yang mengembalikan semua channel
       processor: (data: unknown[]) =>
         processChannelNotifications(data as ChannelDevice[], all),
     },
@@ -489,13 +529,50 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   await Promise.allSettled(
     fetchSources.map(async (source) => {
       try {
-        const response = await fetch(source.url, { credentials: "include" });
+        const response = await fetch(source.url, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
         if (response.ok) {
           const json = await response.json();
+
+          // Handle different possible response structures
+          let dataArray: unknown[] = [];
+
           if (json.success && Array.isArray(json.data)) {
-            source.processor(json.data);
+            // Standard API response format: { success: true, data: [...] }
+            dataArray = json.data;
+          } else if (Array.isArray(json)) {
+            // Direct array response: [...]
+            dataArray = json;
+          } else if (json.data && Array.isArray(json.data)) {
+            // Nested data: { data: [...] }
+            dataArray = json.data;
+          } else {
+            console.warn(
+              `Unexpected response format for ${source.name}:`,
+              json
+            );
+            errors.push(`Invalid response format for ${source.name}`);
+            return;
+          }
+
+          // Process the data if we have valid array
+          if (dataArray.length >= 0) {
+            source.processor(dataArray);
+            console.log(
+              `Processed ${dataArray.length} items from ${source.name}`
+            );
           }
         } else {
+          const errorText = await response.text();
+          console.error(
+            `HTTP ${response.status} for ${source.name}:`,
+            errorText
+          );
           errors.push(`HTTP ${response.status} for ${source.name}`);
         }
       } catch (error) {
@@ -527,6 +604,9 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     console.warn("Some fetch operations failed:", errors);
   }
 
+  console.log(
+    `Fetched ${all.length} total notifications (${errors.length} errors)`
+  );
   return sortedAndCleaned;
 }
 
@@ -536,14 +616,21 @@ function processChromecastNotifications(
   notifications: Notification[]
 ): void {
   data.forEach((device, index) => {
+    // Backend returns device object with status info directly
     const rawDate = device.lastSeen || new Date().toISOString();
     const deviceId = `chromecast-${
       device.idCast || device.deviceName || index
     }`;
-    const currentStatus = device.isOnline ? "online" : "offline";
+
+    // Backend returns isOnline boolean directly
+    const isOnline = device.isOnline === true;
+    const currentStatus = isOnline ? "online" : "offline";
 
     // Handle offline devices
-    if (!device.isOnline) {
+    if (!isOnline) {
+      const error = device.error || "Device not responding";
+      const errorCategory = getErrorCategory(error, "offline", "chromecast");
+
       notifications.push(
         createNotification(
           deviceId,
@@ -556,20 +643,21 @@ function processChromecastNotifications(
             deviceName: device.deviceName,
             ipAddr: device.ipAddr,
             currentStatus: "offline",
-            error: device.error,
-            responseTime: device.responseTime,
-            signalLevel: device.signalLevel,
+            error: error,
+            errorCategory: errorCategory,
+            responseTime: device.responseTime || undefined,
+            signalLevel: device.signalLevel || undefined,
           }
         )
       );
     }
 
-    // Handle recovery notifications
+    // Handle recovery notifications - check previous status
     const statusChange = checkStatusChange(deviceId, currentStatus);
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
-      device.isOnline
+      isOnline
     ) {
       notifications.push(
         createNotification(
@@ -585,8 +673,8 @@ function processChromecastNotifications(
             currentStatus: "online",
             previousStatus: "offline",
             isStatusChange: true,
-            responseTime: device.responseTime,
-            signalLevel: device.signalLevel,
+            responseTime: device.responseTime || undefined,
+            signalLevel: device.signalLevel || undefined,
           }
         )
       );
@@ -599,12 +687,19 @@ function processTVNotifications(
   notifications: Notification[]
 ): void {
   data.forEach((device, index) => {
+    // Backend returns device with status field directly
     const rawDate = device.lastChecked || new Date().toISOString();
-    const deviceId = `tv-${device.id || index}`;
-    const currentStatus = device.status === "online" ? "online" : "offline";
+    const deviceId = `tv-${device.id || device.roomNo || index}`;
+
+    // Backend returns status as "online" or "offline" string
+    const isOnline = device.status === "online";
+    const currentStatus = isOnline ? "online" : "offline";
 
     // Handle offline TVs
-    if (device.status === "offline") {
+    if (!isOnline) {
+      const error = device.error || "TV not responding";
+      const errorCategory = getErrorCategory(error, "offline", "tv");
+
       notifications.push(
         createNotification(
           deviceId,
@@ -618,9 +713,10 @@ function processTVNotifications(
             deviceName: `Room ${device.roomNo}`,
             ipAddr: device.ipAddress,
             currentStatus: "offline",
-            error: device.error,
-            responseTime: device.responseTime,
-            signalLevel: device.signalLevel,
+            error: error,
+            errorCategory: errorCategory,
+            responseTime: device.responseTime || undefined,
+            signalLevel: device.signalLevel || undefined,
           }
         )
       );
@@ -631,7 +727,7 @@ function processTVNotifications(
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
-      device.status === "online"
+      isOnline
     ) {
       notifications.push(
         createNotification(
@@ -648,8 +744,8 @@ function processTVNotifications(
             currentStatus: "online",
             previousStatus: "offline",
             isStatusChange: true,
-            responseTime: device.responseTime,
-            signalLevel: device.signalLevel,
+            responseTime: device.responseTime || undefined,
+            signalLevel: device.signalLevel || undefined,
           }
         )
       );
@@ -662,12 +758,19 @@ function processChannelNotifications(
   notifications: Notification[]
 ): void {
   data.forEach((channel, index) => {
+    // Backend returns channel with status field directly
     const rawDate = channel.lastChecked || new Date().toISOString();
     const deviceId = `channel-${channel.id || index}`;
-    const currentStatus = channel.status === "online" ? "online" : "offline";
+
+    // Backend returns status as "online" or "offline" string
+    const isOnline = channel.status === "online";
+    const currentStatus = isOnline ? "online" : "offline";
 
     // Handle offline channels
-    if (channel.status === "offline") {
+    if (!isOnline) {
+      const error = channel.error || "Channel not available";
+      const errorCategory = getErrorCategory(error, "offline", "channel");
+
       notifications.push(
         createNotification(
           deviceId,
@@ -680,9 +783,10 @@ function processChannelNotifications(
             deviceName: channel.channelName,
             ipAddr: channel.ipMulticast,
             currentStatus: "offline",
-            error: channel.error,
-            responseTime: channel.responseTime,
-            signalLevel: channel.signalLevel,
+            error: error,
+            errorCategory: errorCategory,
+            responseTime: channel.responseTime || undefined,
+            signalLevel: channel.signalLevel || undefined,
           }
         )
       );
@@ -693,7 +797,7 @@ function processChannelNotifications(
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
-      channel.status === "online"
+      isOnline
     ) {
       notifications.push(
         createNotification(
@@ -709,8 +813,8 @@ function processChannelNotifications(
             currentStatus: "online",
             previousStatus: "offline",
             isStatusChange: true,
-            responseTime: channel.responseTime,
-            signalLevel: channel.signalLevel,
+            responseTime: channel.responseTime || undefined,
+            signalLevel: channel.signalLevel || undefined,
           }
         )
       );

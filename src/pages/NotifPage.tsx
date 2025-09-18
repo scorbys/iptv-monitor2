@@ -39,7 +39,166 @@ interface NotificationStats {
   topErrorCategory: string;
   last24HourAlerts: number;
   lastUpdated: string;
+  categoryBreakdown: Record<string, number>;
 }
+
+const faqData = [
+  {
+    id: 1,
+    category: "Kategori-1",
+    device: "Chromecast",
+    issue: "No Device Found Chromecast",
+    solutions: [
+      "Deactive White list profile",
+      "Restart Chromecast & WIFI",
+      "Radisson Guest Must Be Login",
+      "Forget WIFI Radisson Guest",
+      "Logout WIFI (log-out.me)",
+    ],
+    hasImage: true,
+    actionType: "System",
+    priority: "High",
+    slug: "no-device-found-chromecast",
+  },
+  {
+    id: 2,
+    category: "Kategori-2",
+    device: "IPTV",
+    issue: "Weak Or No Signal",
+    solutions: [
+      "Periksa koneksi LAN pada TV",
+      "Pastikan sumber HDMI diatur ke HDMI-1",
+      "Restart perangkat IPTV",
+      "Periksa indikator LED pada box IPTV",
+    ],
+    hasImage: true,
+    actionType: "On Site",
+    priority: "Medium",
+    slug: "weak-or-no-signal",
+  },
+  {
+    id: 3,
+    category: "Kategori-3",
+    device: "IPTV",
+    issue: "Unplug LAN TV",
+    solutions: [
+      "Periksa koneksi LAN (pastikan terpasang di LAN IN)",
+      "Posisikan kabel LAN dengan benar",
+      "Pastikan tidak terpasang di LAN OUT",
+      "Test koneksi dengan kabel LAN lain",
+    ],
+    hasImage: true,
+    actionType: "On Site",
+    priority: "High",
+    slug: "unplug-lan-tv",
+  },
+  {
+    id: 4,
+    category: "Kategori-4",
+    device: "Chromecast",
+    issue: "Chromecast Setup iOS",
+    solutions: [
+      "Install Google Home app",
+      "Pastikan perangkat dalam satu jaringan WiFi",
+      "Allow local network access pada iPhone",
+      "Follow setup wizard di aplikasi",
+    ],
+    hasImage: true,
+    actionType: "System",
+    priority: "Medium",
+    slug: "chromecast-setup-ios",
+  },
+  {
+    id: 5,
+    category: "Kategori-5",
+    device: "Channel",
+    issue: "Error Playing",
+    solutions: ["Channel issue dari Biznet (Testing VIA VLC)"],
+    hasImage: false,
+    actionType: "System",
+    priority: "Medium",
+    slug: "error-playing",
+  },
+  {
+    id: 6,
+    category: "Kategori-6",
+    device: "Channel",
+    issue: "Error_Player_Error_Err",
+    solutions: [
+      "Hbrowser & Widget Solution incorrect",
+      "Channel issue Biznet (Testing VLC)",
+    ],
+    hasImage: false,
+    actionType: "System",
+    priority: "High",
+    slug: "error-player-error",
+  },
+  {
+    id: 7,
+    category: "Kategori-7",
+    device: "Channel",
+    issue: "Connection_Failure",
+    solutions: [
+      "Reinstall Widget Solution",
+      "Reload IGCMP",
+      "Confirmed IP conflict, changed IP, issue resolved",
+    ],
+    hasImage: false,
+    actionType: "System",
+    priority: "Medium",
+    slug: "connection-failure",
+  },
+  {
+    id: 8,
+    category: "Kategori-8",
+    device: "Chromecast",
+    issue: "Reset Configuration",
+    solutions: [
+      "Restart Chromecast",
+      "Reset Chromecast dibawa ke ruang server pencet tombol poer 10 Detik",
+    ],
+    hasImage: false,
+    actionType: "On Site",
+    priority: "Low",
+    slug: "reset-configuration",
+  },
+  {
+    id: 9,
+    category: "Kategori-9",
+    device: "IPTV",
+    issue: "No Device Logged",
+    solutions: [
+      "Pastikan Allow local Network pada Setingan Iphone",
+      "Check VPN and Cast settings",
+    ],
+    hasImage: true,
+    actionType: "On Site",
+    priority: "High",
+    slug: "no-device-logged",
+  },
+  {
+    id: 10,
+    category: "Kategori-10",
+    device: "Chromecast",
+    issue: "Chromecast Black Screen",
+    solutions: ["Chromecast Power Adaptor Rusak", "Check Adaptor Chromecast"],
+    hasImage: true,
+    actionType: "System",
+    priority: "Medium",
+    slug: "chromecast-black-screen",
+  },
+  {
+    id: 11,
+    category: "Kategori-11",
+    device: "Channel",
+    issue: "Channel Not Found",
+    solutions: ["LAN Out Terpasang bukan LAN In"],
+    hasImage: true,
+    actionType: "System",
+    priority: "Low",
+    slug: "channel-not-found",
+  },
+];
 
 export default function NotifPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -52,6 +211,7 @@ export default function NotifPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
   );
@@ -115,6 +275,18 @@ export default function NotifPage() {
         return acc;
       }, {} as Record<string, number>);
 
+      const categoryBreakdown = notifications.reduce((acc, n) => {
+        const faqCategory = getSpecificFAQCategory(n);
+
+        if (faqCategory) {
+          acc[faqCategory] = (acc[faqCategory] || 0) + 1;
+        } else {
+          acc["Uncategorized"] = (acc["Uncategorized"] || 0) + 1;
+        }
+
+        return acc;
+      }, {} as Record<string, number>);
+
       const topErrorCategory =
         Object.entries(errorCategories).sort(([, a], [, b]) => b - a)[0]?.[0] ||
         "None";
@@ -127,6 +299,7 @@ export default function NotifPage() {
         topErrorCategory,
         last24HourAlerts: recentAlerts,
         lastUpdated: now.toISOString(),
+        categoryBreakdown,
       };
     },
     []
@@ -241,9 +414,20 @@ export default function NotifPage() {
       const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
       const matchesType = typeFilter === "all" || n.type === typeFilter;
 
-      return matchesSearch && matchesSource && matchesType;
+      let matchesCategory = true;
+      if (categoryFilter !== "all") {
+        const faqCategory = getSpecificFAQCategory(n);
+
+        if (categoryFilter === "Uncategorized") {
+          matchesCategory = !faqCategory;
+        } else {
+          matchesCategory = faqCategory === categoryFilter;
+        }
+      }
+
+      return matchesSearch && matchesSource && matchesType && matchesCategory;
     });
-  }, [notifications, searchTerm, sourceFilter, typeFilter]);
+  }, [notifications, searchTerm, sourceFilter, typeFilter, categoryFilter]);
 
   // Pagination
   const paginationData = useMemo(() => {
@@ -272,7 +456,7 @@ export default function NotifPage() {
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sourceFilter, typeFilter]);
+  }, [searchTerm, sourceFilter, typeFilter, categoryFilter]);
 
   // Export to CSV
   const exportToCSV = useCallback(() => {
@@ -293,6 +477,7 @@ export default function NotifPage() {
         "IP Address",
         "Status",
         "Error Category",
+        "FAQ Category",
         "Response Time",
         "Signal Level",
       ];
@@ -309,6 +494,7 @@ export default function NotifPage() {
         notification.ipAddr || "N/A",
         notification.currentStatus || "N/A",
         notification.errorCategory || "N/A",
+        getSpecificFAQCategory(notification) || "Uncategorized",
         notification.responseTime || "N/A",
         notification.signalLevel || "N/A",
       ]);
@@ -481,6 +667,141 @@ export default function NotifPage() {
     []
   );
 
+  const getSpecificFAQCategory = (
+    notification: Notification
+  ): string | null => {
+    // Normalize notification text for better matching
+    const notifText = [
+      notification.title?.toLowerCase() || "",
+      notification.message?.toLowerCase() || "",
+      notification.error?.toLowerCase() || "",
+      notification.deviceName?.toLowerCase() || "",
+      notification.errorCategory?.toLowerCase() || "",
+    ].join(" ");
+
+    // Enhanced keyword mapping for better categorization
+    const categoryMappings = {
+      "Kategori-1": {
+        keywords: [
+          "no device found",
+          "chromecast",
+          "not found",
+          "device offline",
+        ],
+        device: "chromecast",
+        priority: 1,
+      },
+      "Kategori-2": {
+        keywords: ["weak", "signal", "no signal", "iptv", "tv offline"],
+        device: "iptv",
+        priority: 2,
+      },
+      "Kategori-3": {
+        keywords: ["unplug", "lan", "cable", "connection", "lan in", "lan out"],
+        device: "iptv",
+        priority: 3,
+      },
+      "Kategori-4": {
+        keywords: ["setup", "ios", "iphone", "google home", "local network"],
+        device: "chromecast",
+        priority: 2,
+      },
+      "Kategori-5": {
+        keywords: ["error playing", "playing", "stream", "video"],
+        device: "channel",
+        priority: 1,
+      },
+      "Kategori-6": {
+        keywords: ["player error", "player_error", "hbrowser", "widget"],
+        device: "channel",
+        priority: 3,
+      },
+      "Kategori-7": {
+        keywords: [
+          "connection failure",
+          "connection_failure",
+          "ip conflict",
+          "network",
+        ],
+        device: "channel",
+        priority: 2,
+      },
+      "Kategori-8": {
+        keywords: ["reset", "configuration", "restart", "power"],
+        device: "chromecast",
+        priority: 3,
+      },
+      "Kategori-9": {
+        keywords: ["no device logged", "logged", "login", "authentication"],
+        device: "iptv",
+        priority: 2,
+      },
+      "Kategori-10": {
+        keywords: ["black screen", "screen", "adaptor", "power"],
+        device: "chromecast",
+        priority: 1,
+      },
+      "Kategori-11": {
+        keywords: ["channel not found", "not found", "channel", "missing"],
+        device: "channel",
+        priority: 1,
+      },
+    };
+
+    // Device type matching
+    const sourceToDevice: Record<string, string> = {
+      chromecast: "chromecast",
+      tv: "iptv",
+      channel: "channel",
+      system: "system",
+    };
+
+    const expectedDevice = sourceToDevice[notification.source] || null;
+
+    // Find matching categories with scoring system
+    const matches = Object.entries(categoryMappings).map(
+      ([category, config]) => {
+        let score = 0;
+
+        // Device match bonus
+        if (!expectedDevice || config.device === expectedDevice) {
+          score += 10;
+        } else {
+          score -= 5; // Penalty for device mismatch
+        }
+
+        // Keyword matching with weighted scoring
+        const keywordMatches = config.keywords.filter((keyword) =>
+          notifText.includes(keyword.toLowerCase())
+        );
+
+        score += keywordMatches.length * 5;
+
+        // Priority bonus (lower number = higher priority)
+        score += 4 - config.priority;
+
+        // Exact phrase matching bonus
+        const hasExactMatch = config.keywords.some((keyword) =>
+          notifText.includes(keyword.toLowerCase())
+        );
+        if (hasExactMatch) score += 3;
+
+        return {
+          category,
+          score,
+          matches: keywordMatches.length,
+        };
+      }
+    );
+
+    // Sort by score and return best match
+    const bestMatch = matches
+      .filter((match) => match.score > 5) // Minimum threshold
+      .sort((a, b) => b.score - a.score)[0];
+
+    return bestMatch ? bestMatch.category : null;
+  };
+
   if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
@@ -498,7 +819,7 @@ export default function NotifPage() {
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
           {/* Total Notifications Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <p className="text-xs text-gray-500 font-medium mb-1">
@@ -724,6 +1045,47 @@ export default function NotifPage() {
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
 
+              {/* Category Filter */}
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[140px] justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      {categoryFilter === "all"
+                        ? "All Categories"
+                        : categoryFilter}
+                    </span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                    <DropdownMenu.Item
+                      className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      onClick={() => setCategoryFilter("all")}
+                    >
+                      All Categories
+                    </DropdownMenu.Item>
+                    {Array.from(
+                      new Set(faqData.map((faq) => faq.category))
+                    ).map((category) => (
+                      <DropdownMenu.Item
+                        key={category}
+                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                        onClick={() => setCategoryFilter(category)}
+                      >
+                        {category}
+                      </DropdownMenu.Item>
+                    ))}
+                    <DropdownMenu.Item
+                      className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      onClick={() => setCategoryFilter("Uncategorized")}
+                    >
+                      Uncategorized
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+
               {/* Control Buttons */}
               <button
                 onClick={handleRefresh}
@@ -904,39 +1266,76 @@ export default function NotifPage() {
 
                     {/* Category Column */}
                     <td className="px-6 py-5">
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {/* Source badge */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500">
-                            Source:
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400 min-w-[35px]">
+                            Src:
                           </span>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
                               notification.source === "tv"
-                                ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
                                 : notification.source === "chromecast"
-                                ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
                                 : notification.source === "channel"
-                                ? "bg-purple-100 text-purple-700 border border-purple-200"
-                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : "bg-gray-50 text-gray-700 border-gray-200"
                             }`}
                           >
-                            {notification.source.charAt(0).toUpperCase() +
-                              notification.source.slice(1)}
+                            {notification.source === "chromecast"
+                              ? "Cast"
+                              : notification.source === "channel"
+                              ? "Chnl"
+                              : notification.source.charAt(0).toUpperCase() +
+                                notification.source.slice(1, 3)}
                           </span>
                         </div>
 
-                        {/* Error category */}
-                        {notification.errorCategory && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-500">
-                              Error:
-                            </span>
-                            <span className="bg-red-50 text-red-700 px-3 py-1 rounded-full text-xs font-semibold border border-red-200">
-                              {notification.errorCategory}
-                            </span>
-                          </div>
-                        )}
+                        {/* Error Category */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400 min-w-[35px]">
+                            Err:
+                          </span>
+                          <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded-md text-xs font-medium border border-red-200 truncate max-w-[100px]">
+                            {(notification.errorCategory || "System").length > 8
+                              ? (
+                                  notification.errorCategory || "System"
+                                ).substring(0, 8) + "..."
+                              : notification.errorCategory || "System"}
+                          </span>
+                        </div>
+
+                        {/* FAQ Category - Only show if exists */}
+                        {(() => {
+                          const faqCategory =
+                            getSpecificFAQCategory(notification);
+                          if (faqCategory) {
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-gray-400 min-w-[35px]">
+                                  FAQ:
+                                </span>
+                                <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-xs font-medium border border-indigo-200 flex items-center gap-1 max-w-[100px]">
+                                  <div className="w-1 h-1 bg-indigo-500 rounded-full flex-shrink-0"></div>
+                                  <span className="truncate">
+                                    {faqCategory.replace("Kategori-", "K-")}
+                                  </span>
+                                </span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-gray-400 min-w-[35px]">
+                                FAQ:
+                              </span>
+                              <span className="bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md text-xs border border-gray-200">
+                                None
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </td>
 
@@ -1079,13 +1478,32 @@ export default function NotifPage() {
                   </div>
                 )}
                 {notification.errorCategory && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Error Category:</span>
-                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
-                      {notification.errorCategory}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">Error:</span>
+                    <span className="bg-red-50 text-red-700 px-2 py-1 rounded text-xs border border-red-200 max-w-[120px] truncate">
+                      {notification.errorCategory.length > 10
+                        ? notification.errorCategory.substring(0, 10) + "..."
+                        : notification.errorCategory}
                     </span>
                   </div>
                 )}
+                {(() => {
+                  const faqCategory = getSpecificFAQCategory(notification);
+                  if (faqCategory) {
+                    return (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 text-sm">Category:</span>
+                        <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs border border-indigo-200 flex items-center gap-1 max-w-[120px]">
+                          <div className="w-1 h-1 bg-indigo-500 rounded-full flex-shrink-0"></div>
+                          <span className="truncate">
+                            {faqCategory.replace("Kategori-", "K-")}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 {notification.responseTime && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Response Time:</span>
@@ -1188,6 +1606,7 @@ export default function NotifPage() {
                   setSearchTerm("");
                   setSourceFilter("all");
                   setTypeFilter("all");
+                  setCategoryFilter("all");
                 }}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all hover:scale-105 active:scale-95"
               >
