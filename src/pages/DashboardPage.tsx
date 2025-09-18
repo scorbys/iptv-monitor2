@@ -83,7 +83,8 @@ export default function NetworkTrafficDashboard() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [performanceTimeRange, setPerformanceTimeRange] = useState("24H");
+  const [performanceTimeRange, setPerformanceTimeRange] = useState("1h");
+  const [isClient, setIsClient] = useState(false);
 
   // New states for enhanced stats section
   const [activeStatsTab, setActiveStatsTab] = useState("overview");
@@ -177,7 +178,6 @@ export default function NetworkTrafficDashboard() {
 
   const fetchTrafficData = useCallback(async () => {
     try {
-      setLoading(true);
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 500));
       setTrafficData(generateFallbackData());
@@ -186,8 +186,6 @@ export default function NetworkTrafficDashboard() {
       console.error("Error fetching traffic data:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
       setTrafficData(generateFallbackData());
-    } finally {
-      setLoading(false);
     }
   }, [generateFallbackData]);
 
@@ -269,10 +267,35 @@ export default function NetworkTrafficDashboard() {
   }, [selectedTimeRange, fetchTrafficData]);
 
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
     generateAndSetStatsHistory();
     const interval = setInterval(generateAndSetStatsHistory, 60000);
     return () => clearInterval(interval);
   }, [generateAndSetStatsHistory]);
+
+  useEffect(() => {
+    const initialLoad = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([fetchCurrentStats(), fetchTrafficData()]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initialLoad();
+
+    const statsInterval = setInterval(fetchCurrentStats, 30000);
+    const trafficInterval = setInterval(fetchTrafficData, 60000);
+
+    return () => {
+      clearInterval(statsInterval);
+      clearInterval(trafficInterval);
+    };
+  }, []);
 
   // Custom Tooltip untuk stats charts
   const StatsTooltip = ({ active, payload, label }: CustomTooltipProps) => {
@@ -354,7 +377,7 @@ export default function NetworkTrafficDashboard() {
             <Icon className={`w-6 h-6 ${currentColor.icon}`} />
           </div>
         </div>
-        {typeof trend === "number" && (
+        {typeof trend === "number" && isClient && (
           <div className="flex items-center mt-3">
             {trend > 0 ? (
               <ArrowUpIcon className="w-4 h-4 text-green-500 mr-1" />
@@ -571,7 +594,7 @@ export default function NetworkTrafficDashboard() {
                     </span>
                   </div>
                   <div className="text-blue-200 text-sm">
-                    {currentTime.toLocaleTimeString()}
+                    {isClient ? currentTime.toLocaleTimeString() : "--:--:--"}
                   </div>
                 </div>
 
@@ -1302,88 +1325,99 @@ export default function NetworkTrafficDashboard() {
 
           {/* Chart */}
           <div className="h-80 mb-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={statsHistory}
-                margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
-              >
-                <defs>
-                  <linearGradient id="issues" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="recoveries" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+            {loading ? (
+              <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium">
+                    Loading traffic data...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={statsHistory}
+                  margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+                >
+                  <defs>
+                    <linearGradient id="issues" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="recoveries" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
 
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
 
-                <XAxis
-                  dataKey="time"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#6b7280" }}
-                />
+                  <XAxis
+                    dataKey="time"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: "#6b7280" }}
+                  />
 
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#6b7280" }}
-                  width={40}
-                />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: "#6b7280" }}
+                    width={40}
+                  />
 
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                          <p className="font-medium text-gray-900 mb-2">
-                            {label}
-                          </p>
-                          {payload.map((entry, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2"
-                            >
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                            <p className="font-medium text-gray-900 mb-2">
+                              {label}
+                            </p>
+                            {payload.map((entry, index) => (
                               <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: entry.color }}
-                              />
-                              <span className="text-sm text-gray-700">
-                                {entry.name}: {entry.value}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
+                                key={index}
+                                className="flex items-center gap-2"
+                              >
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="text-sm text-gray-700">
+                                  {entry.name}: {entry.value}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
 
-                <Area
-                  type="monotone"
-                  dataKey="activeIssues"
-                  stroke="#ef4444"
-                  strokeWidth={2}
-                  fill="url(#issues)"
-                  name="Active Issues"
-                  dot={false}
-                />
+                  <Area
+                    type="monotone"
+                    dataKey="activeIssues"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    fill="url(#issues)"
+                    name="Active Issues"
+                    dot={false}
+                  />
 
-                <Area
-                  type="monotone"
-                  dataKey="recentRecoveries"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  fill="url(#recoveries)"
-                  name="Recent Recoveries"
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+                  <Area
+                    type="monotone"
+                    dataKey="recentRecoveries"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fill="url(#recoveries)"
+                    name="Recent Recoveries"
+                    dot={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Simple Summary Cards */}
