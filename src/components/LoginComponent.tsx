@@ -133,8 +133,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
     setErrors({});
 
     try {
-      // loginWithGmail sudah melakukan redirect langsung
-      // Tidak perlu menangani result karena akan redirect
       loginWithGmail();
     } catch (error) {
       console.error("Gmail login error:", error);
@@ -152,7 +150,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
     }
   };
 
-  // Mengganti gambar latar belakang setiap 4 detik
   React.useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex(
@@ -188,7 +185,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                 </div>
               ))}
 
-              {/* Enhanced Overlay with Gradient */}
+              {/* Overlay with Gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-transparent to-black/60" />
 
               {/* Content Overlay with Animation - Moved to Bottom */}
@@ -205,7 +202,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                 </div>
               </div>
 
-              {/* Enhanced Dots Indicator */}
+              {/* Dots Indicator */}
               <div className="absolute bottom-3 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3 z-20">
                 {backgroundImages.map((_, index) => (
                   <button

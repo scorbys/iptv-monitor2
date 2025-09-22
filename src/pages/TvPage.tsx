@@ -13,7 +13,7 @@ import {
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import { DateFormatter } from "../components/DateFormatter";
+import { DateFormatter } from "@/components/DateFormatter";
 import { useRouter } from "next/navigation";
 
 interface TV {
@@ -51,35 +51,8 @@ export default function TvPage() {
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
   );
-
   const router = useRouter();
-  const handleTvClick = (tv: TV) => {
-    const tvId = tv.roomNo || tv.id;
-    router.push(`/hospitality/${encodeURIComponent(tvId)}`);
-  };
 
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width < 640) {
-        setScreenSize("mobile");
-      } else if (width < 1024) {
-        setScreenSize("tablet");
-      } else {
-        setScreenSize("desktop");
-      }
-    };
-
-    // Set initial value
-    if (typeof window !== "undefined") {
-      handleResize();
-      window.addEventListener("resize", handleResize);
-
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, []);
-
-  // Fetch TVs data
   const fetchTVs = useCallback(async () => {
     if (!mounted) return;
 
@@ -93,7 +66,6 @@ export default function TvPage() {
       });
 
       if (response.status === 401) {
-        // Token expired atau invalid, redirect ke login
         window.location.href = "/login";
         return;
       }
@@ -116,7 +88,6 @@ export default function TvPage() {
     }
   }, [mounted]);
 
-  // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
     if (!mounted) return;
 
@@ -130,7 +101,6 @@ export default function TvPage() {
       });
 
       if (response.status === 401) {
-        // Token expired atau invalid, redirect ke login
         window.location.href = "/login";
         return;
       }
@@ -153,38 +123,11 @@ export default function TvPage() {
     }
   }, [mounted]);
 
-  // Mount effect
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const handleTvClick = (tv: TV) => {
+    const tvId = tv.roomNo || tv.id;
+    router.push(`/hospitality/${encodeURIComponent(tvId)}`);
+  };
 
-  // Initial data load and auto-refresh
-  useEffect(() => {
-    if (!mounted) return;
-
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([fetchTVs(), fetchStats()]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-
-    // Auto-refresh every 2 minutes
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        fetchTVs();
-        fetchStats();
-      }
-    }, 120000);
-
-    return () => clearInterval(interval);
-  }, [mounted, fetchTVs, fetchStats]);
-
-  // Manual refresh
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
 
@@ -196,7 +139,10 @@ export default function TvPage() {
     }
   }, [refreshing, fetchTVs, fetchStats]);
 
-  // Check individual TV status
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   const checkTVStatus = useCallback(async (roomNo: string) => {
     if (!roomNo) return;
 
@@ -229,13 +175,12 @@ export default function TvPage() {
               ? {
                   ...tv,
                   ...result.data,
-                  error: undefined, // Clear previous error
+                  error: undefined,
                 }
               : tv
           )
         );
       } else {
-        // Handle API error response
         setTvs((prev) =>
           prev.map((tv) =>
             tv.roomNo === roomNo
@@ -251,7 +196,6 @@ export default function TvPage() {
     } catch (error: unknown) {
       console.error("Error checking TV status:", error);
 
-      // Update TV with error state
       setTvs((prev) =>
         prev.map((tv) =>
           tv.roomNo === roomNo
@@ -268,7 +212,6 @@ export default function TvPage() {
     }
   }, []);
 
-  // Filtered TVs
   const filteredTVs = useMemo(() => {
     return tvs.filter((tv) => {
       const matchesSearch =
@@ -283,7 +226,6 @@ export default function TvPage() {
     });
   }, [tvs, searchTerm, statusFilter]);
 
-  // Pagination
   const paginationData = useMemo(() => {
     const totalPages = Math.ceil(filteredTVs.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -300,21 +242,19 @@ export default function TvPage() {
     };
   }, [filteredTVs, currentPage]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // Reset page when filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
-
-  // Status badge component
   const StatusBadge = useCallback(
-    ({ status, responseTime }: { status: string; responseTime?: number }) => (
+    ({
+      status,
+      responseTime,
+      isMobile = false,
+    }: {
+      status: string;
+      responseTime?: number;
+      isMobile?: boolean;
+    }) => (
       <div className="flex flex-col items-start">
         <span
-          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+          className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium border ${
             status === "online"
               ? "bg-gradient-to-r from-green-50 to-green-100 text-green-800 border-green-200"
               : "bg-gradient-to-r from-red-50 to-red-100 text-red-800 border-red-200"
@@ -329,7 +269,7 @@ export default function TvPage() {
             ? status.charAt(0).toUpperCase() + status.slice(1)
             : "Unknown"}
         </span>
-        {responseTime && (
+        {responseTime && !isMobile && (
           <div className="text-xs text-gray-500 mt-1 ml-1">
             {responseTime}ms
           </div>
@@ -339,14 +279,12 @@ export default function TvPage() {
     []
   );
 
-  // Export to CSV function
   const exportToCSV = useCallback(() => {
     if (exportLoading) return;
 
     setExportLoading(true);
 
     try {
-      // Header CSV
       const headers = [
         "Room Number",
         "IP Address",
@@ -357,7 +295,6 @@ export default function TvPage() {
         "Error Message",
       ];
 
-      // Convert filtered data ke CSV format
       const csvData = filteredTVs.map((tv) => [
         tv.roomNo || "",
         tv.ipAddress || "",
@@ -368,13 +305,11 @@ export default function TvPage() {
         tv.error || "",
       ]);
 
-      // Gabungkan header dan data
       const csvContent = [headers, ...csvData]
         .map((row) =>
           row
             .map((field) => {
               const stringField = String(field);
-              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
               if (
                 stringField.includes(",") ||
                 stringField.includes('"') ||
@@ -389,7 +324,6 @@ export default function TvPage() {
         )
         .join("\n");
 
-      // Buat file dan download
       const bom = "\uFEFF";
       const blob = new Blob([bom + csvContent], {
         type: "text/csv;charset=utf-8;",
@@ -400,7 +334,6 @@ export default function TvPage() {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
 
-        // Generate filename dengan timestamp
         const timestamp = new Date()
           .toISOString()
           .slice(0, 19)
@@ -422,54 +355,62 @@ export default function TvPage() {
     }
   }, [filteredTVs, exportLoading]);
 
-  const getVisiblePages = useCallback(
-    (currentPage: number, totalPages: number, screenSize: string) => {
-      let maxVisiblePages: number;
-      let showFirstLast: boolean;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-      switch (screenSize) {
-        case "mobile":
-          maxVisiblePages = 3;
-          showFirstLast = false;
-          break;
-        case "tablet":
-          maxVisiblePages = 5;
-          showFirstLast = true;
-          break;
-        default: // desktop
-          maxVisiblePages = 7;
-          showFirstLast = true;
-          break;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
       }
+    };
 
-      let startPage = Math.max(
-        1,
-        currentPage - Math.floor(maxVisiblePages / 2)
-      );
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
 
-      // Adjust start page if we're near the end
-      if (endPage - startPage < maxVisiblePages - 1) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([fetchTVs(), fetchStats()]);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      return {
-        startPage,
-        endPage,
-        maxVisiblePages,
-        showFirstLast,
-        showEllipsis: {
-          start: showFirstLast && startPage > 2,
-          end: showFirstLast && endPage < totalPages - 1,
-        },
-      };
-    },
-    []
-  );
+    loadData();
+
+    // Auto-refresh every 2 minutes
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchTVs();
+        fetchStats();
+      }
+    }, 120000);
+
+    return () => clearInterval(interval);
+  }, [mounted, fetchTVs, fetchStats]);
 
   if (!mounted || loading) {
     return (
-      <div className="p-6 bg-blue-50 min-h-screen">
+      <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-3 text-gray-600">Loading TVs...</span>
@@ -479,22 +420,22 @@ export default function TvPage() {
   }
 
   return (
-    <div className="p-6 bg-blue-50 min-h-screen">
+    <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium mb-1">
+                <p className="text-xs sm:text-sm text-gray-600 font-medium mb-1">
                   Total TVs
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {stats.totalTVs || 0}
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
-                <ComputerDesktopIcon className="w-8 h-8 text-blue-600" />
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                <ComputerDesktopIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
             </div>
           </div>
@@ -566,31 +507,31 @@ export default function TvPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
-        <div className="flex flex-col space-y-4">
-          {/* Search Section */}
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-            <div className="relative flex-1 max-w-md">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6 backdrop-blur-sm">
+        <div className="flex flex-col space-y-3 sm:space-y-4">
+          {/* Search Section - Stack pada mobile */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by room number or IP address..."
+                placeholder="Search room or IP..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
+                className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 flex-wrap">
+            {/* Action Buttons - Stack pada mobile */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               {/* Status Filter */}
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[120px] justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                  <button className="flex items-center justify-between w-full sm:w-auto gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-0 sm:min-w-[120px]">
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
                       {statusFilter}
                     </span>
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                    <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                   </button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
@@ -617,17 +558,17 @@ export default function TvPage() {
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
 
-              {/* Action Buttons */}
+              {/* Action Buttons - Stack on mobile */}
               <div className="flex gap-2">
                 {/* Export Button */}
                 <button
                   onClick={exportToCSV}
                   disabled={exportLoading || filteredTVs.length === 0}
-                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                 >
-                  <ArrowDownTrayIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium hidden sm:inline">
-                    {exportLoading ? "Exporting..." : "Export CSV"}
+                  <ArrowDownTrayIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-xs sm:text-sm font-medium">
+                    {exportLoading ? "..." : "Export"}
                   </span>
                 </button>
 
@@ -635,13 +576,15 @@ export default function TvPage() {
                 <button
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                 >
                   <ArrowPathIcon
-                    className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                      refreshing ? "animate-spin" : ""
+                    }`}
                   />
-                  <span className="text-sm font-medium">
-                    {refreshing ? "Refreshing..." : "Refresh"}
+                  <span className="text-xs sm:text-sm font-medium">
+                    {refreshing ? "..." : "Refresh"}
                   </span>
                 </button>
               </div>
@@ -746,70 +689,97 @@ export default function TvPage() {
         <div className="md:hidden divide-y divide-gray-100">
           {paginationData.paginatedTVs.map((tv, index) => (
             <div
-              key={`mobile-card-${tv.id}-${tv.roomNo}-${index}`}
-              className="p-4 hover:bg-gray-50 transition-colors"
+              key={`mobile-tv-${tv.id || tv.roomNo || index}`}
+              className="p-3 sm:p-4 hover:bg-gray-50 transition-colors"
             >
               <div onClick={() => handleTvClick(tv)} className="cursor-pointer">
+                {/* Header dengan TV info */}
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                      <span className="text-xs font-bold text-white">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    {/* TV Icon */}
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                      <span className="text-xs sm:text-sm font-bold text-white">
                         {tv.roomNo || "-"}
                       </span>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">
+
+                    {/* TV Info */}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">
                         Room {tv.roomNo || "Unknown"}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500 truncate">
                         {tv.model || "Samsung Hospitality"}
                       </p>
                     </div>
                   </div>
-                  <StatusBadge
-                    status={tv.status}
-                    responseTime={tv.responseTime}
-                  />
+
+                  {/* Status Badge */}
+                  <div className="flex-shrink-0 ml-2">
+                    <StatusBadge
+                      status={tv.status}
+                      responseTime={tv.responseTime}
+                      isMobile={true}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">IP Address:</span>
-                    <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs break-all">
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-gray-500 font-medium">
+                      IP Address:
+                    </span>
+                    <code className="text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs font-mono break-all">
                       {tv.ipAddress || "N/A"}
                     </code>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Last Checked:</span>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-gray-500 font-medium">
+                      Last Checked:
+                    </span>
                     <DateFormatter
                       date={tv.lastChecked}
                       fallback="Never checked"
                       className="text-xs text-gray-600"
                     />
                   </div>
+                  {tv.responseTime && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-gray-500 font-medium">
+                        Response:
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        {tv.responseTime}ms
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Action Button */}
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
-                  key={`mobile-action-${tv.roomNo}-${index}-${Date.now()}`} // Dynamic key to prevent conflicts
-                  onClick={() => checkTVStatus(tv.roomNo)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    checkTVStatus(tv.roomNo);
+                  }}
                   disabled={!tv.roomNo || checkingId === tv.roomNo}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   <ArrowPathIcon
-                    className={`w-4 h-4 ${
+                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
                       checkingId === tv.roomNo ? "animate-spin" : ""
                     }`}
                   />
                   {checkingId === tv.roomNo ? "Checking..." : "Check Now"}
                 </button>
 
-                {/* Error message */}
+                {/* Error Message */}
                 {tv.error && (
                   <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-xs text-red-600 break-words">
-                      {tv.error}
+                      Error: {tv.error}
                     </p>
                   </div>
                 )}
@@ -818,16 +788,16 @@ export default function TvPage() {
           ))}
         </div>
 
-        {/* Empty State */}
+        {/* Empty state - mobile friendly */}
         {filteredTVs.length === 0 && (
-          <div className="text-center py-16 px-4">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
-              <ComputerDesktopIcon className="w-10 h-10 text-gray-400" />
+          <div className="text-center py-8 sm:py-16 px-4">
+            <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <ComputerDesktopIcon className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
               No TVs found
             </h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto text-sm">
+            <p className="text-gray-500 mb-4 sm:mb-6 max-w-md mx-auto text-sm px-2">
               {searchTerm
                 ? `No TVs match "${searchTerm}". Try adjusting your search terms.`
                 : "No TVs available with current filters. Try changing your filter settings."}
@@ -850,23 +820,13 @@ export default function TvPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
-          <div
-            className={`flex items-center justify-between gap-2 sm:gap-4 ${
-              screenSize === "mobile"
-                ? "flex-col space-y-3"
-                : "flex-col sm:flex-row"
-            }`}
-          >
+        <div className="mt-4 sm:mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
             {/* Info Text */}
-            <div
-              className={`text-xs sm:text-sm text-gray-600 ${
-                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
-              }`}
-            >
-              {screenSize === "mobile" ? (
-                // Compact info for mobile
-                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+            <div className="order-2 sm:order-1">
+              <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                {/* Mobile: Compact info */}
+                <div className="sm:hidden bg-gray-50 px-3 py-2 rounded-lg border">
                   <span className="font-medium">
                     Page {currentPage} of {paginationData.totalPages}
                   </span>
@@ -875,9 +835,8 @@ export default function TvPage() {
                     of {filteredTVs.length} TVs)
                   </span>
                 </div>
-              ) : (
-                // Full info for tablet/desktop
-                <>
+                {/* Desktop: Full info */}
+                <div className="hidden sm:block">
                   Showing{" "}
                   <span className="font-semibold text-gray-900">
                     {paginationData.startIndex + 1}
@@ -891,84 +850,47 @@ export default function TvPage() {
                     {filteredTVs.length}
                   </span>{" "}
                   TVs
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
-            {/* Pagination Controls */}
-            <div
-              className={`flex items-center gap-1 sm:gap-2 ${
-                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
-              }`}
-            >
+            {/* Pagination Controls - mobile friendly */}
+            <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className="flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                {screenSize !== "mobile" && (
-                  <span className="hidden sm:inline">Previous</span>
-                )}
-                {screenSize === "mobile" && (
-                  <span className="text-xs">Prev</span>
-                )}
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
               </button>
 
-              {/* Page Numbers - Fully Responsive */}
-              <div className="flex items-center gap-1">
+              {/* Page Numbers - mobile friendly */}
+              <div className="flex items-center gap-0.5 sm:gap-1 mx-1 sm:mx-2">
                 {(() => {
                   const { totalPages } = paginationData;
-                  const { startPage, endPage, showFirstLast, showEllipsis } =
-                    getVisiblePages(currentPage, totalPages, screenSize);
+                  const maxVisible = screenSize === "mobile" ? 3 : 5;
+                  let startPage = Math.max(
+                    1,
+                    currentPage - Math.floor(maxVisible / 2)
+                  );
+                  const endPage = Math.min(
+                    totalPages,
+                    startPage + maxVisible - 1
+                  );
 
-                  const pages = [];
-
-                  // First page + ellipsis (desktop/tablet only)
-                  if (showFirstLast && startPage > 1) {
-                    pages.push(
-                      <button
-                        key="page-1"
-                        onClick={() => handlePageChange(1)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === 1
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        1
-                      </button>
-                    );
-
-                    if (showEllipsis.start) {
-                      pages.push(
-                        <span
-                          key="ellipsis-start"
-                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
-                        >
-                          ...
-                        </span>
-                      );
-                    }
+                  if (endPage - startPage < maxVisible - 1) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
                   }
 
-                  // Main page numbers
+                  const pages = [];
                   for (let i = startPage; i <= endPage; i++) {
-                    // Skip if this is the last page and we'll add it separately
-                    if (
-                      showFirstLast &&
-                      i === totalPages &&
-                      totalPages > endPage
-                    )
-                      continue;
-
                     pages.push(
                       <button
-                        key={`page-${i}-${currentPage}`}
+                        key={`page-${i}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
                           currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
@@ -978,35 +900,6 @@ export default function TvPage() {
                       </button>
                     );
                   }
-
-                  // Ellipsis + last page (desktop/tablet only)
-                  if (showFirstLast && endPage < totalPages) {
-                    if (showEllipsis.end) {
-                      pages.push(
-                        <span
-                          key="ellipsis-end"
-                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
-                        >
-                          ...
-                        </span>
-                      );
-                    }
-
-                    pages.push(
-                      <button
-                        key="page-last"
-                        onClick={() => handlePageChange(totalPages)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === totalPages
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        {totalPages}
-                      </button>
-                    );
-                  }
-
                   return pages;
                 })()}
               </div>
@@ -1014,16 +907,10 @@ export default function TvPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className="flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
-                {screenSize !== "mobile" && (
-                  <span className="hidden sm:inline">Next</span>
-                )}
-                {screenSize === "mobile" && (
-                  <span className="text-xs">Next</span>
-                )}
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
                 <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
@@ -1032,11 +919,11 @@ export default function TvPage() {
       )}
 
       {/* Footer Info */}
-      <div className="mt-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+      <div className="mt-4 sm:mt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-4">
             {stats && stats.lastUpdated && (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 text-xs sm:text-sm">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 Last updated: <DateFormatter date={stats.lastUpdated} />
               </span>

@@ -1,11 +1,9 @@
-/* Update warna navbar dengan gradasi yang sesuai bg-blue-50 */
 .navbar {
-  width: 200px; /* Diperbesar dari 80px untuk menampung label */
+  width: 200px;
   height: 100vh;
   padding: var(--mantine-spacing-md);
   display: flex;
   flex-direction: column;
-  /* Gradasi warna baru yang sesuai dengan bg-blue-50 */
   background: linear-gradient(180deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
   box-shadow: 4px 0 20px rgba(30, 58, 138, 0.15);
   transition: width 0.3s ease;
@@ -14,10 +12,9 @@
 
 .navbarMain {
   flex: 1;
-  margin-top: 100px; /* Diubah dari 80px ke 100px untuk memberikan space dengan topbar */
+  margin-top: 100px;
 }
 
-/* Perbaikan link hover effects */
 .link {
   width: 50px;
   height: 50px;
@@ -47,20 +44,21 @@
     color: #ffffff;
     transform: translateX(4px) scale(1.05);
     box-shadow: 0 8px 25px rgba(30, 58, 138, 0.3);
-    
+
     &::before {
       opacity: 1;
     }
   }
 
   &[data-active] {
+
     &,
     &:hover {
       background: linear-gradient(135deg, #ffffff, #f8fafc);
       color: #1e3a8a;
       box-shadow: 0 10px 30px rgba(30, 58, 138, 0.4);
       transform: translateX(8px) scale(1.08);
-      
+
       &::after {
         content: '';
         position: absolute;
@@ -79,7 +77,8 @@
 /* Tablet styles */
 @media (max-width: 768px) {
   .navbar {
-    width: 200px; /* Konsisten dengan desktop untuk tablet */
+    width: 200px;
+    /* Konsisten dengan desktop untuk tablet */
     padding: var(--mantine-spacing-sm);
   }
 
@@ -99,7 +98,7 @@
   }
 }
 
-/* Mobile styles - Bottom navigation - update warna */
+/* Mobile styles - Bottom navigation */
 @media (max-width: 640px) {
   .navbar {
     width: calc(100% - 40px);
@@ -115,17 +114,13 @@
     transform: translateY(0);
     padding: var(--mantine-spacing-sm);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
-    /* ✨ WARNA BARU - Gradasi horizontal yang modern */
     background: linear-gradient(90deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%);
     border-radius: var(--mantine-radius-lg);
     align-items: center;
     justify-content: space-between;
-    /* ✨ SHADOW BARU - Multi-layer dengan blue tones */
     box-shadow: 0 -4px 25px rgba(30, 58, 138, 0.3), 0 0 40px rgba(30, 58, 138, 0.1);
-    /* ✨ BORDER BARU - Lebih terang untuk glassmorphism */
     border: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 1000;
-    /* ✨ BACKDROP BLUR ENHANCED */
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     visibility: visible;
@@ -158,20 +153,20 @@
     margin-right: 8px;
     color: var(--mantine-color-white);
     background-color: transparent;
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0;
+    /* Prevent shrinking */
 
     &:hover {
-      /* ✨ HOVER EFFECT BARU */
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
       transform: translateY(-2px) scale(1.05);
     }
 
     &[data-active] {
+
       &,
       &:hover {
         background: linear-gradient(135deg, #ffffff, #f8fafc);
         color: #1e3a8a;
-        /* ✨ SHADOW BARU untuk active state */
         box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4);
         transform: translateY(-3px) scale(1.1);
       }
@@ -216,7 +211,7 @@
     bottom: 10px;
     height: 65px;
   }
-  
+
   .link {
     width: 40px;
     height: 40px;
@@ -249,6 +244,7 @@
     transform: translateY(100px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -260,6 +256,7 @@
     transform: translateY(0);
     opacity: 1;
   }
+
   to {
     transform: translateY(100px);
     opacity: 0;
@@ -304,20 +301,21 @@
     color: #ffffff;
     transform: translateX(6px);
     box-shadow: 0 8px 25px rgba(30, 58, 138, 0.25);
-    
+
     &::before {
       opacity: 1;
     }
   }
 
   &[data-active] {
+
     &,
     &:hover {
       background: linear-gradient(135deg, #ffffff, #f8fafc);
       color: #1e3a8a;
       box-shadow: 0 10px 30px rgba(30, 58, 138, 0.3);
       transform: translateX(0);
-      
+
       &::after {
         content: '';
         position: absolute;

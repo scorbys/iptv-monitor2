@@ -9,7 +9,6 @@ interface PageProps {
   }>;
 }
 
-// Loading component
 function ChannelDetailLoading() {
   return (
     <div className="p-6 bg-blue-50 min-h-screen">
@@ -21,7 +20,6 @@ function ChannelDetailLoading() {
   );
 }
 
-// Error fallback component
 function ChannelDetailError({ channelId }: { channelId: string }) {
   return (
     <div className="layout-wrapper">
@@ -62,7 +60,6 @@ export default async function ChannelDetail({ params }: PageProps) {
   const resolvedParams = await params;
   const channelId = resolvedParams.id;
 
-  // Enhanced validation - check for various invalid states
   if (
     !channelId ||
     channelId.trim() === "" ||
@@ -72,11 +69,9 @@ export default async function ChannelDetail({ params }: PageProps) {
     return <ChannelDetailError channelId={channelId || "undefined"} />;
   }
 
-  // Properly decode the device ID to handle special characters and spaces
   let decodedChannelId: string;
   try {
     decodedChannelId = decodeURIComponent(channelId);
-    // Additional validation after decoding
     if (!decodedChannelId || decodedChannelId.trim() === "") {
       return <ChannelDetailError channelId={channelId} />;
     }
@@ -85,8 +80,6 @@ export default async function ChannelDetail({ params }: PageProps) {
     return <ChannelDetailError channelId={channelId} />;
   }
 
-  // Pass channelId as-is - let the ChannelDetailsPage component handle decoding
-  // This prevents double-decoding issues
   return (
     <Suspense fallback={<ChannelDetailLoading />}>
       <ChannelDetailClient channelId={decodedChannelId} />

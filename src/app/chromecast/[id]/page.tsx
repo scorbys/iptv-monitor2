@@ -9,7 +9,6 @@ interface PageProps {
   }>;
 }
 
-// Loading component
 function ChromecastDetailLoading() {
   return (
     <div className="p-6 bg-blue-50 min-h-screen">
@@ -21,7 +20,6 @@ function ChromecastDetailLoading() {
   );
 }
 
-// Error fallback component
 function ChromecastDetailError({ deviceId }: { deviceId: string }) {
   return (
     <div className="layout-wrapper">
@@ -30,9 +28,12 @@ function ChromecastDetailError({ deviceId }: { deviceId: string }) {
       <div className="scrollable-content">
         <div className="flex-1 p-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Invalid Device ID</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Invalid Device ID
+            </h3>
             <p className="text-gray-600">
-              Device ID &quot{deviceId}&quot is invalid. Please select a valid Chromecast device.
+              Device ID &quot{deviceId}&quot is invalid. Please select a valid
+              Chromecast device.
             </p>
           </div>
         </div>
@@ -41,27 +42,27 @@ function ChromecastDetailError({ deviceId }: { deviceId: string }) {
   );
 }
 
-// Main component - now async to handle params properly
 export default async function ChromecastDetail({ params }: PageProps) {
-  // Await params before using - required in Next.js 15
   const resolvedParams = await params;
   const deviceId = resolvedParams.id;
 
-  // Enhanced validation
-  if (!deviceId || deviceId.trim() === '' || deviceId === 'undefined' || deviceId === 'null') {
-    return <ChromecastDetailError deviceId={deviceId || 'undefined'} />;
+  if (
+    !deviceId ||
+    deviceId.trim() === "" ||
+    deviceId === "undefined" ||
+    deviceId === "null"
+  ) {
+    return <ChromecastDetailError deviceId={deviceId || "undefined"} />;
   }
 
-  // Properly decode the device ID to handle special characters and spaces
   let decodedDeviceId: string;
   try {
     decodedDeviceId = decodeURIComponent(deviceId);
-    // Additional validation after decoding
-    if (!decodedDeviceId || decodedDeviceId.trim() === '') {
+    if (!decodedDeviceId || decodedDeviceId.trim() === "") {
       return <ChromecastDetailError deviceId={deviceId} />;
     }
   } catch (error) {
-    console.error('Error decoding device ID:', error);
+    console.error("Error decoding device ID:", error);
     return <ChromecastDetailError deviceId={deviceId} />;
   }
 
@@ -84,16 +85,16 @@ export async function generateMetadata({ params }: PageProps) {
   try {
     const resolvedParams = await params;
     const deviceName = decodeURIComponent(resolvedParams.id);
-    
+
     return {
       title: `Chromecast - ${deviceName}`,
       description: `Monitor and manage Chromecast device: ${deviceName}`,
     };
   } catch (error) {
-    console.error('Error generating metadata:', error);
+    console.error("Error generating metadata:", error);
     return {
-      title: 'Chromecast Device',
-      description: 'Monitor and manage Chromecast device',
+      title: "Chromecast Device",
+      description: "Monitor and manage Chromecast device",
     };
   }
 }

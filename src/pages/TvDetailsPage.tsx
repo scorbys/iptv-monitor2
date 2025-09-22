@@ -17,7 +17,7 @@ import {
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
-import { DateFormatter } from "../components/DateFormatter";
+import { DateFormatter } from "@/components/DateFormatter";
 import {
   XAxis,
   YAxis,
@@ -134,7 +134,6 @@ interface StatusBadgeProps {
   };
 }
 
-// FAQ Data for TV issues
 const faqData: FAQ[] = [
   {
     id: 2,
@@ -186,7 +185,6 @@ const faqData: FAQ[] = [
   },
 ];
 
-// Generate random network data
 const generateRandomNetworkData = (): NetworkMetrics => {
   return {
     sent: (Math.random() * 8 + 2).toFixed(2),
@@ -200,7 +198,6 @@ const generateRandomNetworkData = (): NetworkMetrics => {
   };
 };
 
-// Generate historical data
 const generateHistoricalData = (
   timeRange: string,
   isOnline: boolean
@@ -274,7 +271,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     null
   );
 
-  // Network metrics state
   const [networkMetrics, setNetworkMetrics] = useState<NetworkMetrics | null>(
     null
   );
@@ -392,7 +388,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     return () => clearInterval(interval);
   }, [tvs, mounted]);
 
-  // Function untuk handle tab change
   const handleTabChange = async (newTab: string) => {
     if (!tvs) return;
 
@@ -415,7 +410,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
-  // Error handling function
   const handleApiError = (error: unknown, context: string) => {
     console.error(`Error in ${context}:`, error);
 
@@ -438,7 +432,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
-  // Fetch TV details
   useEffect(() => {
     if (!mounted || !tvId) return;
 
@@ -519,7 +512,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     fetchTvDetails();
   }, [tvId, mounted]);
 
-  // Generate device status based on device data
   const generateDeviceStatus = (deviceData: TVDetail) => {
     const status: DeviceStatus = {
       power: deviceData.status === "online" ? "working" : "error",
@@ -531,7 +523,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     setTvStatus(status);
   };
 
-  // Check tv status function
   const handleCheckTV = async () => {
     if (!tvs || checking) return;
 
@@ -570,7 +561,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
-  // Troubleshooting detection function
   const detectIssues = () => {
     if (!tvs) return [];
 
@@ -595,7 +585,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   const detectedIssues = useMemo(() => detectIssues(), [tvs]);
 
-  // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
     try {
       console.log("Attempting automated repair for:", issue.issue);
@@ -613,7 +602,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
-  // Fetch network history
   const fetchNetworkHistory = async (
     tvIdentifier: string,
     timeRange = "24h"
@@ -753,7 +741,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         | "speed"
         | "data_sent"
         | "data_received"
-        | "packetLoss"; // Tambahkan packetLoss type
+        | "packetLoss";
       unit: string;
       label: string;
       isOnline?: boolean;
@@ -761,13 +749,17 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       // Jika device offline, tampilkan gray dengan nilai 0
       if (!isOnline) {
         return (
-          <div className="text-center p-3 bg-white rounded-lg border border-gray-200">
+          <div className="text-center p-2 sm:p-3 bg-white rounded-lg border border-gray-200">
             <div className="flex items-center justify-center mb-1">
-              <p className="text-2xl font-bold text-gray-400">0{unit}</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-400">
+                0{unit}
+              </p>
             </div>
-            <p className="text-xs font-medium text-gray-400">{label}</p>
+            <p className="text-xs font-medium text-gray-400 mb-1 truncate">
+              {label}
+            </p>
             <div className="mt-1">
-              <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded-full">
+              <span className="text-xs text-gray-400 bg-gray-200 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                 Offline
               </span>
             </div>
@@ -885,16 +877,20 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       return (
         <div
-          className={`text-center p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
+          className={`text-center p-2 sm:p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
         >
           <div className="flex items-center justify-center mb-1">
-            <p className={`text-2xl font-bold ${statusColors.textColor}`}>
+            <p
+              className={`text-lg sm:text-2xl font-bold ${statusColors.textColor}`}
+            >
               {value}
               {unit}
             </p>
             {previousValue && <TrendIndicator trend={trend.direction} />}
           </div>
-          <p className={`text-xs font-medium ${statusColors.textColor} mb-2`}>
+          <p
+            className={`text-xs font-medium ${statusColors.textColor} mb-1 sm:mb-2 truncate`}
+          >
             {label}
           </p>
         </div>
@@ -904,7 +900,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   MetricCard.displayName = "MetricCard";
 
-  // StatusBadge component
   const StatusBadge: React.FC<StatusBadgeProps> = ({
     status,
     label,
@@ -916,46 +911,48 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     const isWorking = status === "working";
     return (
       <div
-        className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
+        className={`flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
           isWorking
             ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:shadow-sm"
             : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
         }`}
       >
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
           <div
-            className={`p-2 rounded-lg ${
+            className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
               isWorking ? "bg-green-100" : "bg-red-100"
             }`}
           >
             <Icon
-              className={`w-4 h-4 ${
+              className={`w-3 h-3 sm:w-4 sm:h-4 ${
                 isWorking ? "text-green-600" : "text-red-600"
               }`}
             />
           </div>
-          <div>
-            <span className="text-sm font-semibold text-gray-900">{label}</span>
+          <div className="min-w-0 flex-1">
+            <span className="text-xs sm:text-sm font-semibold text-gray-900 block truncate">
+              {label}
+            </span>
             {value && (
-              <div className="text-xs text-gray-600 mt-1">
+              <div className="text-xs text-gray-600 mt-1 truncate">
                 {value} {unit}
               </div>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2">
             {isWorking ? (
               <>
-                <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                <span className="text-xs font-semibold text-green-700">
+                <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+                <span className="text-xs font-semibold text-green-700 hidden sm:inline">
                   Working
                 </span>
               </>
             ) : (
               <>
-                <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
-                <span className="text-xs font-semibold text-red-700">
+                <ExclamationTriangleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
+                <span className="text-xs font-semibold text-red-700 hidden sm:inline">
                   Error
                 </span>
               </>
@@ -964,7 +961,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           {action && (
             <button
               onClick={action.onClick}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+              className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
                 action.type === "repair"
                   ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -978,7 +975,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     );
   };
 
-  // Custom Tooltip for chart
   const CustomTooltip: React.FC<CustomTooltipProps> = ({
     active,
     payload,
@@ -1045,74 +1041,76 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   if (error) {
     return (
-      <div className="p-6 bg-blue-50 min-h-screen">
+      <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
+          <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
             <button
               onClick={() => router.push("/hospitality")}
-              className="hover:text-blue-600 transition-colors"
+              className="hover:text-blue-600 transition-colors truncate"
             >
               Hospitality TV
             </button>
-            <ChevronRightIcon className="w-4 h-4" />
-            <span className="text-gray-400">Error</span>
+            <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="text-gray-400 truncate">Error</span>
           </nav>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <div className="text-center mb-6">
-              <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
+            <div className="text-center mb-4 sm:mb-6">
+              <ExclamationTriangleIcon className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto mb-3 sm:mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                 TV Not Found
               </h3>
-              <p className="text-gray-600 mb-6">{error}</p>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 px-2">
+                {error}
+              </p>
             </div>
 
-            {/* Debug Information */}
+            {/* Debug Information - stack di mobile */}
             {debugInfo && (
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-6 mb-4 sm:mb-6">
+                <h4 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">
                   Debug Information:
                 </h4>
-                <div className="space-y-3 text-sm">
-                  <div>
+                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                     <span className="font-medium">Searching for:</span>
-                    <code className="ml-2 bg-gray-200 px-2 py-1 rounded">
+                    <code className="bg-gray-200 px-2 py-1 rounded text-xs break-all">
                       {debugInfo.searchingFor}
                     </code>
                   </div>
 
                   {debugInfo.exactMatch && (
-                    <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                       <span className="font-medium text-green-600">
                         Exact match found:
                       </span>
-                      <code className="ml-2 bg-green-100 px-2 py-1 rounded">
+                      <code className="bg-green-100 px-2 py-1 rounded text-xs">
                         {debugInfo.exactMatch.roomNo}
                       </code>
                     </div>
                   )}
 
-                  <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                     <span className="font-medium">Total TVs available:</span>
-                    <span className="ml-2">{debugInfo.totalDevices}</span>
+                    <span>{debugInfo.totalDevices}</span>
                   </div>
 
                   {debugInfo.availableDevices &&
                     debugInfo.availableDevices.length > 0 && (
                       <div>
-                        <span className="font-medium">
+                        <span className="font-medium block mb-2">
                           Sample room numbers:
                         </span>
-                        <ul className="mt-2 ml-4 space-y-1">
+                        <ul className="ml-2 sm:ml-4 space-y-1">
                           {debugInfo.availableDevices
                             .slice(0, 5)
                             .map((tvs, index) => (
                               <li
                                 key={index}
-                                className="flex items-center space-x-2"
+                                className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2"
                               >
-                                <code className="bg-gray-200 px-2 py-1 rounded text-xs">
+                                <code className="bg-gray-200 px-2 py-1 rounded text-xs break-all">
                                   {tvs.roomNo || "Unnamed"}
                                 </code>
                                 <span className="text-gray-500 text-xs">
@@ -1141,10 +1139,12 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                 <ArrowLeftIcon className="w-4 h-4 mr-2" />
                 Back to TV List
               </button>
-              <div className="text-sm text-gray-500">
+              <div className="text-xs sm:text-sm text-gray-500 px-4">
                 <p>
                   Room Number:{" "}
-                  <code className="bg-gray-100 px-2 py-1 rounded">{tvId}</code>
+                  <code className="bg-gray-100 px-2 py-1 rounded break-all">
+                    {tvId}
+                  </code>
                 </p>
                 <p className="mt-1">
                   If this TV should exist, please check the room number or
@@ -1160,39 +1160,38 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   if (!tvs) return null;
 
-  // Show troubleshooting panel
   if (showTroubleshooting) {
     return (
-      <div className="p-6 bg-blue-50 min-h-screen">
+      <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
+          <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
             <button
               onClick={() => router.push("/hospitality")}
-              className="hover:text-blue-600 transition-colors"
+              className="hover:text-blue-600 transition-colors truncate"
             >
               Hospitality TV
             </button>
-            <ChevronRightIcon className="w-4 h-4" />
+            <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
             <button
               onClick={() => setShowTroubleshooting(false)}
-              className="hover:text-blue-600 transition-colors"
+              className="hover:text-blue-600 transition-colors truncate"
             >
               Room {tvs.roomNo}
             </button>
-            <ChevronRightIcon className="w-4 h-4" />
-            <span className="text-gray-400">Troubleshooting</span>
+            <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="text-gray-400 truncate">Troubleshooting</span>
           </nav>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             {/* Header */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
                     Troubleshooting Issues
                   </h1>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">
                     Detected {detectedIssues.length} issue
                     {detectedIssues.length !== 1 ? "s" : ""} with Room{" "}
                     {tvs.roomNo}
@@ -1200,36 +1199,36 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                 </div>
                 <button
                   onClick={() => setShowTroubleshooting(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                 >
-                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                  <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                 </button>
               </div>
             </div>
 
             {/* Issues List */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               {detectedIssues.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div className="text-center py-6 sm:py-8">
+                  <CheckCircleIcon className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                     No Issues Detected
                   </h3>
-                  <p className="text-gray-600">
-                    The TV appears to be working normally.
+                  <p className="text-sm sm:text-base text-gray-600">
+                    The chromecast appears to be working normally.
                   </p>
                 </div>
               ) : (
                 detectedIssues.map((issue) => (
                   <div
                     key={issue.id}
-                    className="border border-gray-200 rounded-xl p-6 bg-gradient-to-br from-white to-gray-50"
+                    className="border border-gray-200 rounded-xl p-4 sm:p-6 bg-gradient-to-br from-white to-gray-50"
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-2 sm:gap-3 mb-2">
                           <div
-                            className={`p-2 rounded-lg ${
+                            className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
                               issue.priority === "High"
                                 ? "bg-red-100"
                                 : issue.priority === "Medium"
@@ -1238,7 +1237,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                             }`}
                           >
                             <WrenchScrewdriverIcon
-                              className={`w-5 h-5 ${
+                              className={`w-4 h-4 sm:w-5 sm:h-5 ${
                                 issue.priority === "High"
                                   ? "text-red-600"
                                   : issue.priority === "Medium"
@@ -1247,18 +1246,18 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                               }`}
                             />
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 text-lg">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-lg break-words">
                               {issue.issue}
                             </h3>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-xs sm:text-sm text-gray-600 mt-1">
                               {issue.category}
                             </p>
                           </div>
                         </div>
                       </div>
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
                           issue.priority === "High"
                             ? "bg-red-100 text-red-800"
                             : issue.priority === "Medium"
@@ -1266,38 +1265,38 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {issue.priority} Priority
+                        {issue.priority}
                       </span>
                     </div>
 
-                    <div className="mb-6">
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <DocumentTextIcon className="w-4 h-4 mr-2 text-blue-600" />
+                    <div className="mb-4 sm:mb-6">
+                      <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 flex items-center text-sm sm:text-base">
+                        <DocumentTextIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-2 text-blue-600" />
                         Recommended Solutions:
                       </h4>
-                      <div className="bg-blue-50 rounded-lg p-4">
+                      <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
                         <ul className="space-y-2">
                           {issue.solutions.map((solution, index) => (
                             <li
                               key={index}
-                              className="flex items-start text-sm text-gray-700"
+                              className="flex items-start text-xs sm:text-sm text-gray-700"
                             >
-                              <span className="inline-block w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-medium flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                              <span className="inline-block w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-medium flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
                                 {index + 1}
                               </span>
-                              <span>{solution}</span>
+                              <span className="break-words">{solution}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200">
                       {issue.actionType === "System" ? (
                         <button
                           onClick={() => handleRepairAction(issue)}
                           disabled={checking}
-                          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
+                          className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                         >
                           <WrenchScrewdriverIcon
                             className={`w-4 h-4 mr-2 ${
@@ -1307,9 +1306,12 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                           {checking ? "Repairing..." : "Auto Repair"}
                         </button>
                       ) : (
-                        <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 text-sm font-medium rounded-xl border border-orange-200">
+                        <div className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 text-sm font-medium rounded-xl border border-orange-200">
                           <WrenchScrewdriverIcon className="w-4 h-4 mr-2" />
-                          On-Site Service Required
+                          <span className="hidden sm:inline">
+                            On-Site Service Required
+                          </span>
+                          <span className="sm:hidden">On-Site Required</span>
                         </div>
                       )}
 
@@ -1317,10 +1319,13 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                         onClick={() =>
                           router.push(`/help/details/${issue.slug}`)
                         }
-                        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 text-sm font-medium rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 border border-blue-200"
+                        className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 text-sm font-medium rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 border border-blue-200"
                       >
                         <DocumentTextIcon className="w-4 h-4 mr-2" />
-                        View Detailed Guide
+                        <span className="hidden sm:inline">
+                          View Detailed Guide
+                        </span>
+                        <span className="sm:hidden">View Guide</span>
                       </button>
                     </div>
                   </div>
@@ -1334,24 +1339,123 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   }
 
   return (
-    <div className="p-6 bg-blue-50 min-h-screen">
+    <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
       <div className="max-w-6xl mx-auto">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
+        <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
           <button
             onClick={() => router.push("/hospitality")}
-            className="hover:text-blue-600 transition-colors"
+            className="hover:text-blue-600 transition-colors truncate"
           >
             Hospitality TV
           </button>
-          <ChevronRightIcon className="w-4 h-4" />
-          <span className="text-gray-400">Room {tvs.roomNo}</span>
+          <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="text-gray-400 truncate">Room {tvs.roomNo}</span>
         </nav>
 
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          {/* Table Layout */}
-          <div className="overflow-x-auto">
+        {/* Header Table - stack di mobile */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6">
+          {/* Mobile Card Layout */}
+          <div className="block sm:hidden">
+            <div className="space-y-4">
+              {/* TV Info */}
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 h-10 w-10">
+                  <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <ComputerDesktopIcon className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    Room {tvs.roomNo}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {tvs.model || "Samsung Hospitality"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Network Info */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">IP Address</span>
+                  <code className="text-xs text-gray-900 font-mono px-2 py-1 bg-gray-100 rounded">
+                    {tvs.ipAddress || "N/A"}
+                  </code>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Response Time</span>
+                  <div className="flex items-center">
+                    <SignalIcon
+                      className={`h-3 w-3 mr-1 ${
+                        tvs.status === "online"
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    />
+                    <span className="text-xs text-gray-700">
+                      {tvs.responseTime || 0}ms
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Info */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Status</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        tvs.status === "online"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                          tvs.status === "online"
+                            ? "bg-green-500"
+                            : "bg-red-500"
+                        }`}
+                      ></div>
+                      {tvs.status
+                        ? tvs.status.charAt(0).toUpperCase() +
+                          tvs.status.slice(1)
+                        : "Unknown"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Last Checked</span>
+                  <DateFormatter
+                    date={tvs.lastChecked}
+                    fallback="Never checked"
+                    className="text-xs text-gray-600"
+                  />
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <div className="pt-2 border-t border-gray-100">
+                <button
+                  onClick={handleCheckTV}
+                  disabled={checking}
+                  className="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                >
+                  <ArrowPathIcon
+                    className={`w-4 h-4 mr-2 ${checking ? "animate-spin" : ""}`}
+                  />
+                  {checking ? "Checking..." : "Check Status"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Table Layout */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -1452,55 +1556,56 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Main Grid - stack di mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-6">
             {/* Network Performance Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                   Network Performance
                 </h2>
-                <div className="flex items-center space-x-2 text-sm">
+                <div className="flex items-center space-x-1 sm:space-x-2 text-sm">
                   <button
                     onClick={() => handleTabChange("1h")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors text-xs sm:text-sm ${
                       activeTab === "1h"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
                     }`}
                   >
-                    Hourly
+                    1H
                   </button>
                   <button
                     onClick={() => handleTabChange("24h")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors text-xs sm:text-sm ${
                       activeTab === "24h"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
                     }`}
                   >
-                    Daily
+                    24H
                   </button>
                   <button
                     onClick={() => handleTabChange("7d")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors text-xs sm:text-sm ${
                       activeTab === "7d"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
                     }`}
                   >
-                    Weekly
+                    7D
                   </button>
                 </div>
               </div>
 
               {/* Chart Area */}
-              <div className="h-64 mb-4">
+              <div className="h-48 sm:h-64 mb-4">
                 {loadingMetrics ? (
                   <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">
+                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 sm:ml-3 text-gray-600 text-sm">
                       Loading network data...
                     </span>
                   </div>
@@ -1508,7 +1613,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={networkHistory}
-                      margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
+                      margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
                     >
                       <defs>
                         <linearGradient
@@ -1589,8 +1694,8 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                 ) : (
                   <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
                     <div className="text-center">
-                      <SignalIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">
+                      <SignalIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">
                         Network performance data unavailable
                       </p>
                     </div>
@@ -1598,111 +1703,111 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                 )}
               </div>
 
-              {/* Stats Row */}
+              {/* Stats Grid */}
               {networkMetrics && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
-                  <MetricCard
-                    value={networkMetrics.jitter || 0}
-                    previousValue={previousMetrics?.jitter}
-                    type="latency"
-                    unit="ms"
-                    label="Jitter"
-                    isOnline={tvs.status === "online"}
-                  />
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-gray-200">
+                    <MetricCard
+                      value={networkMetrics.jitter || 0}
+                      previousValue={previousMetrics?.jitter}
+                      type="latency"
+                      unit="ms"
+                      label="Jitter"
+                      isOnline={tvs.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.ttl || 0}
-                    previousValue={previousMetrics?.ttl}
-                    type="bandwidth"
-                    unit=""
-                    label="TTL"
-                    isOnline={tvs.status === "online"}
-                  />
+                    <MetricCard
+                      value={networkMetrics.ttl || 0}
+                      previousValue={previousMetrics?.ttl}
+                      type="bandwidth"
+                      unit=""
+                      label="TTL"
+                      isOnline={tvs.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.packetLoss || 0}
-                    previousValue={previousMetrics?.packetLoss}
-                    type="packetLoss"
-                    unit="%"
-                    label="Packet Loss"
-                    isOnline={tvs.status === "online"}
-                  />
+                    <MetricCard
+                      value={networkMetrics.packetLoss || 0}
+                      previousValue={previousMetrics?.packetLoss}
+                      type="packetLoss"
+                      unit="%"
+                      label="Packet Loss"
+                      isOnline={tvs.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={parseFloat(networkMetrics?.sent || "0")}
-                    previousValue={
-                      previousMetrics?.sent
-                        ? parseFloat(previousMetrics.sent)
-                        : undefined
-                    }
-                    type="data_sent"
-                    unit="GB"
-                    label="Data Sent"
-                    isOnline={tvs.status === "online"}
-                  />
-                </div>
-              )}
+                    <MetricCard
+                      value={parseFloat(networkMetrics?.sent || "0")}
+                      previousValue={
+                        previousMetrics?.sent
+                          ? parseFloat(previousMetrics.sent)
+                          : undefined
+                      }
+                      type="data_sent"
+                      unit="GB"
+                      label="Data Sent"
+                      isOnline={tvs.status === "online"}
+                    />
+                  </div>
 
-              {/* Additional Network Metrics */}
-              {networkMetrics && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-                  <MetricCard
-                    value={networkMetrics?.hops || 0}
-                    previousValue={previousMetrics?.hops}
-                    type="latency"
-                    unit=""
-                    label="Hops"
-                    isOnline={tvs.status === "online"}
-                  />
+                  {/* Second row of metrics */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-gray-100">
+                    <MetricCard
+                      value={networkMetrics?.hops || 0}
+                      previousValue={previousMetrics?.hops}
+                      type="latency"
+                      unit=""
+                      label="Hops"
+                      isOnline={tvs.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.bandwidth || 0}
-                    previousValue={previousMetrics?.bandwidth}
-                    type="bandwidth"
-                    unit="Mbps"
-                    label="Bandwidth"
-                    isOnline={tvs.status === "online"}
-                  />
+                    <MetricCard
+                      value={networkMetrics.bandwidth || 0}
+                      previousValue={previousMetrics?.bandwidth}
+                      type="bandwidth"
+                      unit="Mbps"
+                      label="Bandwidth"
+                      isOnline={tvs.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics?.latency || tvs?.responseTime || 0}
-                    previousValue={previousMetrics?.latency}
-                    type="latency"
-                    unit="ms"
-                    label="Latency"
-                    isOnline={tvs.status === "online"}
-                  />
+                    <MetricCard
+                      value={networkMetrics?.latency || tvs?.responseTime || 0}
+                      previousValue={previousMetrics?.latency}
+                      type="latency"
+                      unit="ms"
+                      label="Latency"
+                      isOnline={tvs.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={parseFloat(networkMetrics?.received || "0")}
-                    previousValue={
-                      previousMetrics?.received
-                        ? parseFloat(previousMetrics.received)
-                        : undefined
-                    }
-                    type="data_received"
-                    unit="GB"
-                    label="Data Received"
-                    isOnline={tvs.status === "online"}
-                  />
-                </div>
+                    <MetricCard
+                      value={parseFloat(networkMetrics?.received || "0")}
+                      previousValue={
+                        previousMetrics?.received
+                          ? parseFloat(previousMetrics.received)
+                          : undefined
+                      }
+                      type="data_received"
+                      unit="GB"
+                      label="Data Received"
+                      isOnline={tvs.status === "online"}
+                    />
+                  </div>
+                </>
               )}
             </div>
 
             {/* Quick Actions Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Quick Actions
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <button
                   onClick={handleCheckTV}
                   disabled={checking}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 disabled:opacity-50"
+                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 disabled:opacity-50"
                 >
                   <div className="flex items-center">
                     <ArrowPathIcon
-                      className={`w-4 h-4 mr-3 ${
+                      className={`w-4 h-4 mr-2 sm:mr-3 ${
                         checking ? "animate-spin" : ""
                       }`}
                     />
@@ -1710,17 +1815,17 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                       {checking ? "Refreshing..." : "Refresh Status"}
                     </span>
                   </div>
-                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full hidden sm:block">
                     Real-time
                   </div>
                 </button>
 
                 <button
                   onClick={() => setShowTroubleshooting(true)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-orange-50 to-yellow-50 text-orange-700 border border-orange-200 rounded-xl hover:from-orange-100 hover:to-yellow-100 hover:border-orange-300 transition-all duration-200"
+                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm bg-gradient-to-r from-orange-50 to-yellow-50 text-orange-700 border border-orange-200 rounded-xl hover:from-orange-100 hover:to-yellow-100 hover:border-orange-300 transition-all duration-200"
                 >
                   <div className="flex items-center">
-                    <WrenchScrewdriverIcon className="w-4 h-4 mr-3" />
+                    <WrenchScrewdriverIcon className="w-4 h-4 mr-2 sm:mr-3" />
                     <span className="font-medium">Troubleshoot</span>
                   </div>
                   {detectedIssues.length > 0 && (
@@ -1732,10 +1837,10 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
                 <button
                   onClick={() => router.push("/help")}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200 rounded-xl hover:from-gray-100 hover:to-slate-100 hover:border-gray-300 transition-all duration-200"
+                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200 rounded-xl hover:from-gray-100 hover:to-slate-100 hover:border-gray-300 transition-all duration-200"
                 >
                   <div className="flex items-center">
-                    <DocumentTextIcon className="w-4 h-4 mr-3" />
+                    <DocumentTextIcon className="w-4 h-4 mr-2 sm:mr-3" />
                     <span className="font-medium">Help Guide</span>
                   </div>
                   <ChevronRightIcon className="w-3 h-3 text-gray-500" />
@@ -1745,24 +1850,24 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-6">
             {/* TV Status */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                     TV Status
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     Real-time connectivity monitoring
                   </p>
                 </div>
-                <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                <div className="text-xs text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded-full">
                   <DateFormatter date={new Date().toISOString()} />
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <StatusBadge
                   status={deviceStatus.power}
                   label="Power"
@@ -1806,31 +1911,31 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
             </div>
 
             {/* Issue Detection Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                     Issue Detection
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     Automated system diagnostics
                   </p>
                 </div>
               </div>
 
               {detectedIssues.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {detectedIssues.slice(0, 2).map((issue) => (
                     <div
                       key={issue.id}
-                      className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl"
+                      className="p-3 sm:p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl"
                     >
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div className="p-1.5 bg-red-100 rounded-lg">
-                          <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
+                      <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+                        <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg">
+                          <ExclamationTriangleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-red-900">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm font-semibold text-red-900 break-words">
                             {issue.issue}
                           </p>
                           <p className="text-xs text-red-700">
@@ -1843,7 +1948,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                           <button
                             onClick={() => handleRepairAction(issue)}
                             disabled={checking}
-                            className="flex-1 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                            className="flex-1 bg-red-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
                           >
                             {checking ? "Fixing..." : "Auto Fix"}
                           </button>
@@ -1861,19 +1966,19 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
                   <button
                     onClick={() => setShowTroubleshooting(true)}
-                    className="w-full bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                    className="w-full bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
                   >
                     View All Issues ({detectedIssues.length})
                   </button>
                 </div>
               ) : (
-                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-1.5 bg-green-100 rounded-lg">
-                      <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                <div className="p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="p-1 sm:p-1.5 bg-green-100 rounded-lg">
+                      <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-green-900">
+                      <p className="text-xs sm:text-sm font-semibold text-green-900">
                         All Systems Normal
                       </p>
                       <p className="text-xs text-green-700">

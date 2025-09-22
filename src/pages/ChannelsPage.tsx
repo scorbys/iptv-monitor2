@@ -13,7 +13,7 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import { DateFormatter } from "../components/DateFormatter";
+import { DateFormatter } from "@/components/DateFormatter";
 import { useRouter } from "next/navigation";
 
 interface Channel {
@@ -68,23 +68,8 @@ export default function ChannelsPage() {
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
   );
-
   const router = useRouter();
 
-  const handleChannelClick = useCallback(
-    (channel: Channel) => {
-      const channelId = channel.channelName || channel.id;
-      router.push(`/channels/${channelId}`);
-    },
-    [router]
-  );
-
-  // Effect untuk mounted state
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Fetch channels data
   const fetchChannels = useCallback(async () => {
     if (!mounted) return;
 
@@ -122,7 +107,6 @@ export default function ChannelsPage() {
     }
   }, [mounted]);
 
-  // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
     if (!mounted) return;
 
@@ -160,34 +144,18 @@ export default function ChannelsPage() {
     }
   }, [mounted]);
 
-  // Effect untuk initial data load
+  const handleChannelClick = useCallback(
+    (channel: Channel) => {
+      const channelId = channel.channelName || channel.id;
+      router.push(`/channels/${channelId}`);
+    },
+    [router]
+  );
+
   useEffect(() => {
-    if (!mounted) return;
+    setMounted(true);
+  }, []);
 
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([fetchChannels(), fetchStats()]);
-      } catch (error) {
-        console.error("Error loading initial data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-
-    // Set up auto-refresh every 2 minutes
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        Promise.all([fetchChannels(), fetchStats()]).catch(console.error);
-      }
-    }, 120000);
-
-    return () => clearInterval(interval);
-  }, [mounted, fetchChannels, fetchStats]);
-
-  // Manual refresh dengan loading state
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
 
@@ -205,7 +173,10 @@ export default function ChannelsPage() {
     }
   }, [refreshing, fetchChannels, fetchStats]);
 
-  // Check specific channel status
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   const checkChannelStatus = useCallback(
     async (channel: Channel) => {
       if (!channel) return;
@@ -280,7 +251,6 @@ export default function ChannelsPage() {
     [fetchStats]
   );
 
-  // Memoized filtered channels untuk performance
   const filteredChannels = useMemo(() => {
     return channels.filter((channel) => {
       const matchesSearch =
@@ -298,7 +268,6 @@ export default function ChannelsPage() {
     });
   }, [channels, searchTerm, categoryFilter, statusFilter]);
 
-  // Memoized pagination
   const paginationData = useMemo(() => {
     const totalPages = Math.ceil(filteredChannels.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -315,38 +284,6 @@ export default function ChannelsPage() {
     };
   }, [filteredChannels, currentPage]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // Reset page ketika filter berubah
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, categoryFilter, statusFilter]);
-
-  // Handle responsive window resize
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width < 640) {
-        setScreenSize("mobile");
-      } else if (width < 1024) {
-        setScreenSize("tablet");
-      } else {
-        setScreenSize("desktop");
-      }
-    };
-
-    // Set initial value
-    if (typeof window !== "undefined") {
-      handleResize();
-      window.addEventListener("resize", handleResize);
-
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, []);
-
-  // Memoized categories
   const categories = useMemo(
     () => [
       "All",
@@ -355,7 +292,6 @@ export default function ChannelsPage() {
     [channels]
   );
 
-  // Status badge component untuk konsistensi
   const StatusBadge = useCallback(
     ({
       status,
@@ -366,16 +302,16 @@ export default function ChannelsPage() {
       responseTime?: number;
       isMobile?: boolean;
     }) => (
-      <div>
+      <div className="text-right">
         <span
-          className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+          className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
             status === "online"
               ? "bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200"
               : "bg-gradient-to-r from-red-100 to-pink-100 text-red-800 border border-red-200"
           }`}
         >
           <div
-            className={`w-2 h-2 rounded-full mr-2 ${
+            className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mr-1.5 sm:mr-2 ${
               status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
             }`}
           ></div>
@@ -384,7 +320,7 @@ export default function ChannelsPage() {
             : "Unknown"}
         </span>
         {responseTime && !isMobile && (
-          <div className="text-xs text-gray-500 mt-1 ml-1">
+          <div className="text-xs text-gray-500 mt-1 text-right">
             {responseTime}ms
           </div>
         )}
@@ -393,7 +329,6 @@ export default function ChannelsPage() {
     []
   );
 
-  // Export to CSV function
   const exportToCSV = useCallback(() => {
     if (exportLoading) return;
 
@@ -472,54 +407,59 @@ export default function ChannelsPage() {
     }
   }, [filteredChannels, exportLoading]);
 
-  const getVisiblePages = useCallback(
-    (currentPage: number, totalPages: number, screenSize: string) => {
-      let maxVisiblePages: number;
-      let showFirstLast: boolean;
+  useEffect(() => {
+    if (!mounted) return;
 
-      switch (screenSize) {
-        case "mobile":
-          maxVisiblePages = 3;
-          showFirstLast = false;
-          break;
-        case "tablet":
-          maxVisiblePages = 5;
-          showFirstLast = true;
-          break;
-        default: // desktop
-          maxVisiblePages = 7;
-          showFirstLast = true;
-          break;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([fetchChannels(), fetchStats()]);
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      let startPage = Math.max(
-        1,
-        currentPage - Math.floor(maxVisiblePages / 2)
-      );
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    loadData();
 
-      if (endPage - startPage < maxVisiblePages - 1) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    // Set up auto-refresh every 2 minutes
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        Promise.all([fetchChannels(), fetchStats()]).catch(console.error);
       }
+    }, 120000);
 
-      return {
-        startPage,
-        endPage,
-        maxVisiblePages,
-        showFirstLast,
-        showEllipsis: {
-          start: showFirstLast && startPage > 2,
-          end: showFirstLast && endPage < totalPages - 1,
-        },
-      };
-    },
-    []
-  );
+    return () => clearInterval(interval);
+  }, [mounted, fetchChannels, fetchStats]);
 
-  // Jika belum mounted atau loading, return loading state
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter, statusFilter]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
+
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
+
   if (!mounted || loading) {
     return (
-      <div className="p-6 bg-blue-50 min-h-screen">
+      <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-3 text-gray-600">Loading channels...</span>
@@ -529,22 +469,22 @@ export default function ChannelsPage() {
   }
 
   return (
-    <div className="p-6 bg-blue-50 min-h-screen">
+    <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium mb-1">
+                <p className="text-xs sm:text-sm text-gray-600 font-medium mb-1">
                   Total Channels
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {stats.totalChannels || 0}
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
-                <SignalIcon className="w-8 h-8 text-blue-600" />
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                <SignalIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
             </div>
           </div>
@@ -616,35 +556,35 @@ export default function ChannelsPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
-        <div className="flex flex-col space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6 backdrop-blur-sm">
+        <div className="flex flex-col space-y-3 sm:space-y-4">
           {/* Search Bar - Full width on mobile */}
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search channels, categories, or numbers..."
+              placeholder="Search channels..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
+              className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
             />
           </div>
 
-          {/* Filters and Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {/* Filter Row */}
-            <div className="flex flex-1 gap-3">
+          {/* Filters and Actions - Stack on mobile */}
+          <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center gap-2 sm:gap-3">
+            {/* Filter Row - Full width on mobile */}
+            <div className="flex flex-1 gap-2 sm:gap-3">
               {/* Category Filter */}
-              <div className="flex-1 sm:flex-none">
+              <div className="flex-1">
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
-                    <button className="flex items-center justify-between w-full sm:w-auto gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md group">
-                      <span className="text-sm text-blue-700 font-medium">
+                    <button className="flex items-center justify-between w-full gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md group">
+                      <span className="text-xs sm:text-sm text-blue-700 font-medium truncate">
                         {categoryFilter === "All"
                           ? "All Categories"
                           : categoryFilter}
                       </span>
-                      <ChevronDownIcon className="w-4 h-4 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                      <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 group-hover:text-blue-600 transition-colors flex-shrink-0" />
                     </button>
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
@@ -665,14 +605,14 @@ export default function ChannelsPage() {
               </div>
 
               {/* Status Filter */}
-              <div className="flex-1 sm:flex-none">
+              <div className="flex-1">
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger asChild>
-                    <button className="flex items-center justify-between w-full sm:w-auto gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group">
-                      <span className="text-sm text-green-700 font-medium">
+                    <button className="flex items-center justify-between w-full gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group">
+                      <span className="text-xs sm:text-sm text-green-700 font-medium truncate">
                         {statusFilter === "All" ? "All Status" : statusFilter}
                       </span>
-                      <ChevronDownIcon className="w-4 h-4 text-green-500 group-hover:text-green-600 transition-colors" />
+                      <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 group-hover:text-green-600 transition-colors flex-shrink-0" />
                     </button>
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
@@ -701,17 +641,17 @@ export default function ChannelsPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Stack on mobile */}
             <div className="flex gap-2">
               {/* Export Button */}
               <button
                 onClick={exportToCSV}
                 disabled={exportLoading || filteredChannels.length === 0}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
               >
-                <ArrowDownTrayIcon className="w-4 h-4" />
-                <span className="text-sm font-medium hidden sm:inline">
-                  {exportLoading ? "Exporting..." : "Export CSV"}
+                <ArrowDownTrayIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm font-medium">
+                  {exportLoading ? "..." : "Export"}
                 </span>
               </button>
 
@@ -719,13 +659,15 @@ export default function ChannelsPage() {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
               >
                 <ArrowPathIcon
-                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                  className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
                 />
-                <span className="text-sm font-medium">
-                  {refreshing ? "Refreshing..." : "Refresh"}
+                <span className="text-xs sm:text-sm font-medium">
+                  {refreshing ? "..." : "Refresh"}
                 </span>
               </button>
             </div>
@@ -859,83 +801,116 @@ export default function ChannelsPage() {
             <div
               key={`mobile-channel-${channel.id || index}`}
               onClick={() => handleChannelClick(channel)}
-              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+              className="p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer"
             >
+              {/* Header dengan channel info */}
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm">
-                    {channel.logo && (
-                      <div className="h-8 w-16 relative bg-gray-50 rounded-lg overflow-hidden shadow-sm">
-                        {channel.logo && isValidUrl(channel.logo) ? (
-                          <Image
-                            src={channel.logo}
-                            alt={channel.channelName || "Channel logo"}
-                            fill
-                            className="object-contain p-1"
-                            sizes="64px"
-                            unoptimized
-                            priority={index < 4}
-                          />
-                        ) : (
-                          <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
-                            <span className="text-xs text-gray-500">
-                              No Logo
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                  {/* Channel Number Badge */}
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-xs sm:text-sm font-bold text-white">
+                      {channel.channelNumber || "-"}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">
+
+                  {/* Logo */}
+                  {channel.logo && (
+                    <div className="h-6 w-12 sm:h-8 sm:w-16 relative bg-gray-50 rounded-lg overflow-hidden shadow-sm flex-shrink-0">
+                      {channel.logo && isValidUrl(channel.logo) ? (
+                        <Image
+                          src={channel.logo}
+                          alt={channel.channelName || "Channel logo"}
+                          fill
+                          className="object-contain p-0.5 sm:p-1"
+                          sizes="64px"
+                          unoptimized
+                          priority={index < 4}
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center">
+                          <span className="text-xs text-gray-500">No Logo</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Channel Info */}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">
                       {channel.channelName || "Unknown Channel"}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      {channel.channelNumber || "Uncategorized"}
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">
+                      {channel.category || "Uncategorized"}
                     </p>
                   </div>
                 </div>
-                <StatusBadge
-                  status={channel.status}
-                  responseTime={channel.responseTime}
-                />
-              </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">IP Address:</span>
-                  <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
-                    {channel.ipMulticast || "N/A"}
-                  </code>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Last Checked:</span>
-                  <DateFormatter
-                    date={channel.lastChecked}
-                    fallback="Never checked"
-                    className="text-xs text-gray-600"
+                {/* Status Badge */}
+                <div className="flex-shrink-0 ml-2">
+                  <StatusBadge
+                    status={channel.status}
+                    responseTime={channel.responseTime}
+                    isMobile={true}
                   />
                 </div>
               </div>
 
+              {/* Details Grid */}
+              <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-gray-500 font-medium">
+                    IP Multicast:
+                  </span>
+                  <code className="text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">
+                    {channel.ipMulticast || "N/A"}
+                  </code>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-gray-500 font-medium">
+                    Last Checked:
+                  </span>
+                  <DateFormatter
+                    date={channel.lastChecked}
+                    fallback="Never"
+                    className="text-xs text-gray-600"
+                  />
+                </div>
+                {channel.responseTime && (
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-gray-500 font-medium">
+                      Response Time:
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      {channel.responseTime}ms
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Button */}
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <button
                   onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation(); // Prevent row click
+                    e.stopPropagation();
                     checkChannelStatus(channel);
                   }}
                   disabled={!channel.id || checkingId === channel.id}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  Check Now
+                  <ArrowPathIcon
+                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                      checkingId === channel.id ? "animate-spin" : ""
+                    }`}
+                  />
+                  {checkingId === channel.id ? "Checking..." : "Check Now"}
                 </button>
               </div>
 
-              {/* Error message */}
+              {/* Error Message */}
               {channel.error && (
                 <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-xs text-red-600 break-words">
-                    {channel.error}
+                    Error: {channel.error}
                   </p>
                 </div>
               )}
@@ -943,16 +918,16 @@ export default function ChannelsPage() {
           ))}
         </div>
 
-        {/* Mobile-friendly empty state */}
+        {/* Empty state - mobile friendly */}
         {filteredChannels.length === 0 && (
-          <div className="text-center py-12 px-4">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
-              <SignalIcon className="w-10 h-10 text-gray-400" />
+          <div className="text-center py-8 sm:py-12 px-4">
+            <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <SignalIcon className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
               No channels found
             </h3>
-            <p className="text-gray-500 mb-4 text-sm">
+            <p className="text-gray-500 mb-4 text-sm px-2">
               {searchTerm
                 ? `No channels match "${searchTerm}"`
                 : "No channels available with current filters"}
@@ -966,7 +941,7 @@ export default function ChannelsPage() {
                   setCategoryFilter("All");
                   setStatusFilter("All");
                 }}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all duration-200"
               >
                 Clear all filters
               </button>
@@ -977,34 +952,23 @@ export default function ChannelsPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
-          <div
-            className={`flex items-center justify-between gap-2 sm:gap-4 ${
-              screenSize === "mobile"
-                ? "flex-col space-y-3"
-                : "flex-col sm:flex-row"
-            }`}
-          >
-            {/* Info Text - Responsive positioning */}
-            <div
-              className={`text-xs sm:text-sm text-gray-600 ${
-                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
-              }`}
-            >
-              {screenSize === "mobile" ? (
-                // Compact info for mobile
-                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+        <div className="mt-4 sm:mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+            {/* Info Text - mobile friendly */}
+            <div className="order-2 sm:order-1">
+              <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+                {/* Mobile: Compact info */}
+                <div className="sm:hidden bg-gray-50 px-3 py-2 rounded-lg border">
                   <span className="font-medium">
                     Page {currentPage} of {paginationData.totalPages}
                   </span>
                   <span className="block text-xs text-gray-500 mt-1">
                     ({paginationData.startIndex + 1}-{paginationData.endIndex}{" "}
-                    of {filteredChannels.length} channels)
+                    of {filteredChannels.length})
                   </span>
                 </div>
-              ) : (
-                // Full info for tablet/desktop
-                <>
+                {/* Desktop: Full info */}
+                <div className="hidden sm:block">
                   Showing{" "}
                   <span className="font-semibold text-gray-900">
                     {paginationData.startIndex + 1}
@@ -1018,84 +982,47 @@ export default function ChannelsPage() {
                     {filteredChannels.length}
                   </span>{" "}
                   channels
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
-            {/* Pagination Controls */}
-            <div
-              className={`flex items-center gap-1 sm:gap-2 ${
-                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
-              }`}
-            >
+            {/* Pagination Controls - mobile friendly */}
+            <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className="flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                {screenSize !== "mobile" && (
-                  <span className="hidden sm:inline">Previous</span>
-                )}
-                {screenSize === "mobile" && (
-                  <span className="text-xs">Prev</span>
-                )}
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
               </button>
 
-              {/* Page Numbers - Fully Responsive */}
-              <div className="flex items-center gap-1">
+              {/* Page Numbers - mobile friendly */}
+              <div className="flex items-center gap-0.5 sm:gap-1 mx-1 sm:mx-2">
                 {(() => {
                   const { totalPages } = paginationData;
-                  const { startPage, endPage, showFirstLast, showEllipsis } =
-                    getVisiblePages(currentPage, totalPages, screenSize);
+                  const maxVisible = screenSize === "mobile" ? 3 : 5;
+                  let startPage = Math.max(
+                    1,
+                    currentPage - Math.floor(maxVisible / 2)
+                  );
+                  const endPage = Math.min(
+                    totalPages,
+                    startPage + maxVisible - 1
+                  );
 
-                  const pages = [];
-
-                  // First page + ellipsis (desktop/tablet only)
-                  if (showFirstLast && startPage > 1) {
-                    pages.push(
-                      <button
-                        key="page-1"
-                        onClick={() => handlePageChange(1)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === 1
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        1
-                      </button>
-                    );
-
-                    if (showEllipsis.start) {
-                      pages.push(
-                        <span
-                          key="ellipsis-start"
-                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
-                        >
-                          ...
-                        </span>
-                      );
-                    }
+                  if (endPage - startPage < maxVisible - 1) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
                   }
 
-                  // Main page numbers
+                  const pages = [];
                   for (let i = startPage; i <= endPage; i++) {
-                    // Skip last page, will be added separately
-                    if (
-                      showFirstLast &&
-                      i === totalPages &&
-                      totalPages > endPage
-                    )
-                      continue;
-
                     pages.push(
                       <button
-                        key={`page-${i}-${currentPage}`}
+                        key={`page-${i}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
                           currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
@@ -1105,35 +1032,6 @@ export default function ChannelsPage() {
                       </button>
                     );
                   }
-
-                  // Ellipsis + last page (desktop/tablet only)
-                  if (showFirstLast && endPage < totalPages) {
-                    if (showEllipsis.end) {
-                      pages.push(
-                        <span
-                          key="ellipsis-end"
-                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
-                        >
-                          ...
-                        </span>
-                      );
-                    }
-
-                    pages.push(
-                      <button
-                        key={`page-${totalPages}`}
-                        onClick={() => handlePageChange(totalPages)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === totalPages
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        {totalPages}
-                      </button>
-                    );
-                  }
-
                   return pages;
                 })()}
               </div>
@@ -1141,16 +1039,10 @@ export default function ChannelsPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className="flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
-                {screenSize !== "mobile" && (
-                  <span className="hidden sm:inline">Next</span>
-                )}
-                {screenSize === "mobile" && (
-                  <span className="text-xs">Next</span>
-                )}
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
                 <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>

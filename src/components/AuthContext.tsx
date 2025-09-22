@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 interface User {
   id: string;
@@ -44,8 +50,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const hasCheckedRef = useRef(false);
-
-  // Detect mobile browser
   const isMobile = React.useMemo(() => {
     if (typeof window === "undefined") return false;
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -98,16 +102,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [user]
   );
 
-  // Enhanced token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
-    // Cek semua possible cookie names
     const cookies = document.cookie.split(";").reduce((acc, cookie) => {
       const [key, ...rest] = cookie.trim().split("=");
       if (key) acc[key] = rest.join("=");
       return acc;
     }, {} as Record<string, string>);
 
-    // ENHANCED: Check multiple cookie names untuk compatibility
     let token =
       cookies.token ||
       cookies["auth-token"] ||
@@ -122,7 +123,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       tokenSource: token ? "cookie" : "none",
     });
 
-    // Jika tidak ada di cookie, cek localStorage
     if (!token) {
       try {
         token =
@@ -136,7 +136,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (token) {
           console.log("Token retrieved from localStorage as fallback");
 
-          // SYNC: Set token ke cookie jika ditemukan di localStorage
           const isProduction = window.location.protocol === "https:";
           const cookieValue = `token=${token}; path=/; max-age=${
             7 * 24 * 60 * 60
@@ -149,7 +148,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
 
-    // Fallback dari URL
     if (!token) {
       const urlParams = new URLSearchParams(window.location.search);
       const urlToken = urlParams.get("temp_token");
@@ -185,7 +183,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("Token found, verifying...");
 
       let retryCount = 0;
-      const maxRetries = isMobile ? 2 : 3; // Fewer retries on mobile for better UX
+      const maxRetries = isMobile ? 2 : 3;
 
       while (retryCount < maxRetries) {
         try {
@@ -201,14 +199,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(userData);
             console.log("Auth check successful:", result.user.username);
 
-            // MOBILE OPTIMIZATION: Sync token ke cookie jika hanya ada di localStorage
             if (!document.cookie.includes("token=") && token) {
               console.log(
                 "Syncing token from localStorage to cookie (mobile optimization)"
               );
               const isProduction = window.location.protocol === "https:";
 
-              // Mobile-friendly cookie setting
               let cookieValue;
               if (isMobile) {
                 cookieValue = `token=${token}; path=/; max-age=${
@@ -237,7 +233,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             throw error;
           }
 
-          // Shorter retry delay for mobile
           const retryDelay = isMobile ? 1000 * retryCount : 2000 * retryCount;
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
@@ -252,10 +247,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       ) {
         console.log("Network error, keeping tokens");
       } else {
-        // Clear invalid tokens
         console.log("Clearing invalid tokens");
 
-        // Clear cookie with multiple configurations for mobile compatibility
         const cookieConfigs = [
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
           "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
@@ -277,7 +270,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [apiCall, user, getAuthToken, isMobile]);
 
-  // Login function
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
@@ -311,7 +303,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Gmail login - langsung redirect ke Google OAuth
   const loginWithGmail = () => {
     try {
       const backendUrl =
@@ -325,7 +316,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ? "/dashboard"
           : currentPath;
 
-      // Encode current URL sebagai state untuk redirect setelah login
       const frontendUrl =
         process.env.NEXT_PUBLIC_FRONTEND_URL ||
         (typeof window !== "undefined" ? window.location.origin : "");
@@ -337,13 +327,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("State parameter:", state);
       console.log("Is mobile device:", isMobile);
 
-      // Tambahkan error handling
       if (!backendUrl) {
         console.error("Backend URL not configured");
         throw new Error("Authentication service not available");
       }
 
-      // MOBILE OPTIMIZATION: Use window.location.replace for mobile for better UX
       if (isMobile) {
         console.log("Using mobile-optimized redirect");
         window.location.replace(googleAuthUrl);
@@ -352,7 +340,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Gmail login redirect error:", error);
-      // Tampilkan error ke user
       alert("Failed to initiate Google login. Please try again.");
     }
   };
@@ -401,7 +388,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Logout function
   const logout = async () => {
     try {
       setLoading(true);
@@ -414,7 +400,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error("Logout API call failed:", error);
       }
 
-      // Enhanced cookie clearing for mobile
       const clearCookie = (name: string) => {
         const cookieConfigs = [
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
@@ -445,7 +430,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log("Logout successful, redirecting...");
 
-      // Mobile-optimized redirect
       if (isMobile) {
         window.location.replace("/login");
       } else {
@@ -464,7 +448,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Check authentication on mount
   useEffect(() => {
     if (!hasCheckedRef.current) {
       hasCheckedRef.current = true;
@@ -472,7 +455,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [checkAuth]);
 
-  // Enhanced Google OAuth redirect handling dengan mobile optimization
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const googleLoginSuccess = urlParams.get("google_login");
@@ -482,13 +464,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("Google login success detected, checking auth...");
       console.log("Is mobile device:", isMobile);
 
-      // Remove URL parameters
       const url = new URL(window.location.href);
       url.searchParams.delete("google_login");
       url.searchParams.delete("_t");
       window.history.replaceState({}, "", url.toString());
-
-      // Mobile-optimized delay untuk ensure cookie is set
       const authCheckDelay = isMobile ? 2000 : 1000;
 
       setTimeout(() => {
@@ -498,54 +477,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [checkAuth, isMobile]);
 
-  // OPTIMIZED: Periodic auth check dengan mobile consideration
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  // Longer interval for mobile to save battery
-  const checkInterval = isMobile ? 120000 : 60000; // 2 minutes on mobile, 1 minute on desktop
+    const checkInterval = isMobile ? 120000 : 60000; // 2 minutes on mobile, 1 minute on desktop
 
-  const interval = setInterval(async () => {
-    const token = getAuthToken();
-    if (!token) {
-      console.log("Token not found during periodic check, logging out...");
-      setUser(null);
-    } else {
-      // Tambahkan verify token secara periodik
-      try {
-        const result = await apiCall("/api/auth/verify");
-        if (!result.success || !result.user) {
-          console.log("Token invalid during periodic check, logging out...");
-          setUser(null);
-          // Clear invalid tokens
-          const cookieConfigs = [
-            "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
-            "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
-            "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
-          ];
-          cookieConfigs.forEach((config) => {
-            document.cookie = config;
-          });
-          try {
-            localStorage.removeItem("authToken");
-          } catch (e) {
-            console.warn("Could not clear localStorage:", e);
+    const interval = setInterval(async () => {
+      const token = getAuthToken();
+      if (!token) {
+        console.log("Token not found during periodic check, logging out...");
+        setUser(null);
+      } else {
+        try {
+          const result = await apiCall("/api/auth/verify");
+          if (!result.success || !result.user) {
+            console.log("Token invalid during periodic check, logging out...");
+            setUser(null);
+            const cookieConfigs = [
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none",
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax",
+              "token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT",
+            ];
+            cookieConfigs.forEach((config) => {
+              document.cookie = config;
+            });
+            try {
+              localStorage.removeItem("authToken");
+            } catch (e) {
+              console.warn("Could not clear localStorage:", e);
+            }
+          }
+        } catch (error) {
+          console.error("Periodic auth check failed:", error);
+          if (
+            error instanceof Error &&
+            !error.message.includes("Authentication failed")
+          ) {
+            console.log(
+              "Network error during periodic check, keeping user logged in"
+            );
+          } else {
+            setUser(null);
           }
         }
-      } catch (error) {
-        console.error("Periodic auth check failed:", error);
-        // Jangan logout jika hanya network error
-        if (error instanceof Error && !error.message.includes("Authentication failed")) {
-          console.log("Network error during periodic check, keeping user logged in");
-        } else {
-          setUser(null);
-        }
       }
-    }
-  }, checkInterval);
+    }, checkInterval);
 
-  return () => clearInterval(interval);
-}, [user, getAuthToken, isMobile, apiCall]);
+    return () => clearInterval(interval);
+  }, [user, getAuthToken, isMobile, apiCall]);
 
   const value: AuthContextType = {
     user,

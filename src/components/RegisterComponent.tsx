@@ -262,7 +262,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                 </div>
               ))}
 
-              {/* Enhanced Overlay with Gradient */}
+              {/* Overlay with Gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-transparent to-black/60" />
 
               {/* Content Overlay with Animation - Moved to Bottom */}
@@ -279,7 +279,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                 </div>
               </div>
 
-              {/* Enhanced Dots Indicator */}
+              {/* Dots Indicator */}
               <div className="absolute bottom-3 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3 z-20">
                 {backgroundImages.map((_, index) => (
                   <button
@@ -329,7 +329,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
               className="max-w-md w-full relative z-10"
               onKeyPress={handleKeyPress}
             >
-              {/* Header - sama persis dengan login */}
+              {/* Header */}
               <div className="text-center space-y-3 sm:space-y-4">
                 <Image
                   src="/radisson-uluwatu.png"
@@ -350,7 +350,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                 </p>
               </div>
 
-              {/* Form Card dengan fixed height dan scroll internal */}
+              {/* Form Card */}
               <div className="bg-white py-6 sm:py-8 px-6 sm:px-8 relative overflow-visible mt-6 sm:mt-8">
                 <div
                   className="relative max-h-[24rem] sm:max-h-[28rem] overflow-y-auto pr-3 sm:pr-4 -mr-3 sm:-mr-4"

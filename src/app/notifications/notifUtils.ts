@@ -1,4 +1,3 @@
-// Interface definitions
 export interface Notification {
   id: string | number;
   title: string;
@@ -79,22 +78,18 @@ interface FetchSource {
   processor: (data: unknown[]) => void;
 }
 
-// Error categorization system
 export function getErrorCategory(
   error?: string,
   status?: string,
   source?: string
 ): string {
-  // If explicitly offline status, categorize as Connection
   if (status === "offline" && !error) {
     return "Connection";
   }
 
   if (!error) return "System";
-
   const errorLower = error.toLowerCase();
 
-  // Device-specific categorization
   if (source === "chromecast") {
     if (
       errorLower.includes("no device found") ||
@@ -149,7 +144,6 @@ export function getErrorCategory(
     }
   }
 
-  // Generic categorization
   if (
     errorLower.includes("network") ||
     errorLower.includes("connection") ||
@@ -186,7 +180,6 @@ export function getErrorCategory(
   return "System";
 }
 
-// Solution suggestion system
 export function getSuggestedSolutions(
   error?: string,
   deviceSource?: string,
@@ -197,7 +190,6 @@ export function getSuggestedSolutions(
   const errorLower = error?.toLowerCase() || "";
   const solutions: string[] = [];
 
-  // Device-specific solutions
   switch (deviceSource) {
     case "chromecast":
       solutions.push(...getChromecastSolutions(errorLower, errorCategory));
@@ -210,7 +202,6 @@ export function getSuggestedSolutions(
       break;
   }
 
-  // Generic solutions if no device-specific solutions found
   if (solutions.length === 0) {
     solutions.push(...getGenericSolutions(errorCategory));
   }
@@ -218,7 +209,6 @@ export function getSuggestedSolutions(
   return solutions;
 }
 
-// Device-specific solution helpers
 function getChromecastSolutions(
   errorLower: string,
   errorCategory?: string
@@ -340,7 +330,6 @@ function getGenericSolutions(errorCategory?: string): string[] {
   }
 }
 
-// Time and date utilities
 export function getRelativeTime(dateString: string): string {
   const now = new Date();
   const date = new Date(dateString);
@@ -371,7 +360,6 @@ export function formatDate(dateString: string): string {
   });
 }
 
-// Status change tracking
 function checkStatusChange(
   deviceId: string,
   currentStatus: string
@@ -381,7 +369,6 @@ function checkStatusChange(
     const statusCache = cached ? JSON.parse(cached) : {};
     const previousStatus = statusCache[deviceId];
 
-    // Update cache
     statusCache[deviceId] = currentStatus;
     localStorage.setItem("device-status-cache", JSON.stringify(statusCache));
 
@@ -396,7 +383,6 @@ function checkStatusChange(
   }
 }
 
-// Notification creation
 export function createNotification(
   id: string,
   title: string,
@@ -409,7 +395,6 @@ export function createNotification(
   const currentStatus = extras?.currentStatus || "offline";
   const statusChange = checkStatusChange(id, currentStatus);
 
-  // Don't override explicitly passed status values
   const errorCategory =
     extras?.errorCategory || getErrorCategory(extras?.error, currentStatus);
   const suggestedSolutions = getSuggestedSolutions(
@@ -428,7 +413,7 @@ export function createNotification(
     type,
     source,
     errorCategory,
-    currentStatus, // Use the explicitly passed status
+    currentStatus,
     previousStatus:
       extras?.previousStatus ||
       (statusChange.previousStatus as "online" | "offline" | undefined),
@@ -441,7 +426,6 @@ export function createNotification(
   };
 }
 
-// Storage management
 export function cleanOldNotifications(
   notifications: Notification[]
 ): Notification[] {
@@ -499,7 +483,6 @@ export function getNotificationsFromStorage(): Notification[] {
   }
 }
 
-// Main notification fetching
 export async function fetchAllNotifications(): Promise<Notification[]> {
   const all: Notification[] = [];
   const errors: string[] = [];
@@ -507,25 +490,24 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   const fetchSources: FetchSource[] = [
     {
       name: "chromecast",
-      url: "/api/chromecast", // Endpoint yang mengembalikan semua device
+      url: "/api/chromecast",
       processor: (data: unknown[]) =>
         processChromecastNotifications(data as ChromecastDevice[], all),
     },
     {
       name: "tv",
-      url: "/api/hospitality/tvs", // Endpoint yang mengembalikan semua TV
+      url: "/api/hospitality/tvs",
       processor: (data: unknown[]) =>
         processTVNotifications(data as TVDevice[], all),
     },
     {
       name: "channel",
-      url: "/api/channels", // Endpoint yang mengembalikan semua channel
+      url: "/api/channels",
       processor: (data: unknown[]) =>
         processChannelNotifications(data as ChannelDevice[], all),
     },
   ];
 
-  // Fetch from all sources with improved error handling
   await Promise.allSettled(
     fetchSources.map(async (source) => {
       try {
@@ -538,18 +520,13 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
 
         if (response.ok) {
           const json = await response.json();
-
-          // Handle different possible response structures
           let dataArray: unknown[] = [];
 
           if (json.success && Array.isArray(json.data)) {
-            // Standard API response format: { success: true, data: [...] }
             dataArray = json.data;
           } else if (Array.isArray(json)) {
-            // Direct array response: [...]
             dataArray = json;
           } else if (json.data && Array.isArray(json.data)) {
-            // Nested data: { data: [...] }
             dataArray = json.data;
           } else {
             console.warn(
@@ -560,7 +537,6 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
             return;
           }
 
-          // Process the data if we have valid array
           if (dataArray.length >= 0) {
             source.processor(dataArray);
             console.log(
@@ -582,10 +558,8 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     })
   );
 
-  // Merge with cached notifications and remove duplicates
   const oldNotifications = getNotificationsFromStorage();
   const validOldNotifications = cleanOldNotifications(oldNotifications);
-
   const newIds = new Set(all.map((n) => n.id));
   const uniqueOldNotifications = validOldNotifications.filter(
     (n) => !newIds.has(n.id)
@@ -593,7 +567,6 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
 
   all.push(...uniqueOldNotifications);
 
-  // Sort by date (newest first) and save to storage
   const sortedAndCleaned = cleanOldNotifications(all).sort(
     (a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
   );
@@ -610,23 +583,19 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   return sortedAndCleaned;
 }
 
-// Device-specific notification processors
 function processChromecastNotifications(
   data: ChromecastDevice[],
   notifications: Notification[]
 ): void {
   data.forEach((device, index) => {
-    // Backend returns device object with status info directly
     const rawDate = device.lastSeen || new Date().toISOString();
     const deviceId = `chromecast-${
       device.idCast || device.deviceName || index
     }`;
 
-    // Backend returns isOnline boolean directly
     const isOnline = device.isOnline === true;
     const currentStatus = isOnline ? "online" : "offline";
 
-    // Handle offline devices
     if (!isOnline) {
       const error = device.error || "Device not responding";
       const errorCategory = getErrorCategory(error, "offline", "chromecast");
@@ -652,7 +621,6 @@ function processChromecastNotifications(
       );
     }
 
-    // Handle recovery notifications - check previous status
     const statusChange = checkStatusChange(deviceId, currentStatus);
     if (
       statusChange.isStatusChange &&
@@ -687,15 +655,11 @@ function processTVNotifications(
   notifications: Notification[]
 ): void {
   data.forEach((device, index) => {
-    // Backend returns device with status field directly
     const rawDate = device.lastChecked || new Date().toISOString();
     const deviceId = `tv-${device.id || device.roomNo || index}`;
-
-    // Backend returns status as "online" or "offline" string
     const isOnline = device.status === "online";
     const currentStatus = isOnline ? "online" : "offline";
 
-    // Handle offline TVs
     if (!isOnline) {
       const error = device.error || "TV not responding";
       const errorCategory = getErrorCategory(error, "offline", "tv");
@@ -722,7 +686,6 @@ function processTVNotifications(
       );
     }
 
-    // Handle TV recovery notifications
     const statusChange = checkStatusChange(deviceId, currentStatus);
     if (
       statusChange.isStatusChange &&
@@ -758,15 +721,11 @@ function processChannelNotifications(
   notifications: Notification[]
 ): void {
   data.forEach((channel, index) => {
-    // Backend returns channel with status field directly
     const rawDate = channel.lastChecked || new Date().toISOString();
     const deviceId = `channel-${channel.id || index}`;
-
-    // Backend returns status as "online" or "offline" string
     const isOnline = channel.status === "online";
     const currentStatus = isOnline ? "online" : "offline";
 
-    // Handle offline channels
     if (!isOnline) {
       const error = channel.error || "Channel not available";
       const errorCategory = getErrorCategory(error, "offline", "channel");
@@ -792,7 +751,6 @@ function processChannelNotifications(
       );
     }
 
-    // Handle channel recovery notifications
     const statusChange = checkStatusChange(deviceId, currentStatus);
     if (
       statusChange.isStatusChange &&
