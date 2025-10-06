@@ -17,7 +17,6 @@ import {
   ArrowDownTrayIcon,
   BellIcon,
   ShieldCheckIcon,
-  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
@@ -239,7 +238,6 @@ export default function NotifPage() {
     }
   }, []);
 
-  // Calculate stats from notifications
   const calculateStats = useCallback(
     (notifications: Notification[]): NotificationStats => {
       const now = new Date();
@@ -305,7 +303,6 @@ export default function NotifPage() {
     []
   );
 
-  // Enhanced fetchNotifications with stats calculation
   const fetchNotifications = useCallback(async () => {
     if (!mounted) return;
 
@@ -314,8 +311,6 @@ export default function NotifPage() {
       const cleaned = cleanOldNotifications(recent);
       setNotifications(cleaned);
       setStats(calculateStats(cleaned));
-
-      // Update localStorage
       localStorage.setItem("notif-cache", JSON.stringify(cleaned));
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
@@ -330,7 +325,6 @@ export default function NotifPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load from cache first
         const stored = localStorage.getItem("notif-cache");
         if (stored) {
           const parsed: Notification[] = JSON.parse(stored);
@@ -338,8 +332,6 @@ export default function NotifPage() {
           setNotifications(cleaned);
           setStats(calculateStats(cleaned));
         }
-
-        // Then fetch fresh data
         await fetchNotifications();
       } catch (error) {
         console.error("Error loading notifications:", error);
@@ -347,9 +339,7 @@ export default function NotifPage() {
         setLoading(false);
       }
     };
-
     loadData();
-
     // Auto-refresh every 15 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -370,7 +360,6 @@ export default function NotifPage() {
     }
   }, [refreshing, fetchNotifications]);
 
-  // Manual cleanup
   const handleCleanup = useCallback(() => {
     try {
       const cleaned = cleanOldNotifications(notifications);
@@ -396,7 +385,25 @@ export default function NotifPage() {
     }
   }, [notifications, calculateStats]);
 
-  // Filtered notifications
+  const handleAIQuery = (notification: Notification) => {
+    // Trigger live chat to open with pre-filled context
+    const chatEvent = new CustomEvent("openLiveChat", {
+      detail: {
+        notification: {
+          title: notification.title,
+          message: notification.message,
+          deviceName: notification.deviceName,
+          roomNo: notification.roomNo,
+          status: notification.currentStatus,
+          errorCategory: notification.errorCategory,
+          source: notification.source,
+          error: notification.error,
+        },
+      },
+    });
+    window.dispatchEvent(chatEvent);
+  };
+
   const filteredNotifications = useMemo(() => {
     return notifications.filter((n) => {
       const matchesSearch =
@@ -549,7 +556,6 @@ export default function NotifPage() {
     }
   }, [filteredNotifications, exportLoading]);
 
-  // Helper components
   const StatusBadge = useCallback(
     ({
       status,
@@ -598,12 +604,6 @@ export default function NotifPage() {
             bg: "bg-green-100",
             text: "text-green-800",
             icon: CheckCircleIcon,
-          };
-        case "info":
-          return {
-            bg: "bg-blue-100",
-            text: "text-blue-800",
-            icon: InformationCircleIcon,
           };
         default:
           return { bg: "bg-gray-100", text: "text-gray-800", icon: BellIcon };
@@ -1030,7 +1030,7 @@ export default function NotifPage() {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["all", "warning", "info", "success"].map((type) => (
+                    {["all", "warning", "success"].map((type) => (
                       <DropdownMenu.Item
                         key={`type-${type}`}
                         className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
@@ -1155,6 +1155,9 @@ export default function NotifPage() {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Timestamp
                 </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Help
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -1180,8 +1183,6 @@ export default function NotifPage() {
                                 ? "bg-gradient-to-br from-amber-500 to-orange-600"
                                 : notification.type === "success"
                                 ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                                : notification.type === "info"
-                                ? "bg-gradient-to-br from-blue-500 to-indigo-600"
                                 : "bg-gradient-to-br from-gray-500 to-gray-600"
                             }`}
                           >
@@ -1392,6 +1393,36 @@ export default function NotifPage() {
                         </div>
                       </div>
                     </td>
+
+                    {/* Ask AI Column */}
+                    <td className="px-6 py-5">
+                      {notification.currentStatus === "offline" && (
+                        <button
+                          onClick={() => handleAIQuery(notification)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow"
+                        >
+                          <svg
+                            className="w-3 h-3 text-gray-500"
+                            style={{
+                              width: "12px",
+                              height: "12px",
+                              flexShrink: 0,
+                            }}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                            />
+                          </svg>
+                          <span style={{ whiteSpace: "nowrap" }}>Ask AI</span>
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 )
               )}
@@ -1414,8 +1445,6 @@ export default function NotifPage() {
                         ? "bg-gradient-to-br from-yellow-500 to-orange-600"
                         : notification.type === "success"
                         ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                        : notification.type === "info"
-                        ? "bg-gradient-to-br from-blue-500 to-indigo-600"
                         : "bg-gradient-to-br from-gray-500 to-gray-600"
                     }`}
                   >
@@ -1445,6 +1474,29 @@ export default function NotifPage() {
                     isStatusChange={notification.isStatusChange}
                   />
                   <TypeBadge type={notification.type || "info"} />
+
+                  {/* Ask AI - mobile layout */}
+                  {notification.currentStatus === "offline" && (
+                    <button
+                      onClick={() => handleAIQuery(notification)}
+                      className="inline-flex items-center gap-1 px-1 py-0.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow min-w-[80px]"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                      </svg>
+                      <span>Ask AI</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1803,7 +1855,7 @@ export default function NotifPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 15 minutes • Auto-cleanup after 7 days
+            Auto-refresh every 15 minutes â€¢ Auto-cleanup after 7 days
           </div>
         </div>
       </div>

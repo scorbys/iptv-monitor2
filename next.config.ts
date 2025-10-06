@@ -59,10 +59,22 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:path*",
         destination:
-          "https://iptv-monitor-backend-production.up.railway.app/api/:path*",
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:3001/api/:path*" // local backend
+            : "https://iptv-monitor-backend-production.up.railway.app/api/:path*", // production
       },
     ];
   },
+
+  /* async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination:
+          "https://iptv-monitor-backend-production.up.railway.app/api/:path*",
+      },
+    ];
+  }, */
 
   // Handling timeout
   async redirects() {

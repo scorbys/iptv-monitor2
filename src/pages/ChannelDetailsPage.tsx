@@ -675,6 +675,92 @@ export default function ChannelDetailsPage({
     }
   };
 
+  // Tambahkan setelah fungsi handleRepairAction (sekitar baris 600-650)
+  const handleAskAI = () => {
+    if (!channel || !networkMetrics) return;
+
+    const isOnline = channel.status === "online";
+
+    let contextMessage = "";
+
+    if (isOnline) {
+      // Hitung perubahan persentase untuk trend analysis
+      const latencyChange = previousMetrics?.latency
+        ? (
+            ((networkMetrics.latency - previousMetrics.latency) /
+              previousMetrics.latency) *
+            100
+          ).toFixed(1)
+        : "0";
+
+      const bandwidthChange = previousMetrics?.bandwidth
+        ? (
+            ((networkMetrics.bandwidth - previousMetrics.bandwidth) /
+              previousMetrics.bandwidth) *
+            100
+          ).toFixed(1)
+        : "0";
+
+      // Deteksi kondisi concern
+      const hasConcerns =
+        networkMetrics.latency > 50 ||
+        networkMetrics.packetLoss > 1 ||
+        networkMetrics.signalStrength < 80 ||
+        (previousMetrics &&
+          networkMetrics.bandwidth < previousMetrics.bandwidth * 0.8);
+
+      contextMessage = `Channel ${channel.channelName} (${
+        channel.channelNumber
+      }) status ONLINE. Dalam 24 jam terakhir latency ${
+        Number(latencyChange) > 0 ? "naik" : "turun"
+      } ${Math.abs(parseFloat(latencyChange))}% jadi ${
+        networkMetrics.latency
+      }ms, bandwidth ${
+        Number(bandwidthChange) > 0 ? "naik" : "turun"
+      } ${Math.abs(parseFloat(bandwidthChange))}% jadi ${
+        networkMetrics.bandwidth
+      }Mbps, packet loss ${networkMetrics.packetLoss}%. Signal strength ${
+        networkMetrics.signalStrength
+      }%. ${
+        hasConcerns
+          ? "Ada beberapa metrics yang perlu perhatian."
+          : "Semua metrics dalam range normal."
+      } ${
+        detectedIssues.length > 0
+          ? `System mendeteksi issue: ${detectedIssues[0].issue}.`
+          : ""
+      } Analisis kondisi channel ini, apakah performa baik atau ada yang concern? Kasih insight tentang trend network dan rekomendasi konkret.`;
+    } else {
+      // Channel offline - lebih spesifik
+      const primaryIssue = detectedIssues.length > 0 ? detectedIssues[0] : null;
+
+      contextMessage = `Channel ${channel.channelName} (${
+        channel.channelNumber
+      }) status OFFLINE. Network performance tidak ada aktivitas sama sekali: latency 0ms, bandwidth 0Mbps, packet loss 100%. Channel status menunjukkan stream source inactive, multicast IP ${
+        channel.ipMulticast
+      } unreachable, no signal, encoder ${channel.error || "error"}. ${
+        primaryIssue
+          ? `Issue detection: ${primaryIssue.category} - ${primaryIssue.issue} (${primaryIssue.priority} priority, ${primaryIssue.actionType} action). Solusi umum: ${primaryIssue.solutions[0]}.`
+          : "Tidak ada error message spesifik."
+      } Tolong jelaskan kemungkinan root cause dan step by step troubleshooting untuk restore channel ini.`;
+    }
+
+    // Trigger live chat
+    const chatEvent = new CustomEvent("openLiveChat", {
+      detail: {
+        channel: {
+          channelName: channel.channelName,
+          channelNumber: channel.channelNumber,
+          status: channel.status,
+          isOnline: isOnline,
+          contextMessage: contextMessage,
+        },
+      },
+    });
+
+    window.dispatchEvent(chatEvent);
+  };
+
   // Fetch network history
   const fetchNetworkHistory = async (
     channelIdentifier: string,
@@ -1470,32 +1556,35 @@ export default function ChannelDetailsPage({
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Channel
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
                     Name & Logo
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Category
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                     IP Multicast
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                     Last Checked
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                     Actions
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                    Help
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap w-20">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -1506,7 +1595,7 @@ export default function ChannelDetailsPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap min-w-[200px]">
                     <div className="flex items-center gap-3">
                       {channel.logo && (
                         <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm">
@@ -1538,17 +1627,17 @@ export default function ChannelDetailsPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap w-32">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200">
                       {channel.category || "Uncategorized"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap w-40">
                     <code className="text-sm text-gray-900 px-2 py-1 bg-gray-100 rounded-lg font-mono">
                       {channel.ipMulticast || "N/A"}
                     </code>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap w-28">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         channel.status === "online"
@@ -1569,14 +1658,14 @@ export default function ChannelDetailsPage({
                         : "Unknown"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-4 whitespace-nowrap w-40">
                     <DateFormatter
                       date={channel.lastChecked}
                       fallback="Never checked"
                       className="text-xs"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap w-24">
                     <button
                       onClick={handleCheckChannel}
                       disabled={checking}
@@ -1588,6 +1677,30 @@ export default function ChannelDetailsPage({
                         }`}
                       />
                       {checking ? "Checking..." : "Check"}
+                    </button>
+                  </td>
+
+                  {/* Help Column */}
+                  <td className="px-4 py-4 whitespace-nowrap w-20">
+                    <button
+                      onClick={handleAskAI}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow"
+                    >
+                      <svg
+                        className="w-3 h-3 text-gray-500"
+                        style={{ width: "12px", height: "12px", flexShrink: 0 }}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                      </svg>
+                      <span style={{ whiteSpace: "nowrap" }}>Ask AI</span>
                     </button>
                   </td>
                 </tr>
