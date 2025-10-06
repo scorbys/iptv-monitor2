@@ -1662,7 +1662,7 @@ export default function ChannelDetailsPage({
                     <DateFormatter
                       date={channel.lastChecked}
                       fallback="Never checked"
-                      className="text-xs"
+                      className="text-sm text-gray-500"
                     />
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap w-24">
