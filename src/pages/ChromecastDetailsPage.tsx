@@ -134,6 +134,7 @@ interface StatusBadgeProps {
     label: string;
     onClick: () => void;
   };
+  isMobile?: boolean;
 }
 
 // FAQ Data (from datafaq.txt)
@@ -290,6 +291,7 @@ export default function ChromecastDetailPage({
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [previousMetrics, setPreviousMetrics] = useState<NetworkMetrics | null>(
     null
   );
@@ -306,6 +308,17 @@ export default function ChromecastDetailPage({
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Detect mobile screen
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Auto-refresh network data every 30 seconds
@@ -783,13 +796,17 @@ export default function ChromecastDetailPage({
       // Jika device offline, tampilkan gray dengan nilai 0
       if (!isOnline) {
         return (
-          <div className="text-center p-3 bg-white rounded-lg border border-gray-200">
+          <div className="text-center p-2 sm:p-3 bg-white rounded-lg border border-gray-200">
             <div className="flex items-center justify-center mb-1">
-              <p className="text-2xl font-bold text-gray-400">0{unit}</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-400">
+                0{unit}
+              </p>
             </div>
-            <p className="text-xs font-medium text-gray-400">{label}</p>
+            <p className="text-xs font-medium text-gray-400 truncate">
+              {label}
+            </p>
             <div className="mt-1">
-              <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded-full">
+              <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">
                 Offline
               </span>
             </div>
@@ -907,16 +924,20 @@ export default function ChromecastDetailPage({
 
       return (
         <div
-          className={`text-center p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
+          className={`text-center p-2 sm:p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
         >
           <div className="flex items-center justify-center mb-1">
-            <p className={`text-2xl font-bold ${statusColors.textColor}`}>
+            <p
+              className={`text-lg sm:text-2xl font-bold ${statusColors.textColor} truncate`}
+            >
               {value}
               {unit}
             </p>
             {previousValue && <TrendIndicator trend={trend.direction} />}
           </div>
-          <p className={`text-xs font-medium ${statusColors.textColor} mb-2`}>
+          <p
+            className={`text-xs font-medium ${statusColors.textColor} mb-1 sm:mb-2 truncate`}
+          >
             {label}
           </p>
         </div>
@@ -989,8 +1010,54 @@ export default function ChromecastDetailPage({
     value,
     unit,
     action,
+    isMobile = false,
   }) => {
     const isWorking = status === "working";
+
+    if (isMobile) {
+      return (
+        <div
+          className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+            isWorking
+              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+              : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
+          }`}
+        >
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div
+              className={`p-1.5 rounded-lg flex-shrink-0 ${
+                isWorking ? "bg-green-100" : "bg-red-100"
+              }`}
+            >
+              <Icon
+                className={`w-3.5 h-3.5 ${
+                  isWorking ? "text-green-600" : "text-red-600"
+                }`}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-semibold text-gray-900 block truncate">
+                {label}
+              </span>
+              {value && (
+                <div className="text-xs text-gray-600 truncate">
+                  {value} {unit}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isWorking ? (
+              <CheckCircleIcon className="w-4 h-4 text-green-600" />
+            ) : (
+              <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Desktop version (kode asli)
     return (
       <div
         className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
@@ -1054,6 +1121,8 @@ export default function ChromecastDetailPage({
       </div>
     );
   };
+
+  const handleAskAI = () => {};
 
   if (!mounted || loading) {
     return (
@@ -1423,35 +1492,38 @@ export default function ChromecastDetailPage({
         </nav>
 
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          {/* Table Layout */}
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Device
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Network
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Performance
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Activity
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Help
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -1468,7 +1540,7 @@ export default function ChromecastDetailPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 font-mono">
                       {device.ipAddr}
                     </div>
@@ -1483,7 +1555,7 @@ export default function ChromecastDetailPage({
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex flex-col space-y-1">
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -1510,7 +1582,7 @@ export default function ChromecastDetailPage({
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       <SpeedIndicator speed={device.speed || 0} />
                       <div className="text-xs text-gray-500 mt-1">
@@ -1518,13 +1590,13 @@ export default function ChromecastDetailPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
                       date={device.lastSeen}
                       fallback="Never seen"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <button
                       onClick={handleCheckDevice}
                       disabled={checking}
@@ -1538,25 +1610,176 @@ export default function ChromecastDetailPage({
                       {checking ? "Checking..." : "Check"}
                     </button>
                   </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <button
+                      onClick={handleAskAI}
+                      className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow"
+                    >
+                      <svg
+                        className="w-3 h-3 text-gray-500"
+                        style={{ width: "12px", height: "12px", flexShrink: 0 }}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                      </svg>
+                      <span style={{ whiteSpace: "nowrap" }}>Ask AI</span>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card Layout */}
+          <div className="md:hidden">
+            <div className="space-y-4">
+              {/* Device Info Card */}
+              <div className="flex items-start gap-3 pb-4 border-b border-gray-200">
+                <div className="flex-shrink-0 h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <DevicePhoneMobileIcon className="h-6 w-6 text-white" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-base font-bold text-gray-900 truncate">
+                    {device.deviceName}
+                  </h1>
+                  <p className="text-xs text-gray-500">{device.type}</p>
+                </div>
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">IP Address</p>
+                  <code className="text-xs text-gray-900 px-2 py-1 bg-gray-100 rounded-lg font-mono block truncate">
+                    {device.ipAddr}
+                  </code>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      device.isOnline
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                        device.isOnline ? "bg-green-500" : "bg-red-500"
+                      }`}
+                    ></div>
+                    {device.isOnline ? "Online" : "Offline"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Connection</p>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      device.isPingable
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {device.isPingable ? "Pingable" : "Disconnect"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Signal</p>
+                  <div className="flex items-center">
+                    <SignalIcon
+                      className={`h-3.5 w-3.5 mr-1 ${
+                        device.isOnline ? "text-green-500" : "text-red-500"
+                      }`}
+                    />
+                    <span className="text-xs text-gray-700">
+                      {device.signalLevel} dBm
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Speed</p>
+                  <span className="text-xs font-semibold text-gray-900">
+                    {device.speed || 0} Mbps
+                  </span>
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">Last Activity</p>
+                  <DateFormatter
+                    date={device.lastSeen}
+                    fallback="Never seen"
+                    className="text-xs text-gray-700"
+                  />
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleCheckDevice}
+                  disabled={checking}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-all touch-target"
+                >
+                  <ArrowPathIcon
+                    className={`w-3.5 h-3.5 ${checking ? "animate-spin" : ""}`}
+                  />
+                  {checking ? "Checking..." : "Check"}
+                </button>
+
+                <button
+                  onClick={handleAskAI}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all touch-target"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                  Ask AI
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Network Performance Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Network Performance
-                </h2>
-                <div className="flex items-center space-x-2 text-sm">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                    Network Performance
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1 hidden sm:block">
+                    Real-time monitoring
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 sm:gap-2 text-sm overflow-x-auto">
                   <button
                     onClick={() => handleTabChange("1h")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
                       activeTab === "1h"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
@@ -1566,7 +1789,7 @@ export default function ChromecastDetailPage({
                   </button>
                   <button
                     onClick={() => handleTabChange("24h")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
                       activeTab === "24h"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
@@ -1576,7 +1799,7 @@ export default function ChromecastDetailPage({
                   </button>
                   <button
                     onClick={() => handleTabChange("7d")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
                       activeTab === "7d"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
@@ -1588,111 +1811,123 @@ export default function ChromecastDetailPage({
               </div>
 
               {/* Chart Area */}
-              <div className="h-64 mb-4">
-                {loadingMetrics ? (
-                  <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">
-                      Loading network data...
-                    </span>
-                  </div>
-                ) : networkHistory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={networkHistory}
-                      margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorLatency"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3B82F6"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#3B82F6"
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorBandwidth"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#10B981"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#10B981"
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis
-                        dataKey="time"
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tick={{ fill: "#6B7280" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tick={{ fill: "#6B7280" }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={35}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area
-                        type="monotone"
-                        dataKey="latency"
-                        stroke="#3B82F6"
-                        fillOpacity={1}
-                        fill="url(#colorLatency)"
-                        strokeWidth={2}
-                        name="Latency"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="bandwidth"
-                        stroke="#10B981"
-                        fillOpacity={1}
-                        fill="url(#colorBandwidth)"
-                        strokeWidth={2}
-                        name="Bandwidth"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <SignalIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">
-                        Network performance data unavailable
-                      </p>
+              <div className="mb-4">
+                <div className="h-48 sm:h-56 md:h-64 overflow-x-auto overflow-y-hidden">
+                  {loadingMetrics ? (
+                    <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-xs sm:text-sm text-gray-600">
+                        Loading network data...
+                      </span>
                     </div>
-                  </div>
-                )}
+                  ) : networkHistory.length > 0 ? (
+                    <div className="min-w-[320px] h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={networkHistory}
+                          margin={{
+                            top: 10,
+                            right: 5,
+                            left: -15,
+                            bottom: 5,
+                          }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id="colorLatency"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#3B82F6"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#3B82F6"
+                                stopOpacity={0.05}
+                              />
+                            </linearGradient>
+                            <linearGradient
+                              id="colorBandwidth"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#10B981"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#10B981"
+                                stopOpacity={0.05}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#E5E7EB"
+                          />
+                          <XAxis
+                            dataKey="time"
+                            stroke="#6B7280"
+                            fontSize={12}
+                            tick={{ fill: "#6B7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            stroke="#6B7280"
+                            fontSize={12}
+                            tick={{ fill: "#6B7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={35}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Area
+                            type="monotone"
+                            dataKey="latency"
+                            stroke="#3B82F6"
+                            fillOpacity={1}
+                            fill="url(#colorLatency)"
+                            strokeWidth={2}
+                            name="Latency"
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="bandwidth"
+                            stroke="#10B981"
+                            fillOpacity={1}
+                            fill="url(#colorBandwidth)"
+                            strokeWidth={2}
+                            name="Bandwidth"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <SignalIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs sm:text-sm text-gray-500">
+                          Network performance data unavailable
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Stats Row */}
               {networkMetrics && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pt-4 border-t border-gray-200">
                   <MetricCard
                     value={networkMetrics.jitter}
                     previousValue={previousMetrics?.jitter}
@@ -1837,7 +2072,7 @@ export default function ChromecastDetailPage({
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Device Status */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
@@ -1861,6 +2096,7 @@ export default function ChromecastDetailPage({
                   icon={PowerIcon}
                   value={device.isOnline ? "12V" : "0V"}
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.lanIp}
@@ -1868,6 +2104,7 @@ export default function ChromecastDetailPage({
                   icon={GlobeAltIcon}
                   value={device.isPingable ? device.ipAddr : "Unreachable"}
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.wifi}
@@ -1875,6 +2112,7 @@ export default function ChromecastDetailPage({
                   icon={WifiIcon}
                   value={device.signalLevel?.toString()}
                   unit="dBm"
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.loginSurname}
@@ -1882,6 +2120,7 @@ export default function ChromecastDetailPage({
                   icon={DevicePhoneMobileIcon}
                   value={device.isOnline ? "Connected" : "Disconnected"}
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.other}
@@ -1889,6 +2128,7 @@ export default function ChromecastDetailPage({
                   icon={WrenchScrewdriverIcon}
                   value={device.error ? "Error" : "Normal"}
                   unit=""
+                  isMobile={isMobile}
                 />
               </div>
             </div>

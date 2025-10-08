@@ -141,6 +141,7 @@ interface StatusBadgeProps {
     label: string;
     onClick: () => void;
   };
+  isMobile?: boolean;
 }
 
 // FAQ Data for Channel issues
@@ -310,6 +311,7 @@ export default function ChannelDetailsPage({
   const [showTroubleshooting, setShowTroubleshooting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [previousMetrics, setPreviousMetrics] = useState<NetworkMetrics | null>(
     null
   );
@@ -846,6 +848,16 @@ export default function ChannelDetailsPage({
     fetchNetworkHistory(historyIdentifier.toString(), activeTab);
   }, [channel, mounted]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const TrendIndicator = React.useCallback(({ trend }: { trend: string }) => {
     if (trend === "up") {
       return (
@@ -941,13 +953,17 @@ export default function ChannelDetailsPage({
       // Jika channel offline, tampilkan gray dengan nilai 0
       if (!isOnline) {
         return (
-          <div className="text-center p-3 bg-white rounded-lg border border-gray-200">
+          <div className="text-center p-2 sm:p-3 bg-white rounded-lg border border-gray-200">
             <div className="flex items-center justify-center mb-1">
-              <p className="text-2xl font-bold text-gray-400">0{unit}</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-400">
+                0{unit}
+              </p>
             </div>
-            <p className="text-xs font-medium text-gray-400">{label}</p>
+            <p className="text-xs font-medium text-gray-400 truncate">
+              {label}
+            </p>
             <div className="mt-1">
-              <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded-full">
+              <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">
                 Offline
               </span>
             </div>
@@ -1069,16 +1085,20 @@ export default function ChannelDetailsPage({
 
       return (
         <div
-          className={`text-center p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
+          className={`text-center p-2 sm:p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
         >
           <div className="flex items-center justify-center mb-1">
-            <p className={`text-2xl font-bold ${statusColors.textColor}`}>
+            <p
+              className={`text-lg sm:text-2xl font-bold ${statusColors.textColor} truncate`}
+            >
               {value}
               {unit}
             </p>
             {previousValue && <TrendIndicator trend={trend.direction} />}
           </div>
-          <p className={`text-xs font-medium ${statusColors.textColor} mb-2`}>
+          <p
+            className={`text-xs font-medium ${statusColors.textColor} mb-1 sm:mb-2 truncate`}
+          >
             {label}
           </p>
         </div>
@@ -1097,8 +1117,54 @@ export default function ChannelDetailsPage({
     value,
     unit,
     action,
+    isMobile = false,
   }) => {
     const isWorking = status === "working";
+
+    if (isMobile) {
+      return (
+        <div
+          className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+            isWorking
+              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+              : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
+          }`}
+        >
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div
+              className={`p-1.5 rounded-lg flex-shrink-0 ${
+                isWorking ? "bg-green-100" : "bg-red-100"
+              }`}
+            >
+              <Icon
+                className={`w-3.5 h-3.5 ${
+                  isWorking ? "text-green-600" : "text-red-600"
+                }`}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-semibold text-gray-900 block truncate">
+                {label}
+              </span>
+              {value && (
+                <div className="text-xs text-gray-600 truncate">
+                  {value} {unit}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isWorking ? (
+              <CheckCircleIcon className="w-4 h-4 text-green-600" />
+            ) : (
+              <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Desktop version (kode asli)
     return (
       <div
         className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
@@ -1550,9 +1616,9 @@ export default function ChannelDetailsPage({
         </nav>
 
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          {/* Table Layout */}
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -1707,21 +1773,151 @@ export default function ChannelDetailsPage({
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card Layout */}
+          <div className="md:hidden">
+            <div className="space-y-4">
+              {/* Channel Info Card */}
+              <div className="flex items-start gap-3 pb-4 border-b border-gray-200">
+                <div className="flex-shrink-0 h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <span className="text-sm font-bold text-white">
+                    {channel.channelNumber || "-"}
+                  </span>
+                </div>
+
+                {channel.logo && (
+                  <div className="h-12 w-24 relative bg-gray-50 rounded-lg overflow-hidden shadow-sm flex-shrink-0">
+                    {channel.logo && isValidUrl(channel.logo) ? (
+                      <Image
+                        src={channel.logo}
+                        alt={channel.channelName || "Channel logo"}
+                        fill
+                        className="object-contain p-1"
+                        sizes="96px"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                        <span className="text-xs text-gray-500">No Logo</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-base font-bold text-gray-900 truncate">
+                    {channel.channelName || "Unknown Channel"}
+                  </h1>
+                  <p className="text-xs text-gray-500">
+                    Channel {channel.channelNumber}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Category</p>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    {channel.category || "N/A"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      channel.status === "online"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                        channel.status === "online"
+                          ? "bg-green-500"
+                          : "bg-red-500"
+                      }`}
+                    ></div>
+                    {channel.status
+                      ? channel.status.charAt(0).toUpperCase() +
+                        channel.status.slice(1)
+                      : "Unknown"}
+                  </span>
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">IP Multicast</p>
+                  <code className="text-xs text-gray-900 px-2 py-1 bg-gray-100 rounded-lg font-mono block truncate">
+                    {channel.ipMulticast || "N/A"}
+                  </code>
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">Last Checked</p>
+                  <DateFormatter
+                    date={channel.lastChecked}
+                    fallback="Never checked"
+                    className="text-xs text-gray-700"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleCheckChannel}
+                  disabled={checking}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-all touch-target"
+                >
+                  <ArrowPathIcon
+                    className={`w-3.5 h-3.5 ${checking ? "animate-spin" : ""}`}
+                  />
+                  {checking ? "Checking..." : "Check"}
+                </button>
+
+                <button
+                  onClick={handleAskAI}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all touch-target"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                  Ask AI
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Network Performance Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Network Performance
-                </h2>
-                <div className="flex items-center space-x-2 text-sm">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                    Network Performance
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1 hidden sm:block">
+                    Real-time monitoring
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 sm:gap-2 text-sm overflow-x-auto">
                   <button
                     onClick={() => handleTabChange("1h")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
                       activeTab === "1h"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
@@ -1731,7 +1927,7 @@ export default function ChannelDetailsPage({
                   </button>
                   <button
                     onClick={() => handleTabChange("24h")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
                       activeTab === "24h"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
@@ -1741,7 +1937,7 @@ export default function ChannelDetailsPage({
                   </button>
                   <button
                     onClick={() => handleTabChange("7d")}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
                       activeTab === "7d"
                         ? "bg-blue-100 text-blue-700 font-medium"
                         : "text-gray-600 hover:text-blue-600"
@@ -1753,111 +1949,123 @@ export default function ChannelDetailsPage({
               </div>
 
               {/* Chart Area */}
-              <div className="h-64 mb-4">
-                {loadingMetrics ? (
-                  <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">
-                      Loading network data...
-                    </span>
-                  </div>
-                ) : networkHistory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={networkHistory}
-                      margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorLatency"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3B82F6"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#3B82F6"
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorBandwidth"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#10B981"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#10B981"
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis
-                        dataKey="time"
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tick={{ fill: "#6B7280" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tick={{ fill: "#6B7280" }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={35}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area
-                        type="monotone"
-                        dataKey="latency"
-                        stroke="#3B82F6"
-                        fillOpacity={1}
-                        fill="url(#colorLatency)"
-                        strokeWidth={2}
-                        name="Latency"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="bandwidth"
-                        stroke="#10B981"
-                        fillOpacity={1}
-                        fill="url(#colorBandwidth)"
-                        strokeWidth={2}
-                        name="Bandwidth"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <SignalIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">
-                        Network performance data unavailable
-                      </p>
+              <div className="mb-4">
+                <div className="h-48 sm:h-56 md:h-64 overflow-x-auto overflow-y-hidden">
+                  {loadingMetrics ? (
+                    <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-xs sm:text-sm text-gray-600">
+                        Loading network data...
+                      </span>
                     </div>
-                  </div>
-                )}
+                  ) : networkHistory.length > 0 ? (
+                    <div className="min-w-[320px] h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={networkHistory}
+                          margin={{
+                            top: 10,
+                            right: 5,
+                            left: -15,
+                            bottom: 5,
+                          }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id="colorLatency"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#3B82F6"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#3B82F6"
+                                stopOpacity={0.05}
+                              />
+                            </linearGradient>
+                            <linearGradient
+                              id="colorBandwidth"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="#10B981"
+                                stopOpacity={0.3}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="#10B981"
+                                stopOpacity={0.05}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#E5E7EB"
+                          />
+                          <XAxis
+                            dataKey="time"
+                            stroke="#6B7280"
+                            fontSize={12}
+                            tick={{ fill: "#6B7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            stroke="#6B7280"
+                            fontSize={12}
+                            tick={{ fill: "#6B7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={35}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Area
+                            type="monotone"
+                            dataKey="latency"
+                            stroke="#3B82F6"
+                            fillOpacity={1}
+                            fill="url(#colorLatency)"
+                            strokeWidth={2}
+                            name="Latency"
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="bandwidth"
+                            stroke="#10B981"
+                            fillOpacity={1}
+                            fill="url(#colorBandwidth)"
+                            strokeWidth={2}
+                            name="Bandwidth"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <SignalIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs sm:text-sm text-gray-500">
+                          Network performance data unavailable
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Stats Row */}
               {networkMetrics && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pt-4 border-t border-gray-200">
                   <MetricCard
                     value={networkMetrics.jitter || 0}
                     previousValue={previousMetrics?.jitter}
@@ -1902,7 +2110,7 @@ export default function ChannelDetailsPage({
 
               {/* Additional Network Metrics */}
               {networkMetrics && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-2 sm:mt-4 pt-4 border-t border-gray-100">
                   <MetricCard
                     value={networkMetrics?.hops || 0}
                     previousValue={previousMetrics?.hops}
@@ -2004,7 +2212,7 @@ export default function ChannelDetailsPage({
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Channel  Status */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
@@ -2028,6 +2236,7 @@ export default function ChannelDetailsPage({
                   icon={PowerIcon}
                   value={channel.status === "online" ? "Active" : "Inactive"}
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.network}
@@ -2039,6 +2248,7 @@ export default function ChannelDetailsPage({
                       : "Unreachable"
                   }
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.signal}
@@ -2050,6 +2260,7 @@ export default function ChannelDetailsPage({
                       : "No Signal"
                   }
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.stream}
@@ -2061,6 +2272,7 @@ export default function ChannelDetailsPage({
                       : "No Response"
                   }
                   unit=""
+                  isMobile={isMobile}
                 />
                 <StatusBadge
                   status={deviceStatus.other}
@@ -2068,6 +2280,7 @@ export default function ChannelDetailsPage({
                   icon={ComputerDesktopIcon}
                   value={channel.error ? "Error" : "Normal"}
                   unit=""
+                  isMobile={isMobile}
                 />
               </div>
             </div>

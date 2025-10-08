@@ -616,40 +616,46 @@ export default function ChannelsPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
           {/* Search Bar */}
-          <div className="relative flex-1 w-full lg:max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <div className="relative w-full">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search channels, categories, or numbers..."
+              placeholder={
+                screenSize === "mobile"
+                  ? "Search..."
+                  : "Search channels, categories, or numbers..."
+              }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
             />
           </div>
 
           {/* Filters and Actions */}
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
             {/* Category Filter */}
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md group whitespace-nowrap">
-                  <span className="text-sm text-blue-700 font-medium">
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg sm:rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md group flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm text-blue-700 font-medium truncate">
                     {categoryFilter === "All"
-                      ? "All Categories"
+                      ? screenSize === "mobile"
+                        ? "All"
+                        : "All Categories"
                       : categoryFilter}
                   </span>
-                  <ChevronDownIcon className="w-4 h-4 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 group-hover:text-blue-600 transition-colors flex-shrink-0" />
                 </button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content className="min-w-48 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                <DropdownMenu.Content className="min-w-[140px] sm:min-w-48 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
                   {categories.map((category) => (
                     <DropdownMenu.Item
                       key={`category-${category}`}
-                      className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
                       onClick={() => setCategoryFilter(category)}
                     >
                       <div className="w-2 h-2 bg-blue-500 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -663,19 +669,23 @@ export default function ChannelsPage() {
             {/* Status Filter */}
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button className="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group whitespace-nowrap">
-                  <span className="text-sm text-green-700 font-medium">
-                    {statusFilter === "All" ? "All Status" : statusFilter}
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg sm:rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm text-green-700 font-medium truncate">
+                    {statusFilter === "All"
+                      ? screenSize === "mobile"
+                        ? "All"
+                        : "All Status"
+                      : statusFilter}
                   </span>
-                  <ChevronDownIcon className="w-4 h-4 text-green-500 group-hover:text-green-600 transition-colors" />
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 group-hover:text-green-600 transition-colors flex-shrink-0" />
                 </button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
                   {["All", "Online", "Offline"].map((status) => (
                     <DropdownMenu.Item
                       key={`status-${status}`}
-                      className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
                       onClick={() => setStatusFilter(status)}
                     >
                       <div
@@ -698,11 +708,12 @@ export default function ChannelsPage() {
             <button
               onClick={exportToCSV}
               disabled={exportLoading || filteredChannels.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={exportLoading ? "Exporting..." : "Export CSV"}
             >
-              <ArrowDownTrayIcon className="w-4 h-4" />
-              <span className="text-sm font-medium hidden sm:inline">
-                {exportLoading ? "Exporting..." : "Export CSV"}
+              <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {exportLoading ? "Exporting..." : "Export"}
               </span>
             </button>
 
@@ -710,12 +721,15 @@ export default function ChannelsPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={refreshing ? "Refreshing..." : "Refresh"}
             >
               <ArrowPathIcon
-                className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                className={`w-4 h-4 flex-shrink-0 ${
+                  refreshing ? "animate-spin" : ""
+                }`}
               />
-              <span className="text-sm font-medium">
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
                 {refreshing ? "Refreshing..." : "Refresh"}
               </span>
             </button>

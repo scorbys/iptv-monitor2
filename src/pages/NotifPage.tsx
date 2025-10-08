@@ -973,158 +973,177 @@ export default function NotifPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
-        <div className="flex flex-col space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-            <div className="relative flex-1 max-w-md">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search notifications, error categories, solutions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
-              />
-            </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+          {/* Search Bar */}
+          <div className="relative w-full">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder={
+                screenSize === "mobile"
+                  ? "Search..."
+                  : "Search notifications, error categories, solutions..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+            />
+          </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Source Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[120px] justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {sourceFilter.charAt(0).toUpperCase() +
+          {/* Filters Group */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Source Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                    {sourceFilter === "all"
+                      ? "Source"
+                      : sourceFilter.charAt(0).toUpperCase() +
                         sourceFilter.slice(1)}
-                    </span>
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["all", "tv", "chromecast", "channel", "system"].map(
-                      (source) => (
-                        <DropdownMenu.Item
-                          key={`source-${source}`}
-                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                          onClick={() => setSourceFilter(source)}
-                        >
-                          <span className="capitalize">
-                            {source === "all" ? "All Sources" : source}
-                          </span>
-                        </DropdownMenu.Item>
-                      )
-                    )}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-
-              {/* Type Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[120px] justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)}
-                    </span>
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["all", "warning", "success"].map((type) => (
-                      <DropdownMenu.Item
-                        key={`type-${type}`}
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setTypeFilter(type)}
-                      >
-                        <span className="capitalize">
-                          {type === "all" ? "All Types" : type}
-                        </span>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-
-              {/* Category Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[140px] justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {categoryFilter === "all"
-                        ? "All Categories"
-                        : categoryFilter}
-                    </span>
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["all", "tv", "chromecast", "channel"].map((source) => (
                     <DropdownMenu.Item
-                      className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                      onClick={() => setCategoryFilter("all")}
+                      key={`source-${source}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                      onClick={() => setSourceFilter(source)}
                     >
-                      All Categories
+                      <span className="capitalize">
+                        {source === "all" ? "All Sources" : source}
+                      </span>
                     </DropdownMenu.Item>
-                    {Array.from(
-                      new Set(faqData.map((faq) => faq.category))
-                    ).map((category) => (
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
+            {/* Type Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                    {typeFilter === "all"
+                      ? "Type"
+                      : typeFilter.charAt(0).toUpperCase() +
+                        typeFilter.slice(1)}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["all", "warning", "success"].map((type) => (
+                    <DropdownMenu.Item
+                      key={`type-${type}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                      onClick={() => setTypeFilter(type)}
+                    >
+                      <span className="capitalize">
+                        {type === "all" ? "All Types" : type}
+                      </span>
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
+            {/* Category Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                    {categoryFilter === "all"
+                      ? "Category"
+                      : categoryFilter.replace("Kategori-", "K-")}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[140px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm max-h-64 overflow-y-auto">
+                  <DropdownMenu.Item
+                    className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setCategoryFilter("all")}
+                  >
+                    All Categories
+                  </DropdownMenu.Item>
+                  {Array.from(new Set(faqData.map((faq) => faq.category))).map(
+                    (category) => (
                       <DropdownMenu.Item
                         key={category}
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                        className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                         onClick={() => setCategoryFilter(category)}
                       >
                         {category}
                       </DropdownMenu.Item>
-                    ))}
-                    <DropdownMenu.Item
-                      className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                      onClick={() => setCategoryFilter("Uncategorized")}
-                    >
-                      Uncategorized
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
+                    )
+                  )}
+                  <DropdownMenu.Item
+                    className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setCategoryFilter("Uncategorized")}
+                  >
+                    Uncategorized
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          </div>
 
-              {/* Control Buttons */}
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className={`flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  refreshing ? "animate-pulse" : ""
+          {/* Action Buttons Group */}
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${
+                refreshing ? "animate-pulse" : ""
+              }`}
+              title={refreshing ? "Refreshing..." : "Refresh"}
+            >
+              <ArrowPathIcon
+                className={`w-4 h-4 flex-shrink-0 ${
+                  refreshing ? "animate-spin" : ""
                 }`}
-              >
-                <ArrowPathIcon
-                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                <span className="text-sm font-medium">
-                  {refreshing ? "Refreshing..." : "Refresh"}
-                </span>
-              </button>
+              />
+              <span className="text-xs sm:text-sm font-medium">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
+            </button>
 
-              <button
-                onClick={handleCleanup}
-                className="flex items-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all duration-200 transform hover:scale-105 active:scale-95"
-              >
-                <WrenchScrewdriverIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">Cleanup</span>
-              </button>
+            {/* Cleanup Button */}
+            <button
+              onClick={handleCleanup}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600 text-white rounded-lg sm:rounded-xl hover:bg-amber-700 transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial"
+              title="Cleanup old notifications"
+            >
+              <WrenchScrewdriverIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium">Cleanup</span>
+            </button>
 
-              <button
-                onClick={exportToCSV}
-                disabled={exportLoading}
-                className={`flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  exportLoading ? "animate-pulse" : ""
+            {/* Export CSV Button */}
+            <button
+              onClick={exportToCSV}
+              disabled={exportLoading}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${
+                exportLoading ? "animate-pulse" : ""
+              }`}
+              title={exportLoading ? "Exporting..." : "Export CSV"}
+            >
+              <ArrowDownTrayIcon
+                className={`w-4 h-4 flex-shrink-0 ${
+                  exportLoading ? "animate-bounce" : ""
                 }`}
-              >
-                <ArrowDownTrayIcon
-                  className={`w-4 h-4 ${exportLoading ? "animate-bounce" : ""}`}
-                />
-                <span className="text-sm font-medium">
-                  {exportLoading ? "Exporting..." : "Export CSV"}
-                </span>
-              </button>
-            </div>
+              />
+              <span className="text-xs sm:text-sm font-medium">
+                {exportLoading ? "Exporting..." : "Export"}
+              </span>
+            </button>
           </div>
         </div>
       </div>

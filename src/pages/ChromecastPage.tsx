@@ -679,91 +679,93 @@ export default function ChromecastPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
-        <div className="flex flex-col space-y-4">
-          {/* Search Section */}
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-            <div className="relative flex-1 max-w-md">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search devices, IP addresses..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500"
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+          {/* Search Bar */}
+          <div className="relative w-full">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder={
+                screenSize === "mobile"
+                  ? "Search..."
+                  : "Search devices, IP addresses..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+            />
+          </div>
+
+          {/* Filters and Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
+            {/* Status Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg sm:rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm text-green-700 font-medium truncate">
+                    {statusFilter === "All"
+                      ? screenSize === "mobile"
+                        ? "All"
+                        : "All Status"
+                      : statusFilter}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 group-hover:text-green-600 transition-colors flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["All", "Online", "Offline"].map((status) => (
+                    <DropdownMenu.Item
+                      key={`status-${status}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full mr-3 ${
+                          status === "Online"
+                            ? "bg-green-500"
+                            : status === "Offline"
+                            ? "bg-red-500"
+                            : "bg-gray-400"
+                        } opacity-0 group-hover:opacity-100 transition-opacity`}
+                      ></div>
+                      {status}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
+            {/* Export Button */}
+            <button
+              onClick={exportToCSV}
+              disabled={exportLoading || filteredChromecasts.length === 0}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={exportLoading ? "Exporting..." : "Export CSV"}
+            >
+              <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {exportLoading ? "Exporting..." : "Export"}
+              </span>
+            </button>
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={refreshing ? "Refreshing..." : "Refresh"}
+            >
+              <ArrowPathIcon
+                className={`w-4 h-4 flex-shrink-0 ${
+                  refreshing ? "animate-spin" : ""
+                }`}
               />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Status Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[120px] justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {statusFilter}
-                    </span>
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["All", "Online", "Offline"].map((status) => (
-                      <DropdownMenu.Item
-                        key={`status-${status}`}
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setStatusFilter(status)}
-                      >
-                        <div
-                          className={`w-2 h-2 rounded-full mr-3 ${
-                            status === "Online"
-                              ? "bg-green-500"
-                              : status === "Offline"
-                              ? "bg-red-500"
-                              : "bg-gray-400"
-                          } opacity-0 group-hover:opacity-100 transition-opacity`}
-                        ></div>
-                        {status}
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                {/* Export Button */}
-                <button
-                  onClick={exportToCSV}
-                  disabled={exportLoading || filteredChromecasts.length === 0}
-                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                >
-                  <ArrowDownTrayIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium hidden sm:inline">
-                    {exportLoading ? "Exporting..." : "Export CSV"}
-                  </span>
-                </button>
-
-                {/* Refresh Button */}
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  aria-label={
-                    refreshing
-                      ? "Refreshing chromecast data"
-                      : "Refresh chromecast data"
-                  }
-                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                >
-                  <ArrowPathIcon
-                    className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                  />
-                  <span className="text-sm font-medium">
-                    {refreshing ? "Refreshing..." : "Refresh"}
-                  </span>
-                </button>
-              </div>
-            </div>
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
+            </button>
           </div>
         </div>
       </div>
