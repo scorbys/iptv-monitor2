@@ -280,7 +280,7 @@ export default function Topbar() {
           <div className="absolute inset-0 bg-white/20 rounded-full blur-xl opacity-30 animate-pulse" />
         </div>
 
-        {/* Desktop title dengan typography yang lebih menarik */}
+        {/* Desktop title */}
         <div className="hidden sm:block">
           <h1 className="text-white text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent drop-shadow-sm">
             Sistem Monitoring IPTV & Chromecast
@@ -288,7 +288,7 @@ export default function Topbar() {
           <div className="h-0.5 w-24 bg-gradient-to-r from-blue-400 to-transparent mt-1 rounded-full" />
         </div>
 
-        {/* Mobile title - lebih stylish */}
+        {/* Mobile title */}
         <div className="block sm:hidden">
           <h1 className="text-white text-base font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
             IPTV Monitor
@@ -343,7 +343,7 @@ export default function Topbar() {
               sideOffset={8}
               align="end"
             >
-              {/* Header - Simple dan Clean */}
+              {/* Header */}
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -373,7 +373,7 @@ export default function Topbar() {
                 </div>
               </div>
 
-              {/* Content - Lebih Clean */}
+              {/* Content */}
               <div className="max-h-96 overflow-y-auto">
                 {loading ? (
                   <div className="px-6 py-12 text-center">
@@ -444,7 +444,7 @@ export default function Topbar() {
                                 </span>
                               </div>
 
-                              {/* Tags - Minimal dan Organized */}
+                              {/* Tags */}
                               <div className="flex flex-wrap items-center gap-2">
                                 {/* Status */}
                                 <span
@@ -566,8 +566,6 @@ export default function Topbar() {
                         </span>
                       </div>
                     )}
-                    {/* Online indicator */}
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse" />
                   </div>
 
                   <div className="text-left">
@@ -656,7 +654,7 @@ export default function Topbar() {
                           </div>
                         )}
                         {/* Online indicator */}
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm" />
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm animate-pulse" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-base font-semibold text-slate-900">

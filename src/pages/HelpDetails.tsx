@@ -100,7 +100,7 @@ interface ModernArticleHeaderProps {
   resetProgress: () => void;
 }
 
-// Enhanced mock data with more articles
+// Mock data with more articles
 const faqData: FAQ[] = [
   {
     id: 1,
@@ -598,9 +598,8 @@ const ImageModal: React.FC<ImageModalProps> = ({
             alt={`Guide step ${currentIndex + 1}`}
             width={400}
             height={300}
-            className={`max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${
-              isImageLoaded ? "opacity-100" : "opacity-0"
-            } ${imageLoadError ? "hidden" : ""}`}
+            className={`max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${isImageLoaded ? "opacity-100" : "opacity-0"
+              } ${imageLoadError ? "hidden" : ""}`}
             onLoad={handleImageLoad}
             onError={handleImageError}
           />
@@ -626,11 +625,10 @@ const ImageModal: React.FC<ImageModalProps> = ({
               <button
                 key={index}
                 onClick={() => onImageClick(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                  index === currentIndex
+                className={`w-3 h-3 rounded-full transition-all duration-200 ${index === currentIndex
                     ? "bg-white scale-125"
                     : "bg-white/50 hover:bg-white/75"
-                }`}
+                  }`}
                 aria-label={`Go to image ${index + 1}`}
               />
             ))}
@@ -652,11 +650,10 @@ const ModernStepItem: React.FC<ModernStepItemProps> = ({
 
   return (
     <div
-      className={`group relative flex items-start space-x-4 p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
-        isCompleted
+      className={`group relative flex items-start space-x-4 p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${isCompleted
           ? "bg-green-50 border-green-200 shadow-sm"
           : "bg-gray-50 border-gray-200 hover:border-blue-200 hover:bg-blue-50"
-      }`}
+        }`}
       onClick={() => toggleStepCompletion(index)}
     >
       {/* Step Number / Checkbox */}
@@ -675,11 +672,10 @@ const ModernStepItem: React.FC<ModernStepItemProps> = ({
       {/* Step Content */}
       <div className="flex-1">
         <p
-          className={`text-sm font-medium leading-relaxed transition-colors ${
-            isCompleted
+          className={`text-sm font-medium leading-relaxed transition-colors ${isCompleted
               ? "text-green-800 line-through"
               : "text-gray-800 group-hover:text-blue-800"
-          }`}
+            }`}
         >
           {step}
         </p>
@@ -848,9 +844,8 @@ const ModernVisualGuide: React.FC<ModernVisualGuideProps> = ({
                 height={300}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EScreenshot Guide%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EStep ${
-                    index + 1
-                  }%3C/text%3E%3C/svg%3E`;
+                  target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EScreenshot Guide%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EStep ${index + 1
+                    }%3C/text%3E%3C/svg%3E`;
                 }}
               />
 
@@ -923,9 +918,8 @@ const ModernQuickInfo: React.FC<ModernQuickInfoProps> = ({
                 height={300}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EQuick Info%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EInfo ${
-                    index + 1
-                  }%3C/text%3E%3C/svg%3E`;
+                  target.src = `data:image/svg+xml,%3Csvg width='400' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23f8fafc'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' dy='.3em' fill='%236b7280' font-size='14' font-weight='600'%3EQuick Info%3C/text%3E%3Ctext x='50%25' y='60%25' text-anchor='middle' dy='.3em' fill='%239ca3af' font-size='12'%3EInfo ${index + 1
+                    }%3C/text%3E%3C/svg%3E`;
                 }}
               />
 
@@ -1267,7 +1261,7 @@ const HelpDetails: React.FC = () => {
                 article={article}
                 openImageModal={openImageModal}
               />
-              
+
               <ModernVisualGuide
                 article={article}
                 openImageModal={openImageModal}

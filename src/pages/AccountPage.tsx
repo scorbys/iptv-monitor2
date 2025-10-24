@@ -427,11 +427,10 @@ export default function AccountPage() {
         {/* Message Alert */}
         {message && (
           <div
-            className={`mb-6 p-4 rounded-lg border ${
-              message.type === "success"
+            className={`mb-6 p-4 rounded-lg border ${message.type === "success"
                 ? "bg-green-50 border-green-200 text-green-800"
                 : "bg-red-50 border-red-200 text-red-800"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2">
               {message.type === "success" ? (
@@ -449,22 +448,20 @@ export default function AccountPage() {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab("profile")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "profile"
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "profile"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
             >
               Profile Information
             </button>
             {passwordChangeAllowed && (
               <button
                 onClick={() => setActiveTab("security")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "security"
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "security"
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                  }`}
               >
                 Security
               </button>
@@ -603,11 +600,10 @@ export default function AccountPage() {
                         handleInputChange("username", e.target.value)
                       }
                       disabled={!canEditProfile || !editMode}
-                      className={`w-full px-4 py-2 pl-10 border rounded-md ${
-                        !canEditProfile || !editMode
+                      className={`w-full px-4 py-2 pl-10 border rounded-md ${!canEditProfile || !editMode
                           ? "border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
                           : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      }`}
+                        }`}
                     />
                     <IconUser className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                   </div>
@@ -629,11 +625,10 @@ export default function AccountPage() {
                     onChange={(e) => handleInputChange("name", e.target.value)}
                     disabled={!editMode}
                     placeholder="Enter your display name"
-                    className={`w-full px-4 py-2 border rounded-md ${
-                      !editMode
+                    className={`w-full px-4 py-2 border rounded-md ${!editMode
                         ? "border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
                         : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    }`}
+                      }`}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     This is how your name will be displayed
@@ -847,8 +842,8 @@ export default function AccountPage() {
                         : "Updating Password..."
                       : user?.provider === "google" &&
                         user?.password !== "exists"
-                      ? "Set Password"
-                      : "Update Password"}
+                        ? "Set Password"
+                        : "Update Password"}
                   </button>
                 </div>
               </form>

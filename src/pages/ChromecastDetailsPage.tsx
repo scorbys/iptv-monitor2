@@ -254,8 +254,8 @@ const generateHistoricalData = (
       timeRange === "24h"
         ? `${String(time.getHours()).padStart(2, "0")}:00`
         : timeRange === "7d"
-        ? time.toLocaleDateString()
-        : `${String(time.getHours()).padStart(2, "0")}:${String(
+          ? time.toLocaleDateString()
+          : `${String(time.getHours()).padStart(2, "0")}:${String(
             time.getMinutes()
           ).padStart(2, "0")}`;
 
@@ -651,6 +651,76 @@ export default function ChromecastDetailPage({
     }
   };
 
+  const handleAskAI = () => {
+    if (!device || !networkMetrics) return;
+
+    const isOnline = device.isOnline;
+
+    let contextMessage = "";
+
+    if (isOnline) {
+      const latencyChange = previousMetrics?.latency
+        ? (
+          ((networkMetrics.latency - previousMetrics.latency) /
+            previousMetrics.latency) *
+          100
+        ).toFixed(1)
+        : "0";
+
+      const bandwidthChange = previousMetrics?.bandwidth
+        ? (
+          ((networkMetrics.bandwidth - previousMetrics.bandwidth) /
+            previousMetrics.bandwidth) *
+          100
+        ).toFixed(1)
+        : "0";
+
+      const hasConcerns =
+        networkMetrics.latency > 50 ||
+        networkMetrics.packetLoss > 1 ||
+        device.signalLevel < -70 ||
+        (previousMetrics &&
+          networkMetrics.bandwidth < previousMetrics.bandwidth * 0.8);
+
+      contextMessage = `Chromecast ${device.deviceName} status ONLINE. Dalam 24 jam terakhir latency ${Number(latencyChange) > 0 ? "naik" : "turun"
+        } ${Math.abs(parseFloat(latencyChange))}% jadi ${networkMetrics.latency
+        }ms, bandwidth ${Number(bandwidthChange) > 0 ? "naik" : "turun"
+        } ${Math.abs(parseFloat(bandwidthChange))}% jadi ${networkMetrics.bandwidth
+        }Mbps, packet loss ${networkMetrics.packetLoss}%. Signal strength ${device.signalLevel
+        } dBm. ${hasConcerns
+          ? "Ada beberapa metrics yang perlu perhatian."
+          : "Semua metrics dalam range normal."
+        } ${detectedIssues.length > 0
+          ? `System mendeteksi issue: ${detectedIssues[0].issue}.`
+          : ""
+        } Analisis kondisi device ini, apakah performa baik atau ada yang concern? Kasih insight tentang trend network dan rekomendasi konkret.`;
+    } else {
+      const primaryIssue =
+        detectedIssues.length > 0 ? detectedIssues[0] : null;
+
+      contextMessage = `Chromecast ${device.deviceName} status OFFLINE. Network performance tidak ada aktivitas sama sekali: latency 0ms, bandwidth 0Mbps, packet loss 100%. Device status tidak pingable, signal ${device.signalLevel
+        } dBm, IP ${device.ipAddr} unreachable, response time unavailable ${device.error || "error"
+        }. ${primaryIssue
+          ? `Issue detection: ${primaryIssue.category} - ${primaryIssue.issue} (${primaryIssue.priority} priority, ${primaryIssue.actionType} action). Solusi umum: ${primaryIssue.solutions[0]}.`
+          : "Tidak ada error message spesifik."
+        } Tolong jelaskan kemungkinan root cause dan step by step troubleshooting untuk restore device ini.`;
+    }
+
+    const chatEvent = new CustomEvent("openLiveChat", {
+      detail: {
+        device: {
+          deviceName: device.deviceName,
+          type: device.type,
+          status: device.isOnline ? "online" : "offline",
+          isOnline: isOnline,
+          contextMessage: contextMessage,
+        },
+      },
+    });
+
+    window.dispatchEvent(chatEvent);
+  };
+
   // Fetch network history
   const fetchNetworkHistory = async (
     deviceIdentifier: string,
@@ -783,12 +853,12 @@ export default function ChromecastDetailPage({
       value: number;
       previousValue?: number;
       type:
-        | "latency"
-        | "bandwidth"
-        | "signal"
-        | "speed"
-        | "data_sent"
-        | "data_received";
+      | "latency"
+      | "bandwidth"
+      | "signal"
+      | "speed"
+      | "data_sent"
+      | "data_received";
       unit: string;
       label: string;
       isOnline?: boolean;
@@ -979,19 +1049,18 @@ export default function ChromecastDetailPage({
           <p className="text-sm font-medium text-gray-900">{`Time: ${label}`}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.name}: ${entry.value}${
-                entry.name === "Latency"
-                  ? "ms"
-                  : entry.name === "Bandwidth"
+              {`${entry.name}: ${entry.value}${entry.name === "Latency"
+                ? "ms"
+                : entry.name === "Bandwidth"
                   ? "Mbps"
                   : entry.name === "Jitter"
-                  ? "ms"
-                  : entry.name === "Packet Loss"
-                  ? "%"
-                  : entry.name === "Speed"
-                  ? "Mbps"
-                  : ""
-              }`}
+                    ? "ms"
+                    : entry.name === "Packet Loss"
+                      ? "%"
+                      : entry.name === "Speed"
+                        ? "Mbps"
+                        : ""
+                }`}
             </p>
           ))}
         </div>
@@ -1017,22 +1086,19 @@ export default function ChromecastDetailPage({
     if (isMobile) {
       return (
         <div
-          className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-            isWorking
-              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-              : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
-          }`}
+          className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isWorking
+            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+            : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
+            }`}
         >
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             <div
-              className={`p-1.5 rounded-lg flex-shrink-0 ${
-                isWorking ? "bg-green-100" : "bg-red-100"
-              }`}
+              className={`p-1.5 rounded-lg flex-shrink-0 ${isWorking ? "bg-green-100" : "bg-red-100"
+                }`}
             >
               <Icon
-                className={`w-3.5 h-3.5 ${
-                  isWorking ? "text-green-600" : "text-red-600"
-                }`}
+                className={`w-3.5 h-3.5 ${isWorking ? "text-green-600" : "text-red-600"
+                  }`}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -1060,22 +1126,19 @@ export default function ChromecastDetailPage({
     // Desktop version (kode asli)
     return (
       <div
-        className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
-          isWorking
-            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:shadow-sm"
-            : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
-        }`}
+        className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${isWorking
+          ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:shadow-sm"
+          : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
+          }`}
       >
         <div className="flex items-center space-x-3">
           <div
-            className={`p-2 rounded-lg ${
-              isWorking ? "bg-green-100" : "bg-red-100"
-            }`}
+            className={`p-2 rounded-lg ${isWorking ? "bg-green-100" : "bg-red-100"
+              }`}
           >
             <Icon
-              className={`w-4 h-4 ${
-                isWorking ? "text-green-600" : "text-red-600"
-              }`}
+              className={`w-4 h-4 ${isWorking ? "text-green-600" : "text-red-600"
+                }`}
             />
           </div>
           <div>
@@ -1108,11 +1171,10 @@ export default function ChromecastDetailPage({
           {action && (
             <button
               onClick={action.onClick}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                action.type === "repair"
-                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${action.type === "repair"
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
             >
               {action.label}
             </button>
@@ -1121,8 +1183,6 @@ export default function ChromecastDetailPage({
       </div>
     );
   };
-
-  const handleAskAI = () => {};
 
   if (!mounted || loading) {
     return (
@@ -1372,22 +1432,20 @@ export default function ChromecastDetailPage({
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <div
-                            className={`p-2 rounded-lg ${
-                              issue.priority === "High"
-                                ? "bg-red-100"
-                                : issue.priority === "Medium"
+                            className={`p-2 rounded-lg ${issue.priority === "High"
+                              ? "bg-red-100"
+                              : issue.priority === "Medium"
                                 ? "bg-yellow-100"
                                 : "bg-gray-100"
-                            }`}
+                              }`}
                           >
                             <WrenchScrewdriverIcon
-                              className={`w-5 h-5 ${
-                                issue.priority === "High"
-                                  ? "text-red-600"
-                                  : issue.priority === "Medium"
+                              className={`w-5 h-5 ${issue.priority === "High"
+                                ? "text-red-600"
+                                : issue.priority === "Medium"
                                   ? "text-yellow-600"
                                   : "text-gray-600"
-                              }`}
+                                }`}
                             />
                           </div>
                           <div>
@@ -1401,13 +1459,12 @@ export default function ChromecastDetailPage({
                         </div>
                       </div>
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          issue.priority === "High"
-                            ? "bg-red-100 text-red-800"
-                            : issue.priority === "Medium"
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${issue.priority === "High"
+                          ? "bg-red-100 text-red-800"
+                          : issue.priority === "Medium"
                             ? "bg-yellow-100 text-yellow-800"
                             : "bg-gray-100 text-gray-800"
-                        }`}
+                          }`}
                       >
                         {issue.priority} Priority
                       </span>
@@ -1443,9 +1500,8 @@ export default function ChromecastDetailPage({
                           className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
                         >
                           <WrenchScrewdriverIcon
-                            className={`w-4 h-4 mr-2 ${
-                              checking ? "animate-spin" : ""
-                            }`}
+                            className={`w-4 h-4 mr-2 ${checking ? "animate-spin" : ""
+                              }`}
                           />
                           {checking ? "Repairing..." : "Auto Repair"}
                         </button>
@@ -1546,9 +1602,8 @@ export default function ChromecastDetailPage({
                     </div>
                     <div className="flex items-center mt-1">
                       <SignalIcon
-                        className={`h-4 w-4 mr-1 ${
-                          device.isOnline ? "text-green-500" : "text-red-500"
-                        }`}
+                        className={`h-4 w-4 mr-1 ${device.isOnline ? "text-green-500" : "text-red-500"
+                          }`}
                       />
                       <span className="text-sm text-gray-500">
                         {device.signalLevel}
@@ -1558,25 +1613,22 @@ export default function ChromecastDetailPage({
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex flex-col space-y-1">
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          device.isOnline
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${device.isOnline
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                          }`}
                       >
                         <div
-                          className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                            device.isOnline ? "bg-green-500" : "bg-red-500"
-                          }`}
+                          className={`w-1.5 h-1.5 rounded-full mr-1 ${device.isOnline ? "bg-green-500" : "bg-red-500"
+                            }`}
                         ></div>
                         {device.isOnline ? "Online" : "Offline"}
                       </span>
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          device.isPingable
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${device.isPingable
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                          }`}
                       >
                         {device.isPingable ? "Pingable" : "Disconnect"}
                       </span>
@@ -1603,9 +1655,8 @@ export default function ChromecastDetailPage({
                       className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
                     >
                       <ArrowPathIcon
-                        className={`w-3 h-3 mr-1 ${
-                          checking ? "animate-spin" : ""
-                        }`}
+                        className={`w-3 h-3 mr-1 ${checking ? "animate-spin" : ""
+                          }`}
                       />
                       {checking ? "Checking..." : "Check"}
                     </button>
@@ -1666,16 +1717,14 @@ export default function ChromecastDetailPage({
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Status</p>
                   <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      device.isOnline
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${device.isOnline
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                      }`}
                   >
                     <div
-                      className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                        device.isOnline ? "bg-green-500" : "bg-red-500"
-                      }`}
+                      className={`w-1.5 h-1.5 rounded-full mr-1 ${device.isOnline ? "bg-green-500" : "bg-red-500"
+                        }`}
                     ></div>
                     {device.isOnline ? "Online" : "Offline"}
                   </span>
@@ -1684,11 +1733,10 @@ export default function ChromecastDetailPage({
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Connection</p>
                   <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      device.isPingable
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${device.isPingable
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-gray-100 text-gray-800"
+                      }`}
                   >
                     {device.isPingable ? "Pingable" : "Disconnect"}
                   </span>
@@ -1698,9 +1746,8 @@ export default function ChromecastDetailPage({
                   <p className="text-xs text-gray-500 mb-1">Signal</p>
                   <div className="flex items-center">
                     <SignalIcon
-                      className={`h-3.5 w-3.5 mr-1 ${
-                        device.isOnline ? "text-green-500" : "text-red-500"
-                      }`}
+                      className={`h-3.5 w-3.5 mr-1 ${device.isOnline ? "text-green-500" : "text-red-500"
+                        }`}
                     />
                     <span className="text-xs text-gray-700">
                       {device.signalLevel} dBm
@@ -1779,31 +1826,28 @@ export default function ChromecastDetailPage({
                 <div className="flex items-center gap-1.5 sm:gap-2 text-sm overflow-x-auto">
                   <button
                     onClick={() => handleTabChange("1h")}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
-                      activeTab === "1h"
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:text-blue-600"
-                    }`}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${activeTab === "1h"
+                      ? "bg-blue-100 text-blue-700 font-medium"
+                      : "text-gray-600 hover:text-blue-600"
+                      }`}
                   >
                     Hourly
                   </button>
                   <button
                     onClick={() => handleTabChange("24h")}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
-                      activeTab === "24h"
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:text-blue-600"
-                    }`}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${activeTab === "24h"
+                      ? "bg-blue-100 text-blue-700 font-medium"
+                      : "text-gray-600 hover:text-blue-600"
+                      }`}
                   >
                     Daily
                   </button>
                   <button
                     onClick={() => handleTabChange("7d")}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${
-                      activeTab === "7d"
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:text-blue-600"
-                    }`}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap ${activeTab === "7d"
+                      ? "bg-blue-100 text-blue-700 font-medium"
+                      : "text-gray-600 hover:text-blue-600"
+                      }`}
                   >
                     Weekly
                   </button>
@@ -2029,9 +2073,8 @@ export default function ChromecastDetailPage({
                 >
                   <div className="flex items-center">
                     <ArrowPathIcon
-                      className={`w-4 h-4 mr-3 ${
-                        checking ? "animate-spin" : ""
-                      }`}
+                      className={`w-4 h-4 mr-3 ${checking ? "animate-spin" : ""
+                        }`}
                     />
                     <span className="font-medium">
                       {checking ? "Refreshing..." : "Refresh Status"}

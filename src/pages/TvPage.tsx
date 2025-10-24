@@ -227,10 +227,10 @@ export default function TvPage() {
           prev.map((tv) =>
             tv.roomNo === roomNo
               ? {
-                  ...tv,
-                  ...result.data,
-                  error: undefined, // Clear previous error
-                }
+                ...tv,
+                ...result.data,
+                error: undefined, // Clear previous error
+              }
               : tv
           )
         );
@@ -240,10 +240,10 @@ export default function TvPage() {
           prev.map((tv) =>
             tv.roomNo === roomNo
               ? {
-                  ...tv,
-                  error: result.message || "Check failed",
-                  status: "offline",
-                }
+                ...tv,
+                error: result.message || "Check failed",
+                status: "offline",
+              }
               : tv
           )
         );
@@ -256,10 +256,10 @@ export default function TvPage() {
         prev.map((tv) =>
           tv.roomNo === roomNo
             ? {
-                ...tv,
-                error: error instanceof Error ? error.message : "Network error",
-                status: "offline",
-              }
+              ...tv,
+              error: error instanceof Error ? error.message : "Network error",
+              status: "offline",
+            }
             : tv
         )
       );
@@ -314,16 +314,14 @@ export default function TvPage() {
     ({ status, responseTime }: { status: string; responseTime?: number }) => (
       <div className="flex flex-col items-start">
         <span
-          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-            status === "online"
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${status === "online"
               ? "bg-gradient-to-r from-green-50 to-green-100 text-green-800 border-green-200"
               : "bg-gradient-to-r from-red-50 to-red-100 text-red-800 border-red-200"
-          }`}
+            }`}
         >
           <div
-            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-              status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
-            }`}
+            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
+              }`}
           />
           {status
             ? status.charAt(0).toUpperCase() + status.slice(1)
@@ -541,22 +539,20 @@ export default function TvPage() {
               </div>
               <div className="p-3 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    parseFloat(stats.uptime || "0") >= 95
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${parseFloat(stats.uptime || "0") >= 95
                       ? "bg-gradient-to-br from-green-100 to-emerald-100"
                       : parseFloat(stats.uptime || "0") >= 80
-                      ? "bg-gradient-to-br from-yellow-100 to-orange-100"
-                      : "bg-gradient-to-br from-red-100 to-pink-100"
-                  }`}
+                        ? "bg-gradient-to-br from-yellow-100 to-orange-100"
+                        : "bg-gradient-to-br from-red-100 to-pink-100"
+                    }`}
                 >
                   <div
-                    className={`w-4 h-4 rounded-full ${
-                      parseFloat(stats.uptime || "0") >= 95
+                    className={`w-4 h-4 rounded-full ${parseFloat(stats.uptime || "0") >= 95
                         ? "bg-green-500"
                         : parseFloat(stats.uptime || "0") >= 80
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    }`}
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
                   ></div>
                 </div>
               </div>
@@ -609,13 +605,12 @@ export default function TvPage() {
                       onClick={() => setStatusFilter(status)}
                     >
                       <div
-                        className={`w-2 h-2 rounded-full mr-3 ${
-                          status === "Online"
+                        className={`w-2 h-2 rounded-full mr-3 ${status === "Online"
                             ? "bg-green-500"
                             : status === "Offline"
-                            ? "bg-red-500"
-                            : "bg-gray-400"
-                        } opacity-0 group-hover:opacity-100 transition-opacity`}
+                              ? "bg-red-500"
+                              : "bg-gray-400"
+                          } opacity-0 group-hover:opacity-100 transition-opacity`}
                       ></div>
                       {status}
                     </DropdownMenu.Item>
@@ -645,9 +640,8 @@ export default function TvPage() {
               title={refreshing ? "Refreshing..." : "Refresh"}
             >
               <ArrowPathIcon
-                className={`w-4 h-4 flex-shrink-0 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
+                className={`w-4 h-4 flex-shrink-0 ${refreshing ? "animate-spin" : ""
+                  }`}
               />
               <span className="text-xs sm:text-sm font-medium hidden sm:inline">
                 {refreshing ? "Refreshing..." : "Refresh"}
@@ -736,9 +730,8 @@ export default function TvPage() {
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     >
                       <ArrowPathIcon
-                        className={`w-3 h-3 mr-1 ${
-                          checkingId === tv.roomNo ? "animate-spin" : ""
-                        }`}
+                        className={`w-3 h-3 mr-1 ${checkingId === tv.roomNo ? "animate-spin" : ""
+                          }`}
                       />
                       {checkingId === tv.roomNo ? "Checking..." : "Check"}
                     </button>
@@ -805,9 +798,8 @@ export default function TvPage() {
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   <ArrowPathIcon
-                    className={`w-4 h-4 ${
-                      checkingId === tv.roomNo ? "animate-spin" : ""
-                    }`}
+                    className={`w-4 h-4 ${checkingId === tv.roomNo ? "animate-spin" : ""
+                      }`}
                   />
                   {checkingId === tv.roomNo ? "Checking..." : "Check Now"}
                 </button>
@@ -859,17 +851,15 @@ export default function TvPage() {
       {paginationData.totalPages > 1 && (
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
           <div
-            className={`flex items-center justify-between gap-2 sm:gap-4 ${
-              screenSize === "mobile"
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${screenSize === "mobile"
                 ? "flex-col space-y-3"
                 : "flex-col sm:flex-row"
-            }`}
+              }`}
           >
             {/* Info Text */}
             <div
-              className={`text-xs sm:text-sm text-gray-600 ${
-                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
-              }`}
+              className={`text-xs sm:text-sm text-gray-600 ${screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+                }`}
             >
               {screenSize === "mobile" ? (
                 // Compact info for mobile
@@ -904,16 +894,14 @@ export default function TvPage() {
 
             {/* Pagination Controls */}
             <div
-              className={`flex items-center gap-1 sm:gap-2 ${
-                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
-              }`}
+              className={`flex items-center gap-1 sm:gap-2 ${screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+                }`}
             >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 {screenSize !== "mobile" && (
@@ -939,11 +927,10 @@ export default function TvPage() {
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === 1
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === 1
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         1
                       </button>
@@ -975,11 +962,10 @@ export default function TvPage() {
                       <button
                         key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === i
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {i}
                       </button>
@@ -1003,11 +989,10 @@ export default function TvPage() {
                       <button
                         key="page-last"
                         onClick={() => handlePageChange(totalPages)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === totalPages
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === totalPages
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -1021,9 +1006,8 @@ export default function TvPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 {screenSize !== "mobile" && (
                   <span className="hidden sm:inline">Next</span>

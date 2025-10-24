@@ -310,7 +310,7 @@ const improvedSearch = (searchQuery: string, article: FAQ): boolean => {
   return searchTerms.every((term) => searchableText.includes(term));
 };
 
-const EnhancedSearchBar: React.FC<{
+const SearchBar: React.FC<{
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   suggestions?: string[];
@@ -456,10 +456,9 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
           relative w-full min-w-[160px] px-4 py-3.5 text-left
           bg-white border-2 rounded-2xl shadow-sm
           transition-all duration-300 ease-out
-          ${
-            disabled
-              ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
-              : `${currentColor.border} ${currentColor.focus} hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 cursor-pointer`
+          ${disabled
+            ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
+            : `${currentColor.border} ${currentColor.focus} hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 cursor-pointer`
           }
           ${isOpen ? `${currentColor.focus} shadow-lg` : ""}
         `}
@@ -468,18 +467,16 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
           <div className="flex items-center space-x-3">
             {icon && (
               <div
-                className={`p-1.5 rounded-lg ${currentColor.bg} ${
-                  disabled ? "opacity-50" : ""
-                }`}
+                className={`p-1.5 rounded-lg ${currentColor.bg} ${disabled ? "opacity-50" : ""
+                  }`}
               >
                 {icon}
               </div>
             )}
             <div className="min-w-0 flex-1">
               <span
-                className={`block text-sm font-medium ${
-                  disabled ? "text-gray-400" : "text-gray-900"
-                } truncate`}
+                className={`block text-sm font-medium ${disabled ? "text-gray-400" : "text-gray-900"
+                  } truncate`}
               >
                 {displayValue}
               </span>
@@ -492,9 +489,8 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
           </div>
 
           <ChevronDown
-            className={`w-4 h-4 transition-transform duration-300 ${
-              disabled ? "text-gray-400" : "text-gray-500"
-            } ${isOpen ? "rotate-180" : ""}`}
+            className={`w-4 h-4 transition-transform duration-300 ${disabled ? "text-gray-400" : "text-gray-500"
+              } ${isOpen ? "rotate-180" : ""}`}
           />
         </div>
 
@@ -526,20 +522,18 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
                   className={`
               w-full px-4 py-3 text-left text-sm font-medium
               transition-all duration-200 flex items-center justify-between
-              ${
-                isSelected
-                  ? `${currentColor.bg} ${currentColor.text} shadow-sm`
-                  : "text-gray-700 hover:bg-gray-50"
-              }
+              ${isSelected
+                      ? `${currentColor.bg} ${currentColor.text} shadow-sm`
+                      : "text-gray-700 hover:bg-gray-50"
+                    }
               ${index === 0 ? "" : "border-t border-gray-50"}
             `}
                 >
                   <div className="flex items-center space-x-3">
                     {!isDefault && (
                       <div
-                        className={`w-2 h-2 rounded-full ${
-                          isSelected ? currentColor.accent : "bg-gray-300"
-                        }`}
+                        className={`w-2 h-2 rounded-full ${isSelected ? currentColor.accent : "bg-gray-300"
+                          }`}
                       ></div>
                     )}
                     <span className={isDefault ? "font-semibold" : ""}>
@@ -602,7 +596,7 @@ const Header: React.FC<HeaderProps> = ({ searchQuery, setSearchQuery }) => {
 
           {/* Search bar */}
           <div className="flex-1 max-w-2xl mx-8 relative">
-            <EnhancedSearchBar
+            <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               suggestions={suggestions}
@@ -837,11 +831,10 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-lg font-medium ${
-                    article.actionType === "System"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
+                  className={`text-xs px-2 py-0.5 rounded-lg font-medium ${article.actionType === "System"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700"
+                    }`}
                 >
                   {article.actionType}
                 </span>
@@ -852,13 +845,12 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
             </div>
           </div>
           <div
-            className={`text-xs px-2 py-1 rounded-lg font-bold flex-shrink-0 ${
-              article.priority === "High"
-                ? "bg-red-500 text-white"
-                : article.priority === "Medium"
+            className={`text-xs px-2 py-1 rounded-lg font-bold flex-shrink-0 ${article.priority === "High"
+              ? "bg-red-500 text-white"
+              : article.priority === "Medium"
                 ? "bg-yellow-500 text-white"
                 : "bg-gray-500 text-white"
-            }`}
+              }`}
           >
             {article.priority}
           </div>
@@ -1004,8 +996,8 @@ const HelpPage: React.FC = () => {
                   device === "IPTV"
                     ? "shadow-blue-500/25"
                     : device === "Chromecast"
-                    ? "shadow-red-500/25"
-                    : "shadow-green-500/25";
+                      ? "shadow-red-500/25"
+                      : "shadow-green-500/25";
 
                 return (
                   <div

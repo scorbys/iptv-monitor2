@@ -1622,35 +1622,35 @@ export default function ChannelDetailsPage({
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Channel
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Name & Logo
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     IP Multicast
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Checked
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Help
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
-                  <td className="px-4 py-4 whitespace-nowrap w-20">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -1661,10 +1661,10 @@ export default function ChannelDetailsPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap min-w-[200px]">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       {channel.logo && (
-                        <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm">
+                        <div className="h-10 w-15 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm">
                           {channel.logo && isValidUrl(channel.logo) ? (
                             <Image
                               src={channel.logo}
@@ -1693,17 +1693,17 @@ export default function ChannelDetailsPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap w-32">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200">
                       {channel.category || "Uncategorized"}
                     </span>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap w-40">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <code className="text-sm text-gray-900 px-2 py-1 bg-gray-100 rounded-lg font-mono">
                       {channel.ipMulticast || "N/A"}
                     </code>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap w-28">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         channel.status === "online"
@@ -1724,14 +1724,14 @@ export default function ChannelDetailsPage({
                         : "Unknown"}
                     </span>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap w-40">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <DateFormatter
                       date={channel.lastChecked}
                       fallback="Never checked"
                       className="text-sm text-gray-500"
                     />
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap w-24">
+                  <td className="px-4 py-4 whitespace-nowrap=">
                     <button
                       onClick={handleCheckChannel}
                       disabled={checking}
@@ -1747,7 +1747,7 @@ export default function ChannelDetailsPage({
                   </td>
 
                   {/* Help Column */}
-                  <td className="px-4 py-4 whitespace-nowrap w-20">
+                  <td className="px-4 py-4 whitespace-nowrap=">
                     <button
                       onClick={handleAskAI}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow"

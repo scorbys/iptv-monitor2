@@ -262,8 +262,8 @@ export default function NotifPage() {
       const avgResponseTime =
         responseTimes.length > 0
           ? Math.round(
-              responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
-            )
+            responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+          )
           : 0;
 
       const errorCategories = notifications.reduce((acc, n) => {
@@ -368,8 +368,7 @@ export default function NotifPage() {
         setStats(calculateStats(cleaned));
         localStorage.setItem("notif-cache", JSON.stringify(cleaned));
         console.log(
-          `Manual cleanup: removed ${
-            notifications.length - cleaned.length
+          `Manual cleanup: removed ${notifications.length - cleaned.length
           } old notifications`
         );
 
@@ -566,16 +565,14 @@ export default function NotifPage() {
     }) => (
       <div className="flex flex-col gap-1">
         <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            status === "online"
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status === "online"
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
-          }`}
+            }`}
         >
           <div
-            className={`w-1.5 h-1.5 rounded-full mr-1 ${
-              status === "online" ? "bg-green-500" : "bg-red-500"
-            }`}
+            className={`w-1.5 h-1.5 rounded-full mr-1 ${status === "online" ? "bg-green-500" : "bg-red-500"
+              }`}
           ></div>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
@@ -929,19 +926,18 @@ export default function NotifPage() {
             </div>
             <div className="mt-2 pt-2 border-t border-purple-100">
               <span
-                className={`px-2 py-1 rounded text-xs font-medium ${
-                  stats.avgResponseTime < 100
+                className={`px-2 py-1 rounded text-xs font-medium ${stats.avgResponseTime < 100
                     ? "bg-green-100 text-green-700"
                     : stats.avgResponseTime < 300
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-red-100 text-red-700"
-                }`}
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
               >
                 {stats.avgResponseTime < 100
                   ? "Excellent"
                   : stats.avgResponseTime < 300
-                  ? "Good"
-                  : "Slow"}
+                    ? "Good"
+                    : "Slow"}
               </span>
             </div>
           </div>
@@ -1001,7 +997,7 @@ export default function NotifPage() {
                     {sourceFilter === "all"
                       ? "Source"
                       : sourceFilter.charAt(0).toUpperCase() +
-                        sourceFilter.slice(1)}
+                      sourceFilter.slice(1)}
                   </span>
                   <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                 </button>
@@ -1031,7 +1027,7 @@ export default function NotifPage() {
                     {typeFilter === "all"
                       ? "Type"
                       : typeFilter.charAt(0).toUpperCase() +
-                        typeFilter.slice(1)}
+                      typeFilter.slice(1)}
                   </span>
                   <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                 </button>
@@ -1101,15 +1097,13 @@ export default function NotifPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${
-                refreshing ? "animate-pulse" : ""
-              }`}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${refreshing ? "animate-pulse" : ""
+                }`}
               title={refreshing ? "Refreshing..." : "Refresh"}
             >
               <ArrowPathIcon
-                className={`w-4 h-4 flex-shrink-0 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
+                className={`w-4 h-4 flex-shrink-0 ${refreshing ? "animate-spin" : ""
+                  }`}
               />
               <span className="text-xs sm:text-sm font-medium">
                 {refreshing ? "Refreshing..." : "Refresh"}
@@ -1130,15 +1124,13 @@ export default function NotifPage() {
             <button
               onClick={exportToCSV}
               disabled={exportLoading}
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${
-                exportLoading ? "animate-pulse" : ""
-              }`}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${exportLoading ? "animate-pulse" : ""
+                }`}
               title={exportLoading ? "Exporting..." : "Export CSV"}
             >
               <ArrowDownTrayIcon
-                className={`w-4 h-4 flex-shrink-0 ${
-                  exportLoading ? "animate-bounce" : ""
-                }`}
+                className={`w-4 h-4 flex-shrink-0 ${exportLoading ? "animate-bounce" : ""
+                  }`}
               />
               <span className="text-xs sm:text-sm font-medium">
                 {exportLoading ? "Exporting..." : "Export"}
@@ -1192,18 +1184,17 @@ export default function NotifPage() {
                         {/* Status-aware icon */}
                         <div className="flex-shrink-0 relative">
                           <div
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg ${
-                              notification.currentStatus === "offline"
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg ${notification.currentStatus === "offline"
                                 ? "bg-gradient-to-br from-red-500 to-red-600"
                                 : notification.isStatusChange &&
                                   notification.currentStatus === "online"
-                                ? "bg-gradient-to-br from-green-500 to-emerald-600 animate-pulse"
-                                : notification.type === "warning"
-                                ? "bg-gradient-to-br from-amber-500 to-orange-600"
-                                : notification.type === "success"
-                                ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                                : "bg-gradient-to-br from-gray-500 to-gray-600"
-                            }`}
+                                  ? "bg-gradient-to-br from-green-500 to-emerald-600 animate-pulse"
+                                  : notification.type === "warning"
+                                    ? "bg-gradient-to-br from-amber-500 to-orange-600"
+                                    : notification.type === "success"
+                                      ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                                      : "bg-gradient-to-br from-gray-500 to-gray-600"
+                              }`}
                           >
                             {notification.source === "tv" ? (
                               <ComputerDesktopIcon className="w-6 h-6 text-white drop-shadow-sm" />
@@ -1293,21 +1284,20 @@ export default function NotifPage() {
                             Src:
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
-                              notification.source === "tv"
+                            className={`px-2 py-0.5 rounded-md text-xs font-medium border ${notification.source === "tv"
                                 ? "bg-amber-50 text-amber-700 border-amber-200"
                                 : notification.source === "chromecast"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : notification.source === "channel"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-gray-50 text-gray-700 border-gray-200"
-                            }`}
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : notification.source === "channel"
+                                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                                    : "bg-gray-50 text-gray-700 border-gray-200"
+                              }`}
                           >
                             {notification.source === "chromecast"
                               ? "Cast"
                               : notification.source === "channel"
-                              ? "Chnl"
-                              : notification.source.charAt(0).toUpperCase() +
+                                ? "Chnl"
+                                : notification.source.charAt(0).toUpperCase() +
                                 notification.source.slice(1, 3)}
                           </span>
                         </div>
@@ -1320,8 +1310,8 @@ export default function NotifPage() {
                           <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded-md text-xs font-medium border border-red-200 truncate max-w-[100px]">
                             {(notification.errorCategory || "System").length > 8
                               ? (
-                                  notification.errorCategory || "System"
-                                ).substring(0, 8) + "..."
+                                notification.errorCategory || "System"
+                              ).substring(0, 8) + "..."
                               : notification.errorCategory || "System"}
                           </span>
                         </div>
@@ -1368,13 +1358,12 @@ export default function NotifPage() {
                               Response:
                             </span>
                             <span
-                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${
-                                notification.responseTime < 100
+                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${notification.responseTime < 100
                                   ? "bg-green-50 text-green-700 border-green-200"
                                   : notification.responseTime < 300
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : "bg-red-50 text-red-700 border-red-200"
-                              }`}
+                                    ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                    : "bg-red-50 text-red-700 border-red-200"
+                                }`}
                             >
                               {notification.responseTime}ms
                             </span>
@@ -1386,13 +1375,12 @@ export default function NotifPage() {
                               Signal:
                             </span>
                             <span
-                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${
-                                notification.signalLevel > 70
+                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${notification.signalLevel > 70
                                   ? "bg-green-50 text-green-700 border-green-200"
                                   : notification.signalLevel > 40
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : "bg-red-50 text-red-700 border-red-200"
-                              }`}
+                                    ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                    : "bg-red-50 text-red-700 border-red-200"
+                                }`}
                             >
                               {notification.signalLevel}%
                             </span>
@@ -1459,13 +1447,12 @@ export default function NotifPage() {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      notification.type === "warning"
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${notification.type === "warning"
                         ? "bg-gradient-to-br from-yellow-500 to-orange-600"
                         : notification.type === "success"
-                        ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                        : "bg-gradient-to-br from-gray-500 to-gray-600"
-                    }`}
+                          ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                          : "bg-gradient-to-br from-gray-500 to-gray-600"
+                      }`}
                   >
                     {notification.source === "tv" ? (
                       <ComputerDesktopIcon className="w-5 h-5 text-white" />
@@ -1579,13 +1566,12 @@ export default function NotifPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Response Time:</span>
                     <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        notification.responseTime < 100
+                      className={`px-2 py-1 rounded text-xs ${notification.responseTime < 100
                           ? "bg-green-100 text-green-700"
                           : notification.responseTime < 300
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                     >
                       {notification.responseTime}ms
                     </span>
@@ -1595,13 +1581,12 @@ export default function NotifPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Signal Level:</span>
                     <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        notification.signalLevel > 70
+                      className={`px-2 py-1 rounded text-xs ${notification.signalLevel > 70
                           ? "bg-green-100 text-green-700"
                           : notification.signalLevel > 40
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                     >
                       {notification.signalLevel}%
                     </span>
@@ -1693,17 +1678,15 @@ export default function NotifPage() {
       {paginationData.totalPages > 1 && (
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
           <div
-            className={`flex items-center justify-between gap-2 sm:gap-4 ${
-              screenSize === "mobile"
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${screenSize === "mobile"
                 ? "flex-col space-y-3"
                 : "flex-col sm:flex-row"
-            }`}
+              }`}
           >
             {/* Info Text */}
             <div
-              className={`text-xs sm:text-sm text-gray-600 ${
-                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
-              }`}
+              className={`text-xs sm:text-sm text-gray-600 ${screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+                }`}
             >
               {screenSize === "mobile" ? (
                 <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
@@ -1736,16 +1719,14 @@ export default function NotifPage() {
 
             {/* Pagination Controls */}
             <div
-              className={`flex items-center gap-1 sm:gap-2 ${
-                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
-              }`}
+              className={`flex items-center gap-1 sm:gap-2 ${screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+                }`}
             >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 {screenSize !== "mobile" && (
@@ -1771,11 +1752,10 @@ export default function NotifPage() {
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === 1
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === 1
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         1
                       </button>
@@ -1799,11 +1779,10 @@ export default function NotifPage() {
                       <button
                         key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === i
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {i}
                       </button>
@@ -1827,11 +1806,10 @@ export default function NotifPage() {
                       <button
                         key={`page-${totalPages}`}
                         onClick={() => handlePageChange(totalPages)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === totalPages
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === totalPages
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -1845,9 +1823,8 @@ export default function NotifPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 {screenSize !== "mobile" && (
                   <span className="hidden sm:inline">Next</span>

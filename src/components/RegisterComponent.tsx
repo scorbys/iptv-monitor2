@@ -249,11 +249,10 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
               {backgroundImages.map((image, index) => (
                 <div
                   key={index}
-                  className={`absolute inset-0 transition-all duration-1000 ease-in-out transform ${
-                    index === currentImageIndex
+                  className={`absolute inset-0 transition-all duration-1000 ease-in-out transform ${index === currentImageIndex
                       ? "opacity-100 scale-100"
                       : "opacity-0 scale-105"
-                  }`}
+                    }`}
                 >
                   <div
                     className="w-full h-full bg-cover bg-center"
@@ -262,7 +261,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                 </div>
               ))}
 
-              {/* Enhanced Overlay with Gradient */}
+              {/* Overlay with Gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-transparent to-black/60" />
 
               {/* Content Overlay with Animation - Moved to Bottom */}
@@ -279,24 +278,22 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
                 </div>
               </div>
 
-              {/* Enhanced Dots Indicator */}
+              {/* Dots Indicator */}
               <div className="absolute bottom-3 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3 z-20">
                 {backgroundImages.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`relative transition-all duration-300 ${
-                      index === currentImageIndex
+                    className={`relative transition-all duration-300 ${index === currentImageIndex
                         ? "w-6 sm:w-8 h-2 sm:h-3"
                         : "w-2 sm:w-3 h-2 sm:h-3 hover:scale-110"
-                    }`}
+                      }`}
                   >
                     <div
-                      className={`w-full h-full rounded-full transition-all duration-300 ${
-                        index === currentImageIndex
+                      className={`w-full h-full rounded-full transition-all duration-300 ${index === currentImageIndex
                           ? "bg-white shadow-lg"
                           : "bg-white/50 hover:bg-white/75"
-                      }`}
+                        }`}
                     />
                   </button>
                 ))}
@@ -308,11 +305,10 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
             {/* Notification */}
             {notification.show && (
               <div
-                className={`fixed top-6 right-6 z-50 flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-all duration-500 transform max-w-sm border ${
-                  notification.type === "success"
+                className={`fixed top-6 right-6 z-50 flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-all duration-500 transform max-w-sm border ${notification.type === "success"
                     ? "bg-green-50/95 border-green-200 text-green-700"
                     : "bg-red-50/95 border-red-200 text-red-700"
-                }`}
+                  }`}
               >
                 {notification.type === "success" ? (
                   <CheckCircle className="w-6 h-6 flex-shrink-0" />

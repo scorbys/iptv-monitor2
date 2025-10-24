@@ -240,10 +240,10 @@ export default function ChromecastPage() {
           prev.map((device) =>
             device.deviceName === deviceName
               ? {
-                  ...device,
-                  error: errorResult.message || "Invalid request",
-                  isOnline: false,
-                }
+                ...device,
+                error: errorResult.message || "Invalid request",
+                isOnline: false,
+              }
               : device
           )
         );
@@ -258,10 +258,10 @@ export default function ChromecastPage() {
           prev.map((device) =>
             device.deviceName === deviceName
               ? {
-                  ...device,
-                  error: "Device not found on server",
-                  isOnline: false,
-                }
+                ...device,
+                error: "Device not found on server",
+                isOnline: false,
+              }
               : device
           )
         );
@@ -288,10 +288,10 @@ export default function ChromecastPage() {
           prev.map((device) =>
             device.deviceName === deviceName
               ? {
-                  ...device,
-                  error: result.message || "Check failed",
-                  isOnline: false,
-                }
+                ...device,
+                error: result.message || "Check failed",
+                isOnline: false,
+              }
               : device
           )
         );
@@ -303,10 +303,10 @@ export default function ChromecastPage() {
         prev.map((device) =>
           device.deviceName === deviceName
             ? {
-                ...device,
-                error: error instanceof Error ? error.message : "Network error",
-                isOnline: false,
-              }
+              ...device,
+              error: error instanceof Error ? error.message : "Network error",
+              isOnline: false,
+            }
             : device
         )
       );
@@ -376,23 +376,20 @@ export default function ChromecastPage() {
     }) => (
       <div className="flex flex-col gap-1">
         <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            isOnline ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-          }`}
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isOnline ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            }`}
         >
           <div
-            className={`w-1.5 h-1.5 rounded-full mr-1 ${
-              isOnline ? "bg-green-500" : "bg-red-500"
-            }`}
+            className={`w-1.5 h-1.5 rounded-full mr-1 ${isOnline ? "bg-green-500" : "bg-red-500"
+              }`}
           ></div>
           {isOnline ? "Online" : "Offline"}
         </span>
         <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            isPingable
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isPingable
               ? "bg-blue-100 text-blue-800"
               : "bg-gray-100 text-gray-800"
-          }`}
+            }`}
         >
           {isPingable ? "Pingable" : "Not Pingable"}
         </span>
@@ -722,13 +719,12 @@ export default function ChromecastPage() {
                       onClick={() => setStatusFilter(status)}
                     >
                       <div
-                        className={`w-2 h-2 rounded-full mr-3 ${
-                          status === "Online"
+                        className={`w-2 h-2 rounded-full mr-3 ${status === "Online"
                             ? "bg-green-500"
                             : status === "Offline"
-                            ? "bg-red-500"
-                            : "bg-gray-400"
-                        } opacity-0 group-hover:opacity-100 transition-opacity`}
+                              ? "bg-red-500"
+                              : "bg-gray-400"
+                          } opacity-0 group-hover:opacity-100 transition-opacity`}
                       ></div>
                       {status}
                     </DropdownMenu.Item>
@@ -758,9 +754,8 @@ export default function ChromecastPage() {
               title={refreshing ? "Refreshing..." : "Refresh"}
             >
               <ArrowPathIcon
-                className={`w-4 h-4 flex-shrink-0 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
+                className={`w-4 h-4 flex-shrink-0 ${refreshing ? "animate-spin" : ""
+                  }`}
               />
               <span className="text-xs sm:text-sm font-medium hidden sm:inline">
                 {refreshing ? "Refreshing..." : "Refresh"}
@@ -891,9 +886,8 @@ export default function ChromecastPage() {
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
                     >
                       <ArrowPathIcon
-                        className={`w-3 h-3 mr-1 ${
-                          checkingId === device.deviceName ? "animate-spin" : ""
-                        }`}
+                        className={`w-3 h-3 mr-1 ${checkingId === device.deviceName ? "animate-spin" : ""
+                          }`}
                       />
                       {checkingId === device.deviceName
                         ? "Checking..."
@@ -984,9 +978,8 @@ export default function ChromecastPage() {
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   <ArrowPathIcon
-                    className={`w-4 h-4 ${
-                      checkingId === device.deviceName ? "animate-spin" : ""
-                    }`}
+                    className={`w-4 h-4 ${checkingId === device.deviceName ? "animate-spin" : ""
+                      }`}
                   />
                   {checkingId === device.deviceName
                     ? "Checking..."
@@ -1040,17 +1033,15 @@ export default function ChromecastPage() {
       {paginationData.totalPages > 1 && (
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
           <div
-            className={`flex items-center justify-between gap-2 sm:gap-4 ${
-              screenSize === "mobile"
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${screenSize === "mobile"
                 ? "flex-col space-y-3"
                 : "flex-col sm:flex-row"
-            }`}
+              }`}
           >
             {/* Info Text */}
             <div
-              className={`text-xs sm:text-sm text-gray-600 ${
-                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
-              }`}
+              className={`text-xs sm:text-sm text-gray-600 ${screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+                }`}
             >
               {screenSize === "mobile" ? (
                 // Compact info for mobile
@@ -1085,16 +1076,14 @@ export default function ChromecastPage() {
 
             {/* Pagination Controls */}
             <div
-              className={`flex items-center gap-1 sm:gap-2 ${
-                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
-              }`}
+              className={`flex items-center gap-1 sm:gap-2 ${screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+                }`}
             >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 {screenSize !== "mobile" && (
@@ -1120,11 +1109,10 @@ export default function ChromecastPage() {
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === 1
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === 1
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         1
                       </button>
@@ -1148,11 +1136,10 @@ export default function ChromecastPage() {
                       <button
                         key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === i
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {i}
                       </button>
@@ -1176,11 +1163,10 @@ export default function ChromecastPage() {
                       <button
                         key={`page-${totalPages}`}
                         onClick={() => handlePageChange(totalPages)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === totalPages
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === totalPages
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -1194,9 +1180,8 @@ export default function ChromecastPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 {screenSize !== "mobile" && (
                   <span className="hidden sm:inline">Next</span>

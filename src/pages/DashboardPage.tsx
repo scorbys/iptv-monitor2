@@ -385,9 +385,8 @@ export default function NetworkTrafficDashboard() {
               <ArrowDownIcon className="w-4 h-4 text-red-500 mr-1" />
             )}
             <span
-              className={`text-sm font-medium ${
-                trend > 0 ? "text-green-500" : "text-red-500"
-              }`}
+              className={`text-sm font-medium ${trend > 0 ? "text-green-500" : "text-red-500"
+                }`}
             >
               {Math.abs(trend).toFixed(1)}%
             </span>
@@ -488,13 +487,12 @@ export default function NetworkTrafficDashboard() {
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Error Rate</span>
             <span
-              className={`text-sm font-semibold ${
-                stats.errorRate < 1
+              className={`text-sm font-semibold ${stats.errorRate < 1
                   ? "text-green-600"
                   : stats.errorRate < 5
-                  ? "text-yellow-600"
-                  : "text-red-600"
-              }`}
+                    ? "text-yellow-600"
+                    : "text-red-600"
+                }`}
             >
               {stats.errorRate.toFixed(2)}%
             </span>
@@ -512,7 +510,7 @@ export default function NetworkTrafficDashboard() {
 
   return (
     <div className="min-h-screen bg-blue-50 p-4 sm:p-6">
-      {/* Header - Enhanced */}
+      {/* Header */}
       <div className="mb-8">
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           {/* Background Pattern */}
@@ -585,9 +583,8 @@ export default function NetworkTrafficDashboard() {
                 <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`w-3 h-3 rounded-full ${
-                        error ? "bg-red-400" : "bg-green-400"
-                      } ${!error ? "animate-pulse" : ""}`}
+                      className={`w-3 h-3 rounded-full ${error ? "bg-red-400" : "bg-green-400"
+                        } ${!error ? "animate-pulse" : ""}`}
                     />
                     <span className="text-white font-semibold text-sm">
                       {error ? "System Error" : "All Systems Online"}
@@ -604,17 +601,16 @@ export default function NetworkTrafficDashboard() {
                     <button
                       key={range}
                       onClick={() => setSelectedTimeRange(range)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        selectedTimeRange === range
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedTimeRange === range
                           ? "bg-white text-blue-700 shadow-lg"
                           : "text-white hover:bg-white/20"
-                      }`}
+                        }`}
                     >
                       {range === "1h"
                         ? "1 Hour"
                         : range === "6h"
-                        ? "6 Hours"
-                        : "24 Hours"}
+                          ? "6 Hours"
+                          : "24 Hours"}
                     </button>
                   ))}
                 </div>
@@ -644,7 +640,7 @@ export default function NetworkTrafficDashboard() {
         </div>
       )}
 
-      {/* Main Chart - Enhanced */}
+      {/* Main Chart */}
       <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 mb-8 overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div>
@@ -803,7 +799,7 @@ export default function NetworkTrafficDashboard() {
         </div>
       </div>
 
-      {/* Enhanced Stats Grid with Charts */}
+      {/* Stats Grid with Charts */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -817,21 +813,19 @@ export default function NetworkTrafficDashboard() {
           <div className="flex items-center space-x-2 text-sm">
             <button
               onClick={() => setActiveStatsTab("overview")}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                activeStatsTab === "overview"
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${activeStatsTab === "overview"
                   ? "bg-blue-100 text-blue-700 font-semibold shadow-sm"
                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
+                }`}
             >
               Overview
             </button>
             <button
               onClick={() => setActiveStatsTab("trends")}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                activeStatsTab === "trends"
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${activeStatsTab === "trends"
                   ? "bg-blue-100 text-blue-700 font-semibold shadow-sm"
                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
+                }`}
             >
               Trends
             </button>
@@ -1254,13 +1248,13 @@ export default function NetworkTrafficDashboard() {
               <div className="text-2xl font-bold text-blue-600">
                 {statsHistory.length > 0
                   ? Math.round(
-                      statsHistory.reduce(
-                        (sum, item) => sum + (item.avgResponseTime || 0),
-                        0
-                      ) /
-                        statsHistory.length /
-                        10
-                    ) + "%"
+                    statsHistory.reduce(
+                      (sum, item) => sum + (item.avgResponseTime || 0),
+                      0
+                    ) /
+                    statsHistory.length /
+                    10
+                  ) + "%"
                   : "0%"}
               </div>
               <div className="text-sm text-gray-600">Efficiency</div>
@@ -1310,11 +1304,10 @@ export default function NetworkTrafficDashboard() {
                   <button
                     key={range}
                     onClick={() => setPerformanceTimeRange(range)}
-                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      performanceTimeRange === range
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${performanceTimeRange === range
                         ? "bg-blue-600 text-white"
                         : "text-gray-600 hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     {range}
                   </button>
@@ -1460,7 +1453,7 @@ export default function NetworkTrafficDashboard() {
                 {(
                   100 -
                   statsHistory.reduce((sum, h) => sum + (h.errorRate || 0), 0) /
-                    statsHistory.length
+                  statsHistory.length
                 ).toFixed(1)}
                 %
               </div>
