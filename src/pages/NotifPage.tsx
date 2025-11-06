@@ -17,7 +17,6 @@ import {
   ArrowDownTrayIcon,
   BellIcon,
   ShieldCheckIcon,
-  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
@@ -27,7 +26,7 @@ import {
   Notification,
   fetchAllNotifications,
   cleanOldNotifications,
-} from "@/app/notifications/notifUtils";
+} from "../app/notifications/notifUtils";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -239,137 +238,6 @@ export default function NotifPage() {
     }
   }, []);
 
-  const getSpecificFAQCategory = (
-    notification: Notification
-  ): string | null => {
-    const notifText = [
-      notification.title?.toLowerCase() || "",
-      notification.message?.toLowerCase() || "",
-      notification.error?.toLowerCase() || "",
-      notification.deviceName?.toLowerCase() || "",
-      notification.errorCategory?.toLowerCase() || "",
-    ].join(" ");
-
-    const categoryMappings = {
-      "Kategori-1": {
-        keywords: [
-          "no device found",
-          "chromecast",
-          "not found",
-          "device offline",
-        ],
-        device: "chromecast",
-        priority: 1,
-      },
-      "Kategori-2": {
-        keywords: ["weak", "signal", "no signal", "iptv", "tv offline"],
-        device: "iptv",
-        priority: 2,
-      },
-      "Kategori-3": {
-        keywords: ["unplug", "lan", "cable", "connection", "lan in", "lan out"],
-        device: "iptv",
-        priority: 3,
-      },
-      "Kategori-4": {
-        keywords: ["setup", "ios", "iphone", "google home", "local network"],
-        device: "chromecast",
-        priority: 2,
-      },
-      "Kategori-5": {
-        keywords: ["error playing", "playing", "stream", "video"],
-        device: "channel",
-        priority: 1,
-      },
-      "Kategori-6": {
-        keywords: ["player error", "player_error", "hbrowser", "widget"],
-        device: "channel",
-        priority: 3,
-      },
-      "Kategori-7": {
-        keywords: [
-          "connection failure",
-          "connection_failure",
-          "ip conflict",
-          "network",
-        ],
-        device: "channel",
-        priority: 2,
-      },
-      "Kategori-8": {
-        keywords: ["reset", "configuration", "restart", "power"],
-        device: "chromecast",
-        priority: 3,
-      },
-      "Kategori-9": {
-        keywords: ["no device logged", "logged", "login", "authentication"],
-        device: "iptv",
-        priority: 2,
-      },
-      "Kategori-10": {
-        keywords: ["black screen", "screen", "adaptor", "power"],
-        device: "chromecast",
-        priority: 1,
-      },
-      "Kategori-11": {
-        keywords: ["channel not found", "not found", "channel", "missing"],
-        device: "channel",
-        priority: 1,
-      },
-    };
-
-    const sourceToDevice: Record<string, string> = {
-      chromecast: "chromecast",
-      tv: "iptv",
-      channel: "channel",
-      system: "system",
-    };
-
-    const expectedDevice = sourceToDevice[notification.source] || null;
-
-    const matches = Object.entries(categoryMappings).map(
-      ([category, config]) => {
-        let score = 0;
-
-        // Device match bonus
-        if (!expectedDevice || config.device === expectedDevice) {
-          score += 10;
-        } else {
-          score -= 5; // Penalty for device mismatch
-        }
-
-        // Keyword matching with weighted scoring
-        const keywordMatches = config.keywords.filter((keyword) =>
-          notifText.includes(keyword.toLowerCase())
-        );
-
-        score += keywordMatches.length * 5;
-
-        // Priority bonus (lower number = higher priority)
-        score += 4 - config.priority;
-
-        // Exact phrase matching bonus
-        const hasExactMatch = config.keywords.some((keyword) =>
-          notifText.includes(keyword.toLowerCase())
-        );
-        if (hasExactMatch) score += 3;
-
-        return {
-          category,
-          score,
-          matches: keywordMatches.length,
-        };
-      }
-    );
-
-    // Sort by score and return best match
-    const bestMatch = matches
-      .filter((match) => match.score > 5) // Minimum threshold
-      .sort((a, b) => b.score - a.score)[0];
-
-    return bestMatch ? bestMatch.category : null;
-  };
-
   const calculateStats = useCallback(
     (notifications: Notification[]): NotificationStats => {
       const now = new Date();
@@ -394,8 +262,8 @@ export default function NotifPage() {
       const avgResponseTime =
         responseTimes.length > 0
           ? Math.round(
-              responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
-            )
+            responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+          )
           : 0;
 
       const errorCategories = notifications.reduce((acc, n) => {
@@ -443,7 +311,6 @@ export default function NotifPage() {
       const cleaned = cleanOldNotifications(recent);
       setNotifications(cleaned);
       setStats(calculateStats(cleaned));
-
       localStorage.setItem("notif-cache", JSON.stringify(cleaned));
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
@@ -465,7 +332,6 @@ export default function NotifPage() {
           setNotifications(cleaned);
           setStats(calculateStats(cleaned));
         }
-
         await fetchNotifications();
       } catch (error) {
         console.error("Error loading notifications:", error);
@@ -473,9 +339,7 @@ export default function NotifPage() {
         setLoading(false);
       }
     };
-
     loadData();
-
     // Auto-refresh every 15 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -504,8 +368,7 @@ export default function NotifPage() {
         setStats(calculateStats(cleaned));
         localStorage.setItem("notif-cache", JSON.stringify(cleaned));
         console.log(
-          `Manual cleanup: removed ${
-            notifications.length - cleaned.length
+          `Manual cleanup: removed ${notifications.length - cleaned.length
           } old notifications`
         );
 
@@ -520,6 +383,25 @@ export default function NotifPage() {
       alert("Cleanup failed. Please try again.");
     }
   }, [notifications, calculateStats]);
+
+  const handleAIQuery = (notification: Notification) => {
+    // Trigger live chat to open with pre-filled context
+    const chatEvent = new CustomEvent("openLiveChat", {
+      detail: {
+        notification: {
+          title: notification.title,
+          message: notification.message,
+          deviceName: notification.deviceName,
+          roomNo: notification.roomNo,
+          status: notification.currentStatus,
+          errorCategory: notification.errorCategory,
+          source: notification.source,
+          error: notification.error,
+        },
+      },
+    });
+    window.dispatchEvent(chatEvent);
+  };
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((n) => {
@@ -553,6 +435,7 @@ export default function NotifPage() {
     });
   }, [notifications, searchTerm, sourceFilter, typeFilter, categoryFilter]);
 
+  // Pagination
   const paginationData = useMemo(() => {
     const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -576,10 +459,12 @@ export default function NotifPage() {
     setCurrentPage(page);
   };
 
+  // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, sourceFilter, typeFilter, categoryFilter]);
 
+  // Export to CSV
   const exportToCSV = useCallback(() => {
     if (exportLoading) return;
 
@@ -680,16 +565,14 @@ export default function NotifPage() {
     }) => (
       <div className="flex flex-col gap-1">
         <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            status === "online"
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status === "online"
+            ? "bg-green-100 text-green-800"
+            : "bg-red-100 text-red-800"
+            }`}
         >
           <div
-            className={`w-1.5 h-1.5 rounded-full mr-1 ${
-              status === "online" ? "bg-green-500" : "bg-red-500"
-            }`}
+            className={`w-1.5 h-1.5 rounded-full mr-1 ${status === "online" ? "bg-green-500" : "bg-red-500"
+              }`}
           ></div>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
@@ -718,12 +601,6 @@ export default function NotifPage() {
             bg: "bg-green-100",
             text: "text-green-800",
             icon: CheckCircleIcon,
-          };
-        case "info":
-          return {
-            bg: "bg-blue-100",
-            text: "text-blue-800",
-            icon: InformationCircleIcon,
           };
         default:
           return { bg: "bg-gray-100", text: "text-gray-800", icon: BellIcon };
@@ -787,6 +664,141 @@ export default function NotifPage() {
     []
   );
 
+  const getSpecificFAQCategory = (
+    notification: Notification
+  ): string | null => {
+    // Normalize notification text for better matching
+    const notifText = [
+      notification.title?.toLowerCase() || "",
+      notification.message?.toLowerCase() || "",
+      notification.error?.toLowerCase() || "",
+      notification.deviceName?.toLowerCase() || "",
+      notification.errorCategory?.toLowerCase() || "",
+    ].join(" ");
+
+    // Enhanced keyword mapping for better categorization
+    const categoryMappings = {
+      "Kategori-1": {
+        keywords: [
+          "no device found",
+          "chromecast",
+          "not found",
+          "device offline",
+        ],
+        device: "chromecast",
+        priority: 1,
+      },
+      "Kategori-2": {
+        keywords: ["weak", "signal", "no signal", "iptv", "tv offline"],
+        device: "iptv",
+        priority: 2,
+      },
+      "Kategori-3": {
+        keywords: ["unplug", "lan", "cable", "connection", "lan in", "lan out"],
+        device: "iptv",
+        priority: 3,
+      },
+      "Kategori-4": {
+        keywords: ["setup", "ios", "iphone", "google home", "local network"],
+        device: "chromecast",
+        priority: 2,
+      },
+      "Kategori-5": {
+        keywords: ["error playing", "playing", "stream", "video"],
+        device: "channel",
+        priority: 1,
+      },
+      "Kategori-6": {
+        keywords: ["player error", "player_error", "hbrowser", "widget"],
+        device: "channel",
+        priority: 3,
+      },
+      "Kategori-7": {
+        keywords: [
+          "connection failure",
+          "connection_failure",
+          "ip conflict",
+          "network",
+        ],
+        device: "channel",
+        priority: 2,
+      },
+      "Kategori-8": {
+        keywords: ["reset", "configuration", "restart", "power"],
+        device: "chromecast",
+        priority: 3,
+      },
+      "Kategori-9": {
+        keywords: ["no device logged", "logged", "login", "authentication"],
+        device: "iptv",
+        priority: 2,
+      },
+      "Kategori-10": {
+        keywords: ["black screen", "screen", "adaptor", "power"],
+        device: "chromecast",
+        priority: 1,
+      },
+      "Kategori-11": {
+        keywords: ["channel not found", "not found", "channel", "missing"],
+        device: "channel",
+        priority: 1,
+      },
+    };
+
+    // Device type matching
+    const sourceToDevice: Record<string, string> = {
+      chromecast: "chromecast",
+      tv: "iptv",
+      channel: "channel",
+      system: "system",
+    };
+
+    const expectedDevice = sourceToDevice[notification.source] || null;
+
+    // Find matching categories with scoring system
+    const matches = Object.entries(categoryMappings).map(
+      ([category, config]) => {
+        let score = 0;
+
+        // Device match bonus
+        if (!expectedDevice || config.device === expectedDevice) {
+          score += 10;
+        } else {
+          score -= 5; // Penalty for device mismatch
+        }
+
+        // Keyword matching with weighted scoring
+        const keywordMatches = config.keywords.filter((keyword) =>
+          notifText.includes(keyword.toLowerCase())
+        );
+
+        score += keywordMatches.length * 5;
+
+        // Priority bonus (lower number = higher priority)
+        score += 4 - config.priority;
+
+        // Exact phrase matching bonus
+        const hasExactMatch = config.keywords.some((keyword) =>
+          notifText.includes(keyword.toLowerCase())
+        );
+        if (hasExactMatch) score += 3;
+
+        return {
+          category,
+          score,
+          matches: keywordMatches.length,
+        };
+      }
+    );
+
+    // Sort by score and return best match
+    const bestMatch = matches
+      .filter((match) => match.score > 5) // Minimum threshold
+      .sort((a, b) => b.score - a.score)[0];
+
+    return bestMatch ? bestMatch.category : null;
+  };
+
   if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
@@ -799,45 +811,43 @@ export default function NotifPage() {
   }
 
   return (
-    <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
+    <div className="p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
           {/* Total Notifications Card */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 font-medium mb-1 truncate">
-                  <span className="hidden sm:inline">Total Notifications</span>
-                  <span className="sm:hidden">Total</span>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Total Notifications
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
+                <p className="text-2xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
                   {stats.totalNotifications}
                 </p>
               </div>
-              <div className="flex-shrink-0 ml-1 sm:ml-2">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                  <BellIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
+                  <BellIcon className="w-5 h-5 text-blue-600" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Active Issues Card */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 font-medium mb-1 truncate">
-                  <span className="hidden sm:inline">Active Issues</span>
-                  <span className="sm:hidden">Issues</span>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Active Issues
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-red-600 group-hover:text-red-700 transition-colors">
+                <p className="text-2xl font-bold text-red-600 group-hover:text-red-700 transition-colors">
                   {stats.activeIssues}
                 </p>
               </div>
-              <div className="flex-shrink-0 ml-1 sm:ml-2">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-                  <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
                 </div>
               </div>
             </div>
@@ -845,28 +855,26 @@ export default function NotifPage() {
               <div className="mt-2 pt-2 border-t border-red-100">
                 <div className="flex items-center text-xs text-red-600">
                   <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse mr-1" />
-                  <span className="hidden sm:inline">Requires attention</span>
-                  <span className="sm:hidden">Attention</span>
+                  Requires attention
                 </div>
               </div>
             )}
           </div>
 
           {/* Recoveries Card */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 font-medium mb-1 truncate">
-                  <span className="hidden sm:inline">Recoveries</span>
-                  <span className="sm:hidden">Fixed</span>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Recoveries
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
+                <p className="text-2xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
                   {stats.recentRecoveries}
                 </p>
               </div>
-              <div className="flex-shrink-0 ml-1 sm:ml-2">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-                  <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
                 </div>
               </div>
             </div>
@@ -874,92 +882,86 @@ export default function NotifPage() {
               <div className="mt-2 pt-2 border-t border-green-100">
                 <div className="flex items-center text-xs text-green-600">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1" />
-                  <span className="hidden sm:inline">Recently resolved</span>
-                  <span className="sm:hidden">Resolved</span>
+                  Recently resolved
                 </div>
               </div>
             )}
           </div>
 
           {/* 24h Alerts Card */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 font-medium mb-1 truncate">
-                  <span className="hidden sm:inline">24h Alerts</span>
-                  <span className="sm:hidden">24h</span>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  24h Alerts
                 </p>
-                <p className="text-xl sm:text-2xl font-bold text-orange-600 group-hover:text-orange-700 transition-colors">
+                <p className="text-2xl font-bold text-orange-600 group-hover:text-orange-700 transition-colors">
                   {stats.last24HourAlerts}
                 </p>
               </div>
-              <div className="flex-shrink-0 ml-1 sm:ml-2">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-                  <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
+                  <ClockIcon className="w-5 h-5 text-orange-600" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Average Response Time Card */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 font-medium mb-1 truncate">
-                  <span className="hidden sm:inline">Avg Response</span>
-                  <span className="sm:hidden">Avg</span>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 font-medium mb-1">
+                  Avg Response
                 </p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-600 group-hover:text-purple-700 transition-colors">
+                <p className="text-2xl font-bold text-purple-600 group-hover:text-purple-700 transition-colors">
                   {stats.avgResponseTime}ms
                 </p>
               </div>
-              <div className="flex-shrink-0 ml-1 sm:ml-2">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-                  <SignalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
+                  <SignalIcon className="w-5 h-5 text-purple-600" />
                 </div>
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-purple-100">
               <span
-                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-medium ${
-                  stats.avgResponseTime < 100
-                    ? "bg-green-100 text-green-700"
-                    : stats.avgResponseTime < 300
+                className={`px-2 py-1 rounded text-xs font-medium ${stats.avgResponseTime < 100
+                  ? "bg-green-100 text-green-700"
+                  : stats.avgResponseTime < 300
                     ? "bg-yellow-100 text-yellow-700"
                     : "bg-red-100 text-red-700"
-                }`}
+                  }`}
               >
                 {stats.avgResponseTime < 100
                   ? "Excellent"
                   : stats.avgResponseTime < 300
-                  ? "Good"
-                  : "Slow"}
+                    ? "Good"
+                    : "Slow"}
               </span>
             </div>
           </div>
 
           {/* Top Issue Category Card */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
+              <div className="flex-1">
                 <p className="text-xs text-gray-500 font-medium mb-1">
-                  <span className="hidden sm:inline">Top Issue</span>
-                  <span className="sm:hidden">Top Issue</span>
+                  Top Issue
                 </p>
-                <p className="text-sm sm:text-lg font-bold text-indigo-600 group-hover:text-indigo-700 transition-colors truncate">
+                <p className="text-lg font-bold text-indigo-600 group-hover:text-indigo-700 transition-colors truncate">
                   {stats.topErrorCategory}
                 </p>
               </div>
-              <div className="flex-shrink-0 ml-1 sm:ml-2">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg">
-                  <WrenchScrewdriverIcon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+              <div className="flex-shrink-0 ml-2">
+                <div className="p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg">
+                  <WrenchScrewdriverIcon className="w-5 h-5 text-indigo-600" />
                 </div>
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-indigo-100">
               <div className="text-xs text-indigo-600 font-medium">
-                <span className="hidden sm:inline">Most common error</span>
-                <span className="sm:hidden">Most common</span>
+                Most common error
               </div>
             </div>
           </div>
@@ -967,179 +969,173 @@ export default function NotifPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 backdrop-blur-sm">
-        <div className="flex flex-col space-y-3 sm:space-y-4">
-          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-start lg:items-center">
-            {/* Search Input */}
-            <div className="relative flex-1 w-full max-w-full lg:max-w-md">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search notifications..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
-              />
-            </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+          {/* Search Bar */}
+          <div className="relative w-full">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder={
+                screenSize === "mobile"
+                  ? "Search..."
+                  : "Search notifications, error categories, solutions..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+            />
+          </div>
 
-            {/* Filter and Action Buttons */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
-              {/* Source Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[100px] sm:min-w-[120px] justify-between text-sm">
-                    <span className="font-medium text-gray-700 truncate">
-                      {sourceFilter === "all"
-                        ? "Sources"
-                        : sourceFilter.charAt(0).toUpperCase() +
-                          sourceFilter.slice(1)}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["all", "tv", "chromecast", "channel"].map((source) => (
-                      <DropdownMenu.Item
-                        key={`source-${source}`}
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setSourceFilter(source)}
-                      >
-                        <span className="capitalize">
-                          {source === "all" ? "All Sources" : source}
-                        </span>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-
-              {/* Type Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[100px] sm:min-w-[120px] justify-between text-sm">
-                    <span className="font-medium text-gray-700 truncate">
-                      {typeFilter === "all"
-                        ? "Types"
-                        : typeFilter.charAt(0).toUpperCase() +
-                          typeFilter.slice(1)}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["all", "warning", "info", "success"].map((type) => (
-                      <DropdownMenu.Item
-                        key={`type-${type}`}
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setTypeFilter(type)}
-                      >
-                        <span className="capitalize">
-                          {type === "all" ? "All Types" : type}
-                        </span>
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-
-              {/* Category Filter */}
-              <div className="relative">
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger asChild>
-                    <button className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-[110px] sm:min-w-[140px] justify-between text-sm">
-                      <span className="font-medium text-gray-700 truncate">
-                        {categoryFilter === "all"
-                          ? "Cat"
-                          : categoryFilter.length > 8
-                          ? categoryFilter.substring(0, 8) + "..."
-                          : categoryFilter}
-                      </span>
-                      <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
-                    </button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.Content
-                      className="min-w-48 max-w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-[60] backdrop-blur-sm max-h-64 overflow-y-auto"
-                      side="bottom"
-                      align="start"
-                      sideOffset={8}
-                      avoidCollisions={false}
+          {/* Filters Group */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Source Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                    {sourceFilter === "all"
+                      ? "Source"
+                      : sourceFilter.charAt(0).toUpperCase() +
+                      sourceFilter.slice(1)}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["all", "tv", "chromecast", "channel"].map((source) => (
+                    <DropdownMenu.Item
+                      key={`source-${source}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                      onClick={() => setSourceFilter(source)}
                     >
-                      <DropdownMenu.Item
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setCategoryFilter("all")}
-                      >
-                        All Categories
-                      </DropdownMenu.Item>
-                      {Array.from(
-                        new Set(faqData.map((faq) => faq.category))
-                      ).map((category) => (
-                        <DropdownMenu.Item
-                          key={category}
-                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                          onClick={() => setCategoryFilter(category)}
-                        >
-                          {category}
-                        </DropdownMenu.Item>
-                      ))}
-                      <DropdownMenu.Item
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setCategoryFilter("Uncategorized")}
-                      >
-                        Uncategorized
-                      </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Root>
-              </div>
+                      <span className="capitalize">
+                        {source === "all" ? "All Sources" : source}
+                      </span>
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
 
-              {/* Control Buttons - Stacked on mobile */}
-              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 text-sm ${
-                    refreshing ? "animate-pulse" : ""
-                  }`}
-                >
-                  <ArrowPathIcon
-                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                      refreshing ? "animate-spin" : ""
-                    }`}
-                  />
-                  <span className="font-medium">
-                    {refreshing ? "..." : "Refresh"}
+            {/* Type Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                    {typeFilter === "all"
+                      ? "Type"
+                      : typeFilter.charAt(0).toUpperCase() +
+                      typeFilter.slice(1)}
                   </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                 </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["all", "warning", "success"].map((type) => (
+                    <DropdownMenu.Item
+                      key={`type-${type}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                      onClick={() => setTypeFilter(type)}
+                    >
+                      <span className="capitalize">
+                        {type === "all" ? "All Types" : type}
+                      </span>
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
 
-                <button
-                  onClick={handleCleanup}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all duration-200 transform hover:scale-105 active:scale-95 text-sm"
-                >
-                  <WrenchScrewdriverIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="font-medium">Clean</span>
-                </button>
-
-                <button
-                  onClick={exportToCSV}
-                  disabled={exportLoading}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 text-sm ${
-                    exportLoading ? "animate-pulse" : ""
-                  }`}
-                >
-                  <ArrowDownTrayIcon
-                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                      exportLoading ? "animate-bounce" : ""
-                    }`}
-                  />
-                  <span className="font-medium">
-                    {exportLoading ? "..." : "Export"}
+            {/* Category Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                    {categoryFilter === "all"
+                      ? "Category"
+                      : categoryFilter.replace("Kategori-", "K-")}
                   </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
                 </button>
-              </div>
-            </div>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[140px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm max-h-64 overflow-y-auto">
+                  <DropdownMenu.Item
+                    className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setCategoryFilter("all")}
+                  >
+                    All Categories
+                  </DropdownMenu.Item>
+                  {Array.from(new Set(faqData.map((faq) => faq.category))).map(
+                    (category) => (
+                      <DropdownMenu.Item
+                        key={category}
+                        className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                        onClick={() => setCategoryFilter(category)}
+                      >
+                        {category}
+                      </DropdownMenu.Item>
+                    )
+                  )}
+                  <DropdownMenu.Item
+                    className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setCategoryFilter("Uncategorized")}
+                  >
+                    Uncategorized
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          </div>
+
+          {/* Action Buttons Group */}
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${refreshing ? "animate-pulse" : ""
+                }`}
+              title={refreshing ? "Refreshing..." : "Refresh"}
+            >
+              <ArrowPathIcon
+                className={`w-4 h-4 flex-shrink-0 ${refreshing ? "animate-spin" : ""
+                  }`}
+              />
+              <span className="text-xs sm:text-sm font-medium">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
+            </button>
+
+            {/* Cleanup Button */}
+            <button
+              onClick={handleCleanup}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600 text-white rounded-lg sm:rounded-xl hover:bg-amber-700 transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial"
+              title="Cleanup old notifications"
+            >
+              <WrenchScrewdriverIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium">Cleanup</span>
+            </button>
+
+            {/* Export CSV Button */}
+            <button
+              onClick={exportToCSV}
+              disabled={exportLoading}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${exportLoading ? "animate-pulse" : ""
+                }`}
+              title={exportLoading ? "Exporting..." : "Export CSV"}
+            >
+              <ArrowDownTrayIcon
+                className={`w-4 h-4 flex-shrink-0 ${exportLoading ? "animate-bounce" : ""
+                  }`}
+              />
+              <span className="text-xs sm:text-sm font-medium">
+                {exportLoading ? "Exporting..." : "Export"}
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -1170,6 +1166,9 @@ export default function NotifPage() {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Timestamp
                 </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Help
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -1185,20 +1184,17 @@ export default function NotifPage() {
                         {/* Status-aware icon */}
                         <div className="flex-shrink-0 relative">
                           <div
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg ${
-                              notification.currentStatus === "offline"
-                                ? "bg-gradient-to-br from-red-500 to-red-600"
-                                : notification.isStatusChange &&
-                                  notification.currentStatus === "online"
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg ${notification.currentStatus === "offline"
+                              ? "bg-gradient-to-br from-red-500 to-red-600"
+                              : notification.isStatusChange &&
+                                notification.currentStatus === "online"
                                 ? "bg-gradient-to-br from-green-500 to-emerald-600 animate-pulse"
                                 : notification.type === "warning"
-                                ? "bg-gradient-to-br from-amber-500 to-orange-600"
-                                : notification.type === "success"
-                                ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                                : notification.type === "info"
-                                ? "bg-gradient-to-br from-blue-500 to-indigo-600"
-                                : "bg-gradient-to-br from-gray-500 to-gray-600"
-                            }`}
+                                  ? "bg-gradient-to-br from-amber-500 to-orange-600"
+                                  : notification.type === "success"
+                                    ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                                    : "bg-gradient-to-br from-gray-500 to-gray-600"
+                              }`}
                           >
                             {notification.source === "tv" ? (
                               <ComputerDesktopIcon className="w-6 h-6 text-white drop-shadow-sm" />
@@ -1288,21 +1284,20 @@ export default function NotifPage() {
                             Src:
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
-                              notification.source === "tv"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : notification.source === "chromecast"
+                            className={`px-2 py-0.5 rounded-md text-xs font-medium border ${notification.source === "tv"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : notification.source === "chromecast"
                                 ? "bg-blue-50 text-blue-700 border-blue-200"
                                 : notification.source === "channel"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-gray-50 text-gray-700 border-gray-200"
-                            }`}
+                                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                                  : "bg-gray-50 text-gray-700 border-gray-200"
+                              }`}
                           >
                             {notification.source === "chromecast"
                               ? "Cast"
                               : notification.source === "channel"
-                              ? "Chnl"
-                              : notification.source.charAt(0).toUpperCase() +
+                                ? "Chnl"
+                                : notification.source.charAt(0).toUpperCase() +
                                 notification.source.slice(1, 3)}
                           </span>
                         </div>
@@ -1315,8 +1310,8 @@ export default function NotifPage() {
                           <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded-md text-xs font-medium border border-red-200 truncate max-w-[100px]">
                             {(notification.errorCategory || "System").length > 8
                               ? (
-                                  notification.errorCategory || "System"
-                                ).substring(0, 8) + "..."
+                                notification.errorCategory || "System"
+                              ).substring(0, 8) + "..."
                               : notification.errorCategory || "System"}
                           </span>
                         </div>
@@ -1363,13 +1358,12 @@ export default function NotifPage() {
                               Response:
                             </span>
                             <span
-                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${
-                                notification.responseTime < 100
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : notification.responseTime < 300
+                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${notification.responseTime < 100
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : notification.responseTime < 300
                                   ? "bg-yellow-50 text-yellow-700 border-yellow-200"
                                   : "bg-red-50 text-red-700 border-red-200"
-                              }`}
+                                }`}
                             >
                               {notification.responseTime}ms
                             </span>
@@ -1381,13 +1375,12 @@ export default function NotifPage() {
                               Signal:
                             </span>
                             <span
-                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${
-                                notification.signalLevel > 70
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : notification.signalLevel > 40
+                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${notification.signalLevel > 70
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : notification.signalLevel > 40
                                   ? "bg-yellow-50 text-yellow-700 border-yellow-200"
                                   : "bg-red-50 text-red-700 border-red-200"
-                              }`}
+                                }`}
                             >
                               {notification.signalLevel}%
                             </span>
@@ -1407,6 +1400,36 @@ export default function NotifPage() {
                         </div>
                       </div>
                     </td>
+
+                    {/* Ask AI Column */}
+                    <td className="px-6 py-5">
+                      {notification.currentStatus === "offline" && (
+                        <button
+                          onClick={() => handleAIQuery(notification)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow"
+                        >
+                          <svg
+                            className="w-3 h-3 text-gray-500"
+                            style={{
+                              width: "12px",
+                              height: "12px",
+                              flexShrink: 0,
+                            }}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                            />
+                          </svg>
+                          <span style={{ whiteSpace: "nowrap" }}>Ask AI</span>
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 )
               )}
@@ -1422,54 +1445,74 @@ export default function NotifPage() {
               className="p-4 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                <div className="flex items-center space-x-3">
                   <div
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      notification.type === "warning"
-                        ? "bg-gradient-to-br from-yellow-500 to-orange-600"
-                        : notification.type === "success"
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${notification.type === "warning"
+                      ? "bg-gradient-to-br from-yellow-500 to-orange-600"
+                      : notification.type === "success"
                         ? "bg-gradient-to-br from-green-500 to-emerald-600"
-                        : notification.type === "info"
-                        ? "bg-gradient-to-br from-blue-500 to-indigo-600"
                         : "bg-gradient-to-br from-gray-500 to-gray-600"
-                    }`}
+                      }`}
                   >
                     {notification.source === "tv" ? (
-                      <ComputerDesktopIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <ComputerDesktopIcon className="w-5 h-5 text-white" />
                     ) : notification.source === "chromecast" ? (
-                      <DevicePhoneMobileIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <DevicePhoneMobileIcon className="w-5 h-5 text-white" />
                     ) : notification.source === "channel" ? (
-                      <SignalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <SignalIcon className="w-5 h-5 text-white" />
                     ) : (
-                      <BellIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <BellIcon className="w-5 h-5 text-white" />
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium text-gray-900 text-sm truncate">
+                  <div>
+                    <h3 className="font-medium text-gray-900">
                       {notification.title}
                     </h3>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-sm text-gray-500">
                       {notification.source.charAt(0).toUpperCase() +
                         notification.source.slice(1)}
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 items-end flex-shrink-0 ml-2">
+                <div className="flex flex-col gap-1 items-end">
                   <StatusBadge
                     status={notification.currentStatus || "unknown"}
                     isStatusChange={notification.isStatusChange}
                   />
                   <TypeBadge type={notification.type || "info"} />
+
+                  {/* Ask AI - mobile layout */}
+                  {notification.currentStatus === "offline" && (
+                    <button
+                      onClick={() => handleAIQuery(notification)}
+                      className="inline-flex items-center gap-1 px-1 py-0.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-150 shadow-sm hover:shadow min-w-[80px]"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                      </svg>
+                      <span>Ask AI</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+              <p className="text-sm text-gray-600 mb-3">
                 {notification.message}
               </p>
 
               <div className="space-y-2 text-sm">
                 {notification.roomNo && (
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between">
                     <span className="text-gray-500">Room:</span>
                     <code className="text-gray-900 bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                       {notification.roomNo}
@@ -1477,16 +1520,16 @@ export default function NotifPage() {
                   </div>
                 )}
                 {notification.deviceName && (
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between">
                     <span className="text-gray-500">Device:</span>
-                    <span className="text-xs text-gray-600 max-w-[120px] truncate">
+                    <span className="text-xs text-gray-600">
                       {notification.deviceName}
                     </span>
                   </div>
                 )}
                 {notification.ipAddr && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">IP:</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">IP Address:</span>
                     <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
                       {notification.ipAddr}
                     </code>
@@ -1520,39 +1563,37 @@ export default function NotifPage() {
                   return null;
                 })()}
                 {notification.responseTime && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Response:</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Response Time:</span>
                     <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        notification.responseTime < 100
-                          ? "bg-green-100 text-green-700"
-                          : notification.responseTime < 300
+                      className={`px-2 py-1 rounded text-xs ${notification.responseTime < 100
+                        ? "bg-green-100 text-green-700"
+                        : notification.responseTime < 300
                           ? "bg-yellow-100 text-yellow-700"
                           : "bg-red-100 text-red-700"
-                      }`}
+                        }`}
                     >
                       {notification.responseTime}ms
                     </span>
                   </div>
                 )}
                 {notification.signalLevel && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">Signal:</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Signal Level:</span>
                     <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        notification.signalLevel > 70
-                          ? "bg-green-100 text-green-700"
-                          : notification.signalLevel > 40
+                      className={`px-2 py-1 rounded text-xs ${notification.signalLevel > 70
+                        ? "bg-green-100 text-green-700"
+                        : notification.signalLevel > 40
                           ? "bg-yellow-100 text-yellow-700"
                           : "bg-red-100 text-red-700"
-                      }`}
+                        }`}
                     >
                       {notification.signalLevel}%
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Time:</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Timestamp:</span>
                   <span className="text-xs text-gray-600">
                     {notification.date} {notification.time}
                   </span>
@@ -1566,7 +1607,8 @@ export default function NotifPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <LightBulbIcon className="w-4 h-4 text-amber-600" />
                       <span className="font-medium text-amber-900 text-sm">
-                        Solutions ({notification.suggestedSolutions.length})
+                        Suggested Solutions (
+                        {notification.suggestedSolutions.length})
                       </span>
                     </div>
                     <div className="space-y-1">
@@ -1578,16 +1620,13 @@ export default function NotifPage() {
                             className="flex items-start gap-2 text-sm"
                           >
                             <CheckBadgeIcon className="w-3 h-3 text-amber-600 mt-0.5 flex-shrink-0" />
-                            <span className="text-amber-800 text-xs leading-relaxed">
-                              {solution.length > 60
-                                ? solution.substring(0, 60) + "..."
-                                : solution}
-                            </span>
+                            <span className="text-amber-800">{solution}</span>
                           </div>
                         ))}
                       {notification.suggestedSolutions.length > 2 && (
                         <div className="text-xs text-amber-700 mt-1">
-                          +{notification.suggestedSolutions.length - 2} more...
+                          +{notification.suggestedSolutions.length - 2} more
+                          solutions...
                         </div>
                       )}
                     </div>
@@ -1639,17 +1678,15 @@ export default function NotifPage() {
       {paginationData.totalPages > 1 && (
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
           <div
-            className={`flex items-center justify-between gap-2 sm:gap-4 ${
-              screenSize === "mobile"
-                ? "flex-col space-y-3"
-                : "flex-col sm:flex-row"
-            }`}
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${screenSize === "mobile"
+              ? "flex-col space-y-3"
+              : "flex-col sm:flex-row"
+              }`}
           >
             {/* Info Text */}
             <div
-              className={`text-xs sm:text-sm text-gray-600 ${
-                screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
-              }`}
+              className={`text-xs sm:text-sm text-gray-600 ${screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+                }`}
             >
               {screenSize === "mobile" ? (
                 <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
@@ -1682,16 +1719,14 @@ export default function NotifPage() {
 
             {/* Pagination Controls */}
             <div
-              className={`flex items-center gap-1 sm:gap-2 ${
-                screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
-              }`}
+              className={`flex items-center gap-1 sm:gap-2 ${screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+                }`}
             >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 {screenSize !== "mobile" && (
@@ -1717,11 +1752,10 @@ export default function NotifPage() {
                       <button
                         key="page-1"
                         onClick={() => handlePageChange(1)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === 1
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === 1
+                          ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                          : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         1
                       </button>
@@ -1745,11 +1779,10 @@ export default function NotifPage() {
                       <button
                         key={`page-${i}-${currentPage}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === i
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === i
+                          ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                          : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         {i}
                       </button>
@@ -1773,11 +1806,10 @@ export default function NotifPage() {
                       <button
                         key={`page-${totalPages}`}
                         onClick={() => handlePageChange(totalPages)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                          currentPage === totalPages
-                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
-                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === totalPages
+                          ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                          : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -1791,9 +1823,8 @@ export default function NotifPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${
-                  screenSize === "mobile" ? "min-w-[60px]" : ""
-                }`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 {screenSize !== "mobile" && (
                   <span className="hidden sm:inline">Next</span>
@@ -1820,7 +1851,7 @@ export default function NotifPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 15 minutes • Auto-cleanup after 7 days
+            Auto-refresh every 15 minutes â€¢ Auto-cleanup after 7 days
           </div>
         </div>
       </div>

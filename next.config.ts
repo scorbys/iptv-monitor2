@@ -54,6 +54,18 @@ const nextConfig: NextConfig = {
     ];
   },
 
+ /* async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination:
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:3001/api/:path*" // local backend
+            : "https://iptv-monitor-backend-production.up.railway.app/api/:path*", // production
+      },
+    ];
+  }, */
+
   async rewrites() {
     return [
       {

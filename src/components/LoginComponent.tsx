@@ -118,7 +118,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
         showNotification("error", result.error || "Login failed");
       }
     } catch (error) {
-      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
       setErrors({ general: errorMessage });
@@ -133,9 +132,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
     setErrors({});
 
     try {
+      // loginWithGmail sudah melakukan redirect langsung
+      // Tidak perlu menangani result karena akan redirect
       loginWithGmail();
     } catch (error) {
-      console.error("Gmail login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Gmail login failed";
       setErrors({ general: errorMessage });
@@ -150,6 +150,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
     }
   };
 
+  // Mengganti gambar latar belakang setiap 4 detik
   React.useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex(
@@ -172,11 +173,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
               {backgroundImages.map((image, index) => (
                 <div
                   key={index}
-                  className={`absolute inset-0 transition-all duration-1000 ease-in-out transform ${
-                    index === currentImageIndex
+                  className={`absolute inset-0 transition-all duration-1000 ease-in-out transform ${index === currentImageIndex
                       ? "opacity-100 scale-100"
                       : "opacity-0 scale-105"
-                  }`}
+                    }`}
                 >
                   <div
                     className="w-full h-full bg-cover bg-center"
@@ -208,18 +208,16 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`relative transition-all duration-300 ${
-                      index === currentImageIndex
+                    className={`relative transition-all duration-300 ${index === currentImageIndex
                         ? "w-6 sm:w-8 h-2 sm:h-3"
                         : "w-2 sm:w-3 h-2 sm:h-3 hover:scale-110"
-                    }`}
+                      }`}
                   >
                     <div
-                      className={`w-full h-full rounded-full transition-all duration-300 ${
-                        index === currentImageIndex
+                      className={`w-full h-full rounded-full transition-all duration-300 ${index === currentImageIndex
                           ? "bg-white shadow-lg"
                           : "bg-white/50 hover:bg-white/75"
-                      }`}
+                        }`}
                     />
                   </button>
                 ))}
@@ -232,11 +230,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
             {/* Notification */}
             {notification.show && (
               <div
-                className={`fixed top-6 right-6 z-50 flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-all duration-500 transform max-w-sm border ${
-                  notification.type === "success"
+                className={`fixed top-6 right-6 z-50 flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-all duration-500 transform max-w-sm border ${notification.type === "success"
                     ? "bg-green-50/95 border-green-200 text-green-700"
                     : "bg-red-50/95 border-red-200 text-red-700"
-                }`}
+                  }`}
               >
                 {notification.type === "success" ? (
                   <CheckCircle className="w-6 h-6 flex-shrink-0" />

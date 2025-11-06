@@ -30,31 +30,49 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
+    // Tambahan delay untuk memastikan auth state sudah stabil
     const checkAuthWithDelay = setTimeout(() => {
       if (!loading && !hasRedirected) {
         if (requireAuth && !user) {
-          console.log("AuthGuard: Redirecting to login - no user");
+          // User is not authenticated but auth is required
           setHasRedirected(true);
           router.replace(redirectTo || "/login");
           return;
         }
+
+        /* if (!requireAuth && user) {
+          // User is authenticated but trying to access public route
+          console.log(
+            "AuthGuard: Redirecting to dashboard - user authenticated"
+          );
+          setHasRedirected(true);
+          router.replace("/dashboard");
+          return;
+        } */
       }
     }, 100); // 100ms delay
 
     return () => clearTimeout(checkAuthWithDelay);
   }, [user, loading, requireAuth, router, redirectTo, hasRedirected]);
 
+  // Show loading spinner while checking authentication
   if (loading || hasRedirected) {
     return <LoadingSpinner />;
   }
 
+  // PERBAIKAN: Double check auth state sebelum 
   if (requireAuth && !user) {
     return <LoadingSpinner />;
   }
 
+  /* if (!requireAuth && user) {
+    return <LoadingSpinner />;
+  } */
+
   return <>{children}</>;
 };
 
+// Higher-order component for protecting pages
 export const withAuth = <P extends object>(
   WrappedComponent: React.ComponentType<P>,
   options: { requireAuth?: boolean; redirectTo?: string } = {}
@@ -69,9 +87,8 @@ export const withAuth = <P extends object>(
     );
   };
 
-  AuthenticatedComponent.displayName = `withAuth(${
-    WrappedComponent.displayName || WrappedComponent.name
-  })`;
+  AuthenticatedComponent.displayName = `withAuth(${WrappedComponent.displayName || WrappedComponent.name
+    })`;
 
   return AuthenticatedComponent;
 };

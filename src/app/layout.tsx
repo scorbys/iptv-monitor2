@@ -5,8 +5,10 @@ import "@mantine/core/styles.css";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthContext";
 import { MantineProvider } from "@mantine/core";
-import { SpeedInsights } from "@vercel/speed-insights/next"
-import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
+import IPTVLiveChat from "@/components/IPTVLiveChat";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,6 +29,9 @@ export default function RootLayout({
         <Analytics />
         <AuthProvider>
           <MantineProvider>{children}</MantineProvider>
+          <ErrorBoundary>
+            <IPTVLiveChat />
+          </ErrorBoundary>
         </AuthProvider>
       </body>
     </html>

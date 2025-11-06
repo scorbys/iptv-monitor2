@@ -173,10 +173,10 @@ export default function TvPage() {
           prev.map((tv) =>
             tv.roomNo === roomNo
               ? {
-                  ...tv,
-                  ...result.data,
-                  error: undefined,
-                }
+                ...tv,
+                ...result.data,
+                error: undefined, // Clear previous error
+              }
               : tv
           )
         );
@@ -185,10 +185,10 @@ export default function TvPage() {
           prev.map((tv) =>
             tv.roomNo === roomNo
               ? {
-                  ...tv,
-                  error: result.message || "Check failed",
-                  status: "offline",
-                }
+                ...tv,
+                error: result.message || "Check failed",
+                status: "offline",
+              }
               : tv
           )
         );
@@ -200,10 +200,10 @@ export default function TvPage() {
         prev.map((tv) =>
           tv.roomNo === roomNo
             ? {
-                ...tv,
-                error: error instanceof Error ? error.message : "Network error",
-                status: "offline",
-              }
+              ...tv,
+              error: error instanceof Error ? error.message : "Network error",
+              status: "offline",
+            }
             : tv
         )
       );
@@ -254,16 +254,14 @@ export default function TvPage() {
     }) => (
       <div className="flex flex-col items-start">
         <span
-          className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium border ${
-            status === "online"
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${status === "online"
               ? "bg-gradient-to-r from-green-50 to-green-100 text-green-800 border-green-200"
               : "bg-gradient-to-r from-red-50 to-red-100 text-red-800 border-red-200"
-          }`}
+            }`}
         >
           <div
-            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-              status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
-            }`}
+            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
+              }`}
           />
           {status
             ? status.charAt(0).toUpperCase() + status.slice(1)
@@ -482,22 +480,20 @@ export default function TvPage() {
               </div>
               <div className="p-3 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    parseFloat(stats.uptime || "0") >= 95
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${parseFloat(stats.uptime || "0") >= 95
                       ? "bg-gradient-to-br from-green-100 to-emerald-100"
                       : parseFloat(stats.uptime || "0") >= 80
-                      ? "bg-gradient-to-br from-yellow-100 to-orange-100"
-                      : "bg-gradient-to-br from-red-100 to-pink-100"
-                  }`}
+                        ? "bg-gradient-to-br from-yellow-100 to-orange-100"
+                        : "bg-gradient-to-br from-red-100 to-pink-100"
+                    }`}
                 >
                   <div
-                    className={`w-4 h-4 rounded-full ${
-                      parseFloat(stats.uptime || "0") >= 95
+                    className={`w-4 h-4 rounded-full ${parseFloat(stats.uptime || "0") >= 95
                         ? "bg-green-500"
                         : parseFloat(stats.uptime || "0") >= 80
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                    }`}
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
                   ></div>
                 </div>
               </div>
@@ -507,88 +503,91 @@ export default function TvPage() {
       )}
 
       {/* Controls */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6 backdrop-blur-sm">
-        <div className="flex flex-col space-y-3 sm:space-y-4">
-          {/* Search Section - Stack pada mobile */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search room or IP..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
-              />
-            </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+          {/* Search Bar */}
+          <div className="relative w-full">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder={
+                screenSize === "mobile"
+                  ? "Search..."
+                  : "Search by room number or IP address..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+            />
+          </div>
 
-            {/* Action Buttons - Stack pada mobile */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              {/* Status Filter */}
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button className="flex items-center justify-between w-full sm:w-auto gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 min-w-0 sm:min-w-[120px]">
-                    <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
-                      {statusFilter}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 flex-shrink-0" />
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
-                    {["All", "Online", "Offline"].map((status) => (
-                      <DropdownMenu.Item
-                        key={`status-${status}`}
-                        className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
-                        onClick={() => setStatusFilter(status)}
-                      >
-                        <div
-                          className={`w-2 h-2 rounded-full mr-3 ${
-                            status === "Online"
-                              ? "bg-green-500"
-                              : status === "Offline"
+          {/* Filters and Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
+            {/* Status Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg sm:rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm text-green-700 font-medium truncate">
+                    {statusFilter === "All"
+                      ? screenSize === "mobile"
+                        ? "All"
+                        : "All Status"
+                      : statusFilter}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 group-hover:text-green-600 transition-colors flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["All", "Online", "Offline"].map((status) => (
+                    <DropdownMenu.Item
+                      key={`status-${status}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full mr-3 ${status === "Online"
+                            ? "bg-green-500"
+                            : status === "Offline"
                               ? "bg-red-500"
                               : "bg-gray-400"
                           } opacity-0 group-hover:opacity-100 transition-opacity`}
-                        ></div>
-                        {status}
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
+                      ></div>
+                      {status}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
 
-              {/* Action Buttons - Stack on mobile */}
-              <div className="flex gap-2">
-                {/* Export Button */}
-                <button
-                  onClick={exportToCSV}
-                  disabled={exportLoading || filteredTVs.length === 0}
-                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                >
-                  <ArrowDownTrayIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="text-xs sm:text-sm font-medium">
-                    {exportLoading ? "..." : "Export"}
-                  </span>
-                </button>
+            {/* Export Button */}
+            <button
+              onClick={exportToCSV}
+              disabled={exportLoading || filteredTVs.length === 0}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={exportLoading ? "Exporting..." : "Export CSV"}
+            >
+              <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {exportLoading ? "Exporting..." : "Export"}
+              </span>
+            </button>
 
-                {/* Refresh Button */}
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                >
-                  <ArrowPathIcon
-                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                      refreshing ? "animate-spin" : ""
-                    }`}
-                  />
-                  <span className="text-xs sm:text-sm font-medium">
-                    {refreshing ? "..." : "Refresh"}
-                  </span>
-                </button>
-              </div>
-            </div>
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={refreshing ? "Refreshing..." : "Refresh"}
+            >
+              <ArrowPathIcon
+                className={`w-4 h-4 flex-shrink-0 ${refreshing ? "animate-spin" : ""
+                  }`}
+              />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -672,9 +671,8 @@ export default function TvPage() {
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     >
                       <ArrowPathIcon
-                        className={`w-3 h-3 mr-1 ${
-                          checkingId === tv.roomNo ? "animate-spin" : ""
-                        }`}
+                        className={`w-3 h-3 mr-1 ${checkingId === tv.roomNo ? "animate-spin" : ""
+                          }`}
                       />
                       {checkingId === tv.roomNo ? "Checking..." : "Check"}
                     </button>
@@ -768,9 +766,8 @@ export default function TvPage() {
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   <ArrowPathIcon
-                    className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                      checkingId === tv.roomNo ? "animate-spin" : ""
-                    }`}
+                    className={`w-4 h-4 ${checkingId === tv.roomNo ? "animate-spin" : ""
+                      }`}
                   />
                   {checkingId === tv.roomNo ? "Checking..." : "Check Now"}
                 </button>
@@ -820,13 +817,21 @@ export default function TvPage() {
 
       {/* Pagination */}
       {paginationData.totalPages > 1 && (
-        <div className="mt-4 sm:mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${screenSize === "mobile"
+                ? "flex-col space-y-3"
+                : "flex-col sm:flex-row"
+              }`}
+          >
             {/* Info Text */}
-            <div className="order-2 sm:order-1">
-              <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-                {/* Mobile: Compact info */}
-                <div className="sm:hidden bg-gray-50 px-3 py-2 rounded-lg border">
+            <div
+              className={`text-xs sm:text-sm text-gray-600 ${screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+                }`}
+            >
+              {screenSize === "mobile" ? (
+                // Compact info for mobile
+                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
                   <span className="font-medium">
                     Page {currentPage} of {paginationData.totalPages}
                   </span>
@@ -854,12 +859,16 @@ export default function TvPage() {
               </div>
             </div>
 
-            {/* Pagination Controls - mobile friendly */}
-            <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
+            {/* Pagination Controls */}
+            <div
+              className={`flex items-center gap-1 sm:gap-2 ${screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+                }`}
+            >
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Previous</span>
@@ -870,36 +879,81 @@ export default function TvPage() {
               <div className="flex items-center gap-0.5 sm:gap-1 mx-1 sm:mx-2">
                 {(() => {
                   const { totalPages } = paginationData;
-                  const maxVisible = screenSize === "mobile" ? 3 : 5;
-                  let startPage = Math.max(
-                    1,
-                    currentPage - Math.floor(maxVisible / 2)
-                  );
-                  const endPage = Math.min(
-                    totalPages,
-                    startPage + maxVisible - 1
-                  );
-
-                  if (endPage - startPage < maxVisible - 1) {
-                    startPage = Math.max(1, endPage - maxVisible + 1);
-                  }
+                  const { startPage, endPage, showFirstLast, showEllipsis } =
+                    getVisiblePages(currentPage, totalPages, screenSize);
 
                   const pages = [];
+
+                  // First page + ellipsis (desktop/tablet only)
+                  if (showFirstLast && startPage > 1) {
+                    pages.push(
+                      <button
+                        key="page-1"
+                        onClick={() => handlePageChange(1)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === 1
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        1
+                      </button>
+                    );
+
+                    if (showEllipsis.start) {
+                      pages.push(
+                        <span
+                          key="ellipsis-start"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+
+                  // Main page numbers
                   for (let i = startPage; i <= endPage; i++) {
                     pages.push(
                       <button
                         key={`page-${i}`}
                         onClick={() => handlePageChange(i)}
-                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
-                          currentPage === i
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === i
                             ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
                             : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {i}
                       </button>
                     );
                   }
+
+                  // Ellipsis + last page (desktop/tablet only)
+                  if (showFirstLast && endPage < totalPages) {
+                    if (showEllipsis.end) {
+                      pages.push(
+                        <span
+                          key="ellipsis-end"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    pages.push(
+                      <button
+                        key="page-last"
+                        onClick={() => handlePageChange(totalPages)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === totalPages
+                            ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                            : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+
                   return pages;
                 })()}
               </div>
@@ -907,7 +961,8 @@ export default function TvPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === paginationData.totalPages}
-                className="flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
               >
                 <span className="hidden sm:inline">Next</span>
                 <span className="sm:hidden">Next</span>

@@ -21,6 +21,7 @@ import {
   BellIcon,
 } from "@heroicons/react/24/outline";
 
+// Type definitions
 interface TrafficDataPoint {
   time: string;
   timestamp: Date;
@@ -84,11 +85,15 @@ export default function NetworkTrafficDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [performanceTimeRange, setPerformanceTimeRange] = useState("1h");
   const [isClient, setIsClient] = useState(false);
+
+  // New states for enhanced stats section
   const [activeStatsTab, setActiveStatsTab] = useState("overview");
   const [statsHistory, setStatsHistory] = useState<StatsHistoryItem[]>([]);
 
+  // Simulate API calls with fallback data
   const fetchCurrentStats = useCallback(async () => {
     try {
+      // Simulating API call with random data
       const mockData = {
         channels: {
           requests: Math.floor(Math.random() * 100) + 50,
@@ -118,6 +123,7 @@ export default function NetworkTrafficDashboard() {
     }
   }, []);
 
+  // Generate fallback data
   const generateFallbackData = useCallback(() => {
     const now = new Date();
     const data = [];
@@ -172,6 +178,7 @@ export default function NetworkTrafficDashboard() {
 
   const fetchTrafficData = useCallback(async () => {
     try {
+      // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 500));
       setTrafficData(generateFallbackData());
       setError(null);
@@ -290,6 +297,7 @@ export default function NetworkTrafficDashboard() {
     };
   }, []);
 
+  // Custom Tooltip untuk stats charts
   const StatsTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
@@ -312,6 +320,7 @@ export default function NetworkTrafficDashboard() {
     return null;
   };
 
+  // StatCard component
   const StatCard = ({
     title,
     value,
@@ -376,9 +385,8 @@ export default function NetworkTrafficDashboard() {
               <ArrowDownIcon className="w-4 h-4 text-red-500 mr-1" />
             )}
             <span
-              className={`text-sm font-medium ${
-                trend > 0 ? "text-green-500" : "text-red-500"
-              }`}
+              className={`text-sm font-medium ${trend > 0 ? "text-green-500" : "text-red-500"
+                }`}
             >
               {Math.abs(trend).toFixed(1)}%
             </span>
@@ -421,6 +429,7 @@ export default function NetworkTrafficDashboard() {
     return null;
   };
 
+  // Service status based on error rate
   const getServiceStatus = (errorRate: number) => {
     if (errorRate < 1)
       return {
@@ -478,13 +487,12 @@ export default function NetworkTrafficDashboard() {
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Error Rate</span>
             <span
-              className={`text-sm font-semibold ${
-                stats.errorRate < 1
-                  ? "text-green-600"
-                  : stats.errorRate < 5
+              className={`text-sm font-semibold ${stats.errorRate < 1
+                ? "text-green-600"
+                : stats.errorRate < 5
                   ? "text-yellow-600"
                   : "text-red-600"
-              }`}
+                }`}
             >
               {stats.errorRate.toFixed(2)}%
             </span>
@@ -504,7 +512,7 @@ export default function NetworkTrafficDashboard() {
     <div className="min-h-screen bg-blue-50 p-4 sm:p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-4 sm:p-6 lg:p-8 shadow-2xl">
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div
@@ -516,22 +524,22 @@ export default function NetworkTrafficDashboard() {
           </div>
 
           <div className="relative z-10">
-            <div className="flex flex-col gap-4 lg:gap-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                    <ChartBarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <ChartBarIcon className="w-6 h-6 text-white" />
                   </div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
+                  <h1 className="text-3xl sm:text-4xl font-bold text-white">
                     IPTV Monitoring Dashboard
                   </h1>
                 </div>
-                <p className="text-blue-100 text-base sm:text-lg mb-3 sm:mb-4">
+                <p className="text-blue-100 text-lg mb-4">
                   Real-time network traffic monitoring and analytics
                 </p>
 
-                {/* Quick Stats Row -  mobile friendly */}
-                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-white">
+                {/* Quick Stats Row */}
+                <div className="flex flex-wrap gap-6 text-white">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                     <span className="text-sm font-medium">
@@ -570,42 +578,39 @@ export default function NetworkTrafficDashboard() {
                 </div>
               </div>
 
-              {/* Controls - mobile friendly */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 {/* Status Indicator */}
-                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-3 sm:px-4 py-2 sm:py-3 border border-white/20 w-full sm:w-auto">
+                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`w-3 h-3 rounded-full ${
-                        error ? "bg-red-400" : "bg-green-400"
-                      } ${!error ? "animate-pulse" : ""}`}
+                      className={`w-3 h-3 rounded-full ${error ? "bg-red-400" : "bg-green-400"
+                        } ${!error ? "animate-pulse" : ""}`}
                     />
                     <span className="text-white font-semibold text-sm">
                       {error ? "System Error" : "All Systems Online"}
                     </span>
                   </div>
-                  <div className="text-blue-200 text-sm ml-auto">
+                  <div className="text-blue-200 text-sm">
                     {isClient ? currentTime.toLocaleTimeString() : "--:--:--"}
                   </div>
                 </div>
 
                 {/* Time Range Selector */}
-                <div className="flex bg-white/10 backdrop-blur-sm rounded-xl p-1 border border-white/20 w-full sm:w-auto">
+                <div className="flex bg-white/10 backdrop-blur-sm rounded-xl p-1 border border-white/20">
                   {["1h", "6h", "24h"].map((range) => (
                     <button
                       key={range}
                       onClick={() => setSelectedTimeRange(range)}
-                      className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        selectedTimeRange === range
-                          ? "bg-white text-blue-700 shadow-lg"
-                          : "text-white hover:bg-white/20"
-                      }`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedTimeRange === range
+                        ? "bg-white text-blue-700 shadow-lg"
+                        : "text-white hover:bg-white/20"
+                        }`}
                     >
                       {range === "1h"
                         ? "1 Hour"
                         : range === "6h"
-                        ? "6 Hours"
-                        : "24 Hours"}
+                          ? "6 Hours"
+                          : "24 Hours"}
                     </button>
                   ))}
                 </div>
@@ -636,44 +641,43 @@ export default function NetworkTrafficDashboard() {
       )}
 
       {/* Main Chart */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xl border border-gray-100 mb-6 sm:mb-8 overflow-hidden">
-        <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+      <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 mb-8 overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Request Completion Rate
             </h2>
-            <p className="text-gray-600 text-sm sm:text-base">
+            <p className="text-gray-600">
               Monitor real-time traffic across all endpoints
             </p>
           </div>
 
-          {/* Legend - mobile friendly */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2 bg-blue-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-                <div className="w-2 sm:w-3 h-2 sm:h-3 bg-blue-500 rounded-full shadow-sm" />
-                <span className="text-xs sm:text-sm font-medium text-blue-700">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
+                <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm" />
+                <span className="text-sm font-medium text-blue-700">
                   /channels
                 </span>
-                <span className="text-xs text-blue-600 bg-blue-100 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
                   {currentStats.channels.requests.toFixed(0)} req/s
                 </span>
               </div>
-              <div className="flex items-center gap-2 bg-yellow-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-                <div className="w-2 sm:w-3 h-2 sm:h-3 bg-yellow-500 rounded-full shadow-sm" />
-                <span className="text-xs sm:text-sm font-medium text-yellow-700">
+              <div className="flex items-center gap-2 bg-yellow-50 px-3 py-2 rounded-lg">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full shadow-sm" />
+                <span className="text-sm font-medium text-yellow-700">
                   /hospitality
                 </span>
-                <span className="text-xs text-yellow-600 bg-yellow-100 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
                   {currentStats.hospitality.requests.toFixed(0)} req/s
                 </span>
               </div>
-              <div className="flex items-center gap-2 bg-purple-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg">
-                <div className="w-2 sm:w-3 h-2 sm:h-3 bg-purple-500 rounded-full shadow-sm" />
-                <span className="text-xs sm:text-sm font-medium text-purple-700">
+              <div className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded-lg">
+                <div className="w-3 h-3 bg-purple-500 rounded-full shadow-sm" />
+                <span className="text-sm font-medium text-purple-700">
                   /chromecast
                 </span>
-                <span className="text-xs text-purple-600 bg-purple-100 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">
                   {currentStats.chromecast.requests.toFixed(0)} req/s
                 </span>
               </div>
@@ -681,13 +685,12 @@ export default function NetworkTrafficDashboard() {
           </div>
         </div>
 
-        {/* Chart container */}
-        <div className="h-64 sm:h-80 relative">
+        <div className="h-80 relative">
           {loading ? (
             <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
-                <p className="text-gray-600 font-medium text-sm sm:text-base">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
+                <p className="text-gray-600 font-medium">
                   Loading traffic data...
                 </p>
               </div>
@@ -696,12 +699,7 @@ export default function NetworkTrafficDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={trafficData}
-                margin={{
-                  top: 5,
-                  right: 10,
-                  left: 10,
-                  bottom: 5,
-                }}
+                margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
               >
                 <defs>
                   <linearGradient
@@ -801,35 +799,33 @@ export default function NetworkTrafficDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 sm:p-6 mb-6 sm:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+      {/* Stats Grid with Charts */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Performance Analytics
             </h2>
-            <p className="text-gray-600 text-sm sm:text-base">
+            <p className="text-gray-600">
               Detailed metrics and trending analysis
             </p>
           </div>
-          {/* Tab navigation - mobile friendly */}
-          <div className="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
+          <div className="flex items-center space-x-2 text-sm">
             <button
               onClick={() => setActiveStatsTab("overview")}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
-                activeStatsTab === "overview"
-                  ? "bg-blue-100 text-blue-700 font-semibold shadow-sm"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${activeStatsTab === "overview"
+                ? "bg-blue-100 text-blue-700 font-semibold shadow-sm"
+                : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                }`}
             >
               Overview
             </button>
             <button
               onClick={() => setActiveStatsTab("trends")}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
-                activeStatsTab === "trends"
-                  ? "bg-blue-100 text-blue-700 font-semibold shadow-sm"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${activeStatsTab === "trends"
+                ? "bg-blue-100 text-blue-700 font-semibold shadow-sm"
+                : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                }`}
             >
               Trends
             </button>
@@ -1125,11 +1121,11 @@ export default function NetworkTrafficDashboard() {
       </div>
 
       {/* Service Details */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg">
-              <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg">
+              <ShieldCheckIcon className="w-5 h-5 text-white" />
             </div>
             Service Health Overview
           </h2>
@@ -1139,7 +1135,7 @@ export default function NetworkTrafficDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Network Status */}
           <div className="group p-6 bg-gradient-to-br from-emerald-50 to-green-100 rounded-xl border border-emerald-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
             <div className="flex items-center justify-between mb-4">
@@ -1227,19 +1223,17 @@ export default function NetworkTrafficDashboard() {
           </div>
         </div>
 
-        {/* Additional Service Metrics - mobile friendly */}
-        <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <div className="text-lg sm:text-2xl font-bold text-gray-900">
+        {/* Additional Service Metrics */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div className="text-2xl font-bold text-gray-900">
                 {statsHistory.reduce(
                   (sum, item) => sum + (item.totalNotifications || 0),
                   0
                 )}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">
-                Total Processed
-              </div>
+              <div className="text-sm text-gray-600">Total Processed</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <div className="text-2xl font-bold text-green-600">
@@ -1254,13 +1248,13 @@ export default function NetworkTrafficDashboard() {
               <div className="text-2xl font-bold text-blue-600">
                 {statsHistory.length > 0
                   ? Math.round(
-                      statsHistory.reduce(
-                        (sum, item) => sum + (item.avgResponseTime || 0),
-                        0
-                      ) /
-                        statsHistory.length /
-                        10
-                    ) + "%"
+                    statsHistory.reduce(
+                      (sum, item) => sum + (item.avgResponseTime || 0),
+                      0
+                    ) /
+                    statsHistory.length /
+                    10
+                  ) + "%"
                   : "0%"}
               </div>
               <div className="text-sm text-gray-600">Efficiency</div>
@@ -1273,47 +1267,47 @@ export default function NetworkTrafficDashboard() {
         </div>
       </div>
 
-      {/* Performance Analytics Chart */}
+      {/* Simplified Performance Analytics */}
       {statsHistory.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex flex-col gap-4 sm:gap-0 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-            <div className="mb-2 sm:mb-0">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg flex items-center justify-center shadow-lg">
-                  <SignalIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          {/* Simple Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <div className="mb-4 sm:mb-0">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-1">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg flex items-center justify-center shadow-lg">
+                  <SignalIcon className="w-5 h-5 text-white" />
                 </div>
                 Performance Analytics
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600">
+              <p className="text-sm text-gray-600">
                 Real-time system performance metrics and trends
               </p>
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+            {/* Simple Controls */}
+            <div className="flex items-center gap-4">
               {/* Legend */}
-              <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
+              <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 sm:w-3 h-2 sm:h-3 bg-red-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                   <span className="text-gray-600">Issues</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 sm:w-3 h-2 sm:h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   <span className="text-gray-600">Recoveries</span>
                 </div>
               </div>
 
               {/* Time Range */}
-              <div className="flex border border-gray-200 rounded-lg overflow-hidden w-full sm:w-auto">
+              <div className="flex border border-gray-200 rounded-lg overflow-hidden">
                 {["1h", "6h", "24h"].map((range) => (
                   <button
                     key={range}
                     onClick={() => setPerformanceTimeRange(range)}
-                    className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                      performanceTimeRange === range
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${performanceTimeRange === range
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
+                      }`}
                   >
                     {range}
                   </button>
@@ -1323,7 +1317,7 @@ export default function NetworkTrafficDashboard() {
           </div>
 
           {/* Chart */}
-          <div className="h-64 sm:h-80 mb-4 sm:mb-6">
+          <div className="h-80 mb-6">
             {loading ? (
               <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl">
                 <div className="text-center">
@@ -1419,13 +1413,11 @@ export default function NetworkTrafficDashboard() {
             )}
           </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-              <div className="text-xs sm:text-sm text-gray-600 mb-1">
-                Peak Issues
-              </div>
-              <div className="text-lg sm:text-2xl font-semibold text-red-600">
+          {/* Simple Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-600 mb-1">Peak Issues</div>
+              <div className="text-2xl font-semibold text-red-600">
                 {Math.max(...statsHistory.map((h) => h.activeIssues || 0), 0)}
               </div>
             </div>
@@ -1461,7 +1453,7 @@ export default function NetworkTrafficDashboard() {
                 {(
                   100 -
                   statsHistory.reduce((sum, h) => sum + (h.errorRate || 0), 0) /
-                    statsHistory.length
+                  statsHistory.length
                 ).toFixed(1)}
                 %
               </div>

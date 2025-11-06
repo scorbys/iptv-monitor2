@@ -1,46 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  ArrowLeftIcon,
+  MagnifyingGlassIcon,
   ArrowPathIcon,
+  ComputerDesktopIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  SignalIcon,
-  WifiIcon,
-  ComputerDesktopIcon,
   XMarkIcon,
-  ChevronRightIcon,
-  WrenchScrewdriverIcon,
-  DocumentTextIcon,
-  PowerIcon,
-  GlobeAltIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
+import { DateFormatter } from "../components/DateFormatter";
 import { useRouter } from "next/navigation";
-import { DateFormatter } from "@/components/DateFormatter";
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from "recharts";
 
-interface FAQ {
-  id: number;
-  category: string;
-  device: string;
-  issue: string;
-  solutions: string[];
-  hasImage: boolean;
-  actionType: string;
-  priority: string;
-  slug: string;
-}
-
-interface TVDetail {
+interface TV {
   id: number;
   roomNo: string;
   ipAddress: string;
@@ -49,1946 +25,1016 @@ interface TVDetail {
   lastChecked: string;
   error?: string;
   model?: string;
-  signalLevel?: number;
-  isOnline?: boolean;
-  isPingable?: boolean;
 }
 
-interface DeviceStatus {
-  power: "working" | "error";
-  lanIp: "working" | "error";
-  hdmi: "working" | "error";
-  network: "working" | "error";
-  other: "working" | "error";
+interface TVStats {
+  totalTVs: number;
+  onlineTVs: number;
+  offlineTVs: number;
+  uptime: string;
+  lastUpdated: string;
 }
 
-interface NetworkMetrics {
-  sent: string;
-  received: string;
-  latency: number;
-  jitter: number;
-  ttl: number;
-  packetLoss: number;
-  bandwidth: number;
-  hops: number;
-}
+const ITEMS_PER_PAGE = 12;
 
-interface NetworkHistory {
-  time: string;
-  latency: number;
-  bandwidth: number;
-  jitter: number;
-  packetLoss: number;
-  sent: number;
-  received: number;
-  hops: number;
-}
-
-interface TVDetailPageProps {
-  tvId: string;
-}
-
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    name: string;
-    value: number;
-    color: string;
-  }>;
-  label?: string;
-}
-
-interface TvSuggestion {
-  id: number;
-  roomNo: string;
-}
-
-interface DebugInfo {
-  searchingFor: string;
-  availableDevices: TvSuggestion[];
-  exactMatch?: {
-    roomNo: string;
-    id: number;
-  };
-  caseInsensitiveMatch?: {
-    roomNo: string;
-    id: number;
-  };
-  partialMatch?: {
-    roomNo: string;
-    id: number;
-  };
-  totalDevices: number;
-}
-
-interface StatusBadgeProps {
-  status: "working" | "error";
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  value?: string;
-  unit?: string;
-  action?: {
-    type: string;
-    label: string;
-    onClick: () => void;
-  };
-}
-
-const faqData: FAQ[] = [
-  {
-    id: 2,
-    category: "Kategori-2",
-    device: "IPTV",
-    issue: "Weak Or No Signal",
-    solutions: [
-      "Periksa koneksi LAN pada TV",
-      "Pastikan sumber HDMI diatur ke HDMI-1",
-      "Restart perangkat IPTV",
-      "Periksa indikator LED pada box IPTV",
-    ],
-    hasImage: true,
-    actionType: "On Site",
-    priority: "Medium",
-    slug: "weak-or-no-signal",
-  },
-  {
-    id: 3,
-    category: "Kategori-3",
-    device: "IPTV",
-    issue: "Unplug LAN TV",
-    solutions: [
-      "Periksa koneksi LAN (pastikan terpasang di LAN IN)",
-      "Posisikan kabel LAN dengan benar",
-      "Pastikan tidak terpasang di LAN OUT",
-      "Test koneksi dengan kabel LAN lain",
-    ],
-    hasImage: true,
-    actionType: "On Site",
-    priority: "High",
-    slug: "unplug-lan-tv",
-  },
-  {
-    id: 9,
-    category: "Kategori-9",
-    device: "IPTV",
-    issue: "No Device Logged",
-    solutions: [
-      "Pastikan Allow local Network pada Setingan iPhone",
-      "Periksa pengaturan VPN dan Cast",
-      "Restart aplikasi IPTV",
-      "Pastikan perangkat dalam satu jaringan WiFi yang sama",
-    ],
-    hasImage: true,
-    actionType: "On Site",
-    priority: "High",
-    slug: "no-device-logged",
-  },
-];
-
-const generateRandomNetworkData = (): NetworkMetrics => {
-  return {
-    sent: (Math.random() * 8 + 2).toFixed(2),
-    received: (Math.random() * 6 + 1).toFixed(2),
-    latency: Math.floor(Math.random() * 40) + 8,
-    jitter: Math.floor(Math.random() * 15) + 1,
-    ttl: Math.floor(Math.random() * 8) + 60,
-    packetLoss: parseFloat((Math.random() * 1.5).toFixed(2)),
-    bandwidth: Math.floor(Math.random() * 60) + 30,
-    hops: Math.floor(Math.random() * 15) + 12,
-  };
-};
-
-const generateHistoricalData = (
-  timeRange: string,
-  isOnline: boolean
-): NetworkHistory[] => {
-  const now = new Date();
-  const data: NetworkHistory[] = [];
-
-  let points: number;
-  let intervalMs: number;
-
-  switch (timeRange) {
-    case "1h":
-      points = 60;
-      intervalMs = 60000;
-      break;
-    case "24h":
-      points = 24;
-      intervalMs = 3600000;
-      break;
-    case "7d":
-      points = 7;
-      intervalMs = 86400000;
-      break;
-    default:
-      points = 24;
-      intervalMs = 3600000;
-  }
-
-  for (let i = points - 1; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * intervalMs);
-    const timeStr =
-      timeRange === "24h"
-        ? `${String(time.getHours()).padStart(2, "0")}:00`
-        : timeRange === "7d"
-        ? time.toLocaleDateString()
-        : `${String(time.getHours()).padStart(2, "0")}:${String(
-            time.getMinutes()
-          ).padStart(2, "0")}`;
-
-    data.push({
-      time: timeStr,
-      latency: isOnline ? Math.floor(Math.random() * 35) + 8 : 0,
-      bandwidth: isOnline ? Math.floor(Math.random() * 50) + 30 : 0,
-      jitter: isOnline ? Math.floor(Math.random() * 15) + 3 : 0,
-      packetLoss: isOnline ? parseFloat((Math.random() * 1.2).toFixed(2)) : 0,
-      sent: isOnline ? parseFloat((Math.random() * 4 + 1).toFixed(2)) : 0,
-      received: isOnline ? parseFloat((Math.random() * 3 + 0.5).toFixed(2)) : 0,
-      hops: isOnline ? Math.floor(Math.random() * 12) + 8 : 0,
-    });
-  }
-
-  return data;
-};
-
-export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
-  const [tvs, setTv] = useState<TVDetail | null>(null);
-  const [deviceStatus, setTvStatus] = useState<DeviceStatus>({
-    power: "working",
-    lanIp: "working",
-    hdmi: "working",
-    network: "working",
-    other: "working",
-  });
+export default function TvPage() {
+  const [tvs, setTvs] = useState<TV[]>([]);
+  const [stats, setStats] = useState<TVStats | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(true);
-  const [checking, setChecking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showTroubleshooting, setShowTroubleshooting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [mounted, setMounted] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
-  const [previousMetrics, setPreviousMetrics] = useState<NetworkMetrics | null>(
-    null
+  const [exportLoading, setExportLoading] = useState(false);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
+    "desktop"
   );
-
-  const [networkMetrics, setNetworkMetrics] = useState<NetworkMetrics | null>(
-    null
-  );
-  const [networkHistory, setNetworkHistory] = useState<NetworkHistory[]>([]);
-  const [activeTab, setActiveTab] = useState("24h");
-  const [loadingMetrics, setLoadingMetrics] = useState(false);
 
   const router = useRouter();
+  const handleTvClick = (tv: TV) => {
+    const tvId = tv.roomNo || tv.id;
+    router.push(`/hospitality/${encodeURIComponent(tvId)}`);
+  };
 
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setScreenSize("mobile");
+      } else if (width < 1024) {
+        setScreenSize("tablet");
+      } else {
+        setScreenSize("desktop");
+      }
+    };
+
+    // Set initial value
+    if (typeof window !== "undefined") {
+      handleResize();
+      window.addEventListener("resize", handleResize);
+
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
+
+  // Fetch TVs data
+  const fetchTVs = useCallback(async () => {
+    if (!mounted) return;
+
+    try {
+      const response = await fetch("/api/hospitality/tvs", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (response.status === 401) {
+        // Token expired atau invalid, redirect ke login
+        window.location.href = "/login";
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && Array.isArray(result.data)) {
+        setTvs(result.data);
+      } else {
+        console.error("Invalid TVs data format:", result);
+        setTvs([]);
+      }
+    } catch (error) {
+      console.error("Error fetching TVs:", error);
+      setTvs([]);
+    }
+  }, [mounted]);
+
+  // Fetch dashboard stats
+  const fetchStats = useCallback(async () => {
+    if (!mounted) return;
+
+    try {
+      const response = await fetch("/api/hospitality/dashboard/stats", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (response.status === 401) {
+        // Token expired atau invalid, redirect ke login
+        window.location.href = "/login";
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setStats(result.data);
+      } else {
+        console.error("Invalid stats data format:", result);
+        setStats(null);
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      setStats(null);
+    }
+  }, [mounted]);
+
+  // Mount effect
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Auto-refresh network data every 30 seconds
+  // Initial data load and auto-refresh
   useEffect(() => {
-    if (!mounted || !tvs) return;
+    if (!mounted) return;
 
-    const fetchNetworkMetrics = async () => {
-      if (!tvs.id) {
-        console.warn("Tv ID not available for metrics");
-        setNetworkMetrics((prevMetrics) => {
-          if (prevMetrics) {
-            setPreviousMetrics(prevMetrics);
-          }
-          return generateRandomNetworkData();
-        });
-        return;
-      }
-
+    const loadData = async () => {
+      setLoading(true);
       try {
-        const metricsIdentifier = tvs.roomNo || tvs.id;
-        const encodedIdentifier = encodeURIComponent(metricsIdentifier);
-
-        console.log("Fetching metrics for:", {
-          tvId: tvs.id,
-          tvsRoom: tvs.roomNo,
-          using: metricsIdentifier,
-        });
-
-        const response = await fetch(
-          `/api/hospitality/tvs/${encodedIdentifier}/metrics`,
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (response.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log("Metrics response:", result);
-
-          if (result.success && result.data) {
-            setNetworkMetrics((prevMetrics) => {
-              if (prevMetrics) {
-                setPreviousMetrics(prevMetrics);
-              }
-              return {
-                sent: result.data.sent || "0.0",
-                received: result.data.received || "0.0",
-                latency: result.data.latency || 0,
-                jitter: result.data.jitter || 0,
-                ttl: result.data.ttl || 0,
-                packetLoss: result.data.packetLoss || 0,
-                bandwidth: result.data.bandwidth || 0,
-                hops: result.data.hops || 0,
-                signalStrength:
-                  result.data.signalStrength || tvs.signalLevel || 0,
-                bitrate: result.data.bitrate || 0,
-              };
-            });
-          } else {
-            console.warn("Invalid metrics data structure:", result);
-
-            setNetworkMetrics((prevMetrics) => {
-              if (prevMetrics) {
-                setPreviousMetrics(prevMetrics);
-              }
-              return generateRandomNetworkData();
-            });
-          }
-        } else {
-          console.warn(
-            `Metrics API returned ${response.status}, using generated data`
-          );
-
-          setNetworkMetrics((prevMetrics) => {
-            if (prevMetrics) {
-              setPreviousMetrics(prevMetrics);
-            }
-            return generateRandomNetworkData();
-          });
-        }
-      } catch (error) {
-        console.warn("Error fetching network metrics:", error);
-
-        setNetworkMetrics((prevMetrics) => {
-          if (prevMetrics) {
-            setPreviousMetrics(prevMetrics);
-          }
-          return generateRandomNetworkData();
-        });
-      }
-    };
-
-    fetchNetworkMetrics();
-    const interval = setInterval(fetchNetworkMetrics, 30000);
-
-    return () => clearInterval(interval);
-  }, [tvs, mounted]);
-
-  const handleTabChange = async (newTab: string) => {
-    if (!tvs) return;
-
-    setActiveTab(newTab);
-    setLoadingMetrics(true);
-
-    try {
-      const historyIdentifier = tvs.roomNo || tvs.id;
-      await fetchNetworkHistory(historyIdentifier.toString(), newTab);
-    } catch (error) {
-      console.error("Error changing tab:", error);
-
-      const fallbackData = generateHistoricalData(
-        newTab,
-        Boolean(tvs?.isOnline)
-      );
-      setNetworkHistory(fallbackData);
-    } finally {
-      setLoadingMetrics(false);
-    }
-  };
-
-  const handleApiError = (error: unknown, context: string) => {
-    console.error(`Error in ${context}:`, error);
-
-    if (error instanceof Error) {
-      if (error.message.includes("401")) {
-        window.location.href = "/login";
-        return;
-      }
-      if (error.message.includes("404")) {
-        setError(`TV "${tvId}" not found`);
-        return;
-      }
-      if (error.message.includes("400")) {
-        setError(`Invalid TV identifier: "${tvId}"`);
-        return;
-      }
-      setError(`${context}: ${error.message}`);
-    } else {
-      setError(`${context}: Unknown error occurred`);
-    }
-  };
-
-  useEffect(() => {
-    if (!mounted || !tvId) return;
-
-    const fetchTvDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        if (!tvId.trim()) {
-          setError("Invalid tv identifier");
-          return;
-        }
-
-        const encodedTvId = encodeURIComponent(tvId);
-        console.log("Fetching tv with ID:", tvId);
-        console.log("Encoded tvId:", encodedTvId);
-
-        const response = await fetch(`/api/hospitality/tvs/${encodedTvId}`, {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache",
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            window.location.href = "/login";
-            return;
-          }
-
-          if (response.status === 404) {
-            const errorResult = await response.json();
-            console.log("404 Error details:", errorResult);
-
-            const suggestions: TvSuggestion[] =
-              errorResult.details?.suggestions || [];
-            let errorMessage = `Room "${tvId}" not found.`;
-
-            if (suggestions.length > 0) {
-              errorMessage += `\n\nSuggestions:\n${suggestions
-                .map((s) => `• Room ${s.id}: ${s.roomNo || "Unnamed"}`)
-                .join("\n")}`;
-            }
-
-            setError(errorMessage);
-
-            if (errorResult.details) {
-              setDebugInfo({
-                searchingFor: tvId,
-                availableDevices: suggestions,
-                totalDevices: errorResult.details.totalDevices || 0,
-              });
-            }
-            return;
-          }
-
-          const errorResult = await response.json().catch(() => ({
-            message: `HTTP ${response.status}`,
-          }));
-          throw new Error(errorResult.message || `HTTP ${response.status}`);
-        }
-        const result = await response.json();
-        console.log("API Response:", result);
-
-        if (result.success && result.data) {
-          setTv(result.data);
-          generateDeviceStatus(result.data);
-        } else {
-          throw new Error(result.message || "Invalid response from server");
-        }
-      } catch (error) {
-        handleApiError(error, "fetchTvDetails");
+        await Promise.all([fetchTVs(), fetchStats()]);
       } finally {
         setLoading(false);
       }
     };
-    fetchTvDetails();
-  }, [tvId, mounted]);
 
-  const generateDeviceStatus = (deviceData: TVDetail) => {
-    const status: DeviceStatus = {
-      power: deviceData.status === "online" ? "working" : "error",
-      lanIp: deviceData.status === "online" ? "working" : "error",
-      hdmi: deviceData.status === "online" ? "working" : "error",
-      network: deviceData.status === "online" ? "working" : "error",
-      other: deviceData.error ? "error" : "working",
-    };
-    setTvStatus(status);
-  };
+    loadData();
 
-  const handleCheckTV = async () => {
-    if (!tvs || checking) return;
-
-    setChecking(true);
-    try {
-      const encodedTvId = encodeURIComponent(tvId);
-      const response = await fetch(
-        `/api/hospitality/tvs/${encodedTvId}/check`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.status === 401) {
-        window.location.href = "/login";
-        return;
+    // Auto-refresh every 2 minutes
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchTVs();
+        fetchStats();
       }
+    }, 120000);
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setTv(result.data);
-          generateDeviceStatus(result.data);
-        }
-      } else {
-        console.warn("Check TV failed:", response.status);
-      }
-    } catch (error) {
-      console.error("Error checking TV:", error);
-    } finally {
-      setChecking(false);
-    }
-  };
+    return () => clearInterval(interval);
+  }, [mounted, fetchTVs, fetchStats]);
 
-  const detectIssues = () => {
-    if (!tvs) return [];
+  // Manual refresh
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
 
-    const issues = [];
-
-    if (tvs.status === "offline") {
-      issues.push(faqData.find((faq) => faq.slug === "weak-or-no-signal"));
-    }
-    if (tvs.error && tvs.error.includes("network")) {
-      issues.push(faqData.find((faq) => faq.slug === "unplug-lan-tv"));
-    }
-    if (
-      tvs.error &&
-      tvs.error.includes("login") &&
-      tvs.error.includes("device")
-    ) {
-      issues.push(faqData.find((faq) => faq.slug === "no-device-logged"));
-    }
-
-    return issues.filter(Boolean) as FAQ[];
-  };
-
-  const detectedIssues = useMemo(() => detectIssues(), [tvs]);
-
-  const handleRepairAction = async (issue: FAQ) => {
+    setRefreshing(true);
     try {
-      console.log("Attempting automated repair for:", issue.issue);
-      setChecking(true);
-
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await handleCheckTV();
-
-      alert(`Repair attempt completed for: ${issue.issue}`);
-    } catch (error) {
-      console.error("Repair failed:", error);
-      alert("Automated repair failed. Please try manual troubleshooting.");
+      await Promise.all([fetchTVs(), fetchStats()]);
     } finally {
-      setChecking(false);
+      setRefreshing(false);
     }
-  };
+  }, [refreshing, fetchTVs, fetchStats]);
 
-  const fetchNetworkHistory = async (
-    tvIdentifier: string,
-    timeRange = "24h"
-  ) => {
-    if (!tvIdentifier) {
-      console.warn("No tv identifier provided for history");
-      const fallbackData = generateHistoricalData(
-        timeRange,
-        Boolean(tvs?.isOnline)
-      );
-      setNetworkHistory(fallbackData);
-      return;
-    }
+  // Check individual TV status
+  const checkTVStatus = useCallback(async (roomNo: string) => {
+    if (!roomNo) return;
+
+    setCheckingId(roomNo);
 
     try {
-      setLoadingMetrics(true);
-      const encodedIdentifier = encodeURIComponent(tvIdentifier);
-
-      console.log("Fetching history for:", {
-        identifier: tvIdentifier,
-        encoded: encodedIdentifier,
-        timeRange,
+      const response = await fetch(`/api/hospitality/tvs/${roomNo}/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
       });
 
-      const response = await fetch(
-        `/api/hospitality/tvs/${encodedIdentifier}/history?timeRange=${timeRange}`,
-        {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
       if (response.status === 401) {
         window.location.href = "/login";
         return;
       }
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log("History response:", result);
-
-        if (result.success && result.data && Array.isArray(result.data)) {
-          setNetworkHistory(result.data);
-        } else {
-          console.warn("Invalid history data structure, using fallback");
-          const fallbackData = generateHistoricalData(
-            timeRange,
-            Boolean(tvs?.isOnline)
-          );
-          setNetworkHistory(fallbackData);
-        }
-      } else {
-        console.warn(
-          `Network history API returned ${response.status}, using fallback`
-        );
-        const fallbackData = generateHistoricalData(
-          timeRange,
-          Boolean(tvs?.isOnline)
-        );
-        setNetworkHistory(fallbackData);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    } catch (error) {
-      console.warn("Network history fetch error:", error);
-      const fallbackData = generateHistoricalData(
-        timeRange,
-        Boolean(tvs?.isOnline)
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setTvs((prev) =>
+          prev.map((tv) =>
+            tv.roomNo === roomNo
+              ? {
+                ...tv,
+                ...result.data,
+                error: undefined, // Clear previous error
+              }
+              : tv
+          )
+        );
+      } else {
+        // Handle API error response
+        setTvs((prev) =>
+          prev.map((tv) =>
+            tv.roomNo === roomNo
+              ? {
+                ...tv,
+                error: result.message || "Check failed",
+                status: "offline",
+              }
+              : tv
+          )
+        );
+      }
+    } catch (error: unknown) {
+      console.error("Error checking TV status:", error);
+
+      // Update TV with error state
+      setTvs((prev) =>
+        prev.map((tv) =>
+          tv.roomNo === roomNo
+            ? {
+              ...tv,
+              error: error instanceof Error ? error.message : "Network error",
+              status: "offline",
+            }
+            : tv
+        )
       );
-      setNetworkHistory(fallbackData);
     } finally {
-      setLoadingMetrics(false);
+      setCheckingId(null);
     }
-  };
-
-  useEffect(() => {
-    if (!mounted || !tvs) return;
-    console.log("Fetching initial network history for device:", tvs);
-
-    const historyIdentifier = tvs.roomNo || tvs.id;
-    fetchNetworkHistory(historyIdentifier.toString(), activeTab);
-  }, [tvs, mounted]);
-
-  const TrendIndicator = React.useCallback(({ trend }: { trend: string }) => {
-    if (trend === "up") {
-      return (
-        <div className="ml-2">
-          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-green-500"></div>
-        </div>
-      );
-    }
-    if (trend === "down") {
-      return (
-        <div className="ml-2">
-          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-red-500"></div>
-        </div>
-      );
-    }
-    return null;
   }, []);
 
-  const getTrendIndicator = (
-    current: number,
-    previous: number | undefined,
-    type: string
-  ) => {
-    if (!previous) return { direction: "stable", color: "gray" };
+  // Filtered TVs
+  const filteredTVs = useMemo(() => {
+    return tvs.filter((tv) => {
+      const matchesSearch =
+        tv.roomNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tv.ipAddress?.includes(searchTerm) ||
+        false;
 
-    const diff = current - previous;
-    const threshold = type === "latency" ? 5 : type === "bandwidth" ? 5 : 2;
+      const matchesStatus =
+        statusFilter === "All" || tv.status === statusFilter.toLowerCase();
 
-    if (Math.abs(diff) < threshold) {
-      return { direction: "stable", color: "gray" };
-    }
+      return matchesSearch && matchesStatus;
+    });
+  }, [tvs, searchTerm, statusFilter]);
+
+  // Pagination
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(filteredTVs.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedTVs = filteredTVs.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
+    );
 
     return {
-      direction: diff > 0 ? "up" : "down",
-      color: diff > 0 ? "green" : "red",
+      totalPages,
+      startIndex,
+      paginatedTVs,
+      endIndex: Math.min(startIndex + ITEMS_PER_PAGE, filteredTVs.length),
     };
+  }, [filteredTVs, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
-  const MetricCard = React.memo(
-    ({
-      value,
-      previousValue,
-      type,
-      unit,
-      label,
-      isOnline = true,
-    }: {
-      value: number;
-      previousValue?: number;
-      type:
-        | "latency"
-        | "bandwidth"
-        | "signal"
-        | "speed"
-        | "data_sent"
-        | "data_received"
-        | "packetLoss";
-      unit: string;
-      label: string;
-      isOnline?: boolean;
-    }) => {
-      // Jika device offline, tampilkan gray dengan nilai 0
-      if (!isOnline) {
-        return (
-          <div className="text-center p-2 sm:p-3 bg-white rounded-lg border border-gray-200">
-            <div className="flex items-center justify-center mb-1">
-              <p className="text-lg sm:text-2xl font-bold text-gray-400">
-                0{unit}
-              </p>
-            </div>
-            <p className="text-xs font-medium text-gray-400 mb-1 truncate">
-              {label}
-            </p>
-            <div className="mt-1">
-              <span className="text-xs text-gray-400 bg-gray-200 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
-                Offline
-              </span>
-            </div>
-          </div>
-        );
-      }
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
-      const getStatusColor = (
-        current: number,
-        previous: number | undefined,
-        type: string
-      ) => {
-        // Untuk data sent/received - hijau jika naik, gray jika turun/sama
-        if (type === "data_sent" || type === "data_received") {
-          if (!previous || current <= previous) {
-            return {
-              bgColor: "bg-white border-gray-200",
-              textColor: "text-gray-700",
-              badgeColor: "bg-gray-100 text-gray-700",
-            };
-          } else {
-            return {
-              bgColor: "bg-green-50 border-green-200",
-              textColor: "text-green-700",
-              badgeColor: "bg-green-100 text-green-700",
-            };
-          }
-        }
-
-        if (!previous) {
-          // Nilai stabil/normal - hijau
-          return {
-            bgColor: "bg-green-50 border-green-200",
-            textColor: "text-green-700",
-            badgeColor: "bg-green-100 text-green-700",
-          };
-        }
-
-        const diff = Math.abs(current - previous);
-        const threshold = getThreshold(type, current);
-
-        if (diff < threshold) {
-          // Stabil - hijau
-          return {
-            bgColor: "bg-green-50 border-green-200",
-            textColor: "text-green-700",
-            badgeColor: "bg-green-100 text-green-700",
-          };
-        }
-
-        // Untuk latency dan packet loss, nilai tinggi = buruk
-        if (type === "latency" || type === "packetLoss") {
-          if (current > previous) {
-            // Memburuk - merah
-            return {
-              bgColor: "bg-red-50 border-red-200",
-              textColor: "text-red-700",
-              badgeColor: "bg-red-100 text-red-700",
-            };
-          } else {
-            // Membaik - kuning/warning (karena ada perubahan signifikan)
-            return {
-              bgColor: "bg-yellow-50 border-yellow-200",
-              textColor: "text-yellow-700",
-              badgeColor: "bg-yellow-100 text-yellow-700",
-            };
-          }
-        }
-
-        // Untuk bandwidth, speed, dll - nilai tinggi = baik
-        if (current < previous) {
-          // Menurun - kuning ke merah tergantung seberapa buruk
-          const degradationPercent = ((previous - current) / previous) * 100;
-          if (degradationPercent > 25) {
-            return {
-              bgColor: "bg-red-50 border-red-200",
-              textColor: "text-red-700",
-              badgeColor: "bg-red-100 text-red-700",
-            };
-          } else {
-            return {
-              bgColor: "bg-yellow-50 border-yellow-200",
-              textColor: "text-yellow-700",
-              badgeColor: "bg-yellow-100 text-yellow-700",
-            };
-          }
-        } else {
-          // Meningkat - hijau
-          return {
-            bgColor: "bg-green-50 border-green-200",
-            textColor: "text-green-700",
-            badgeColor: "bg-green-100 text-green-700",
-          };
-        }
-      };
-
-      const getThreshold = (type: string, currentValue: number) => {
-        switch (type) {
-          case "latency":
-            return Math.max(5, currentValue * 0.1); // 10% atau min 5ms
-          case "bandwidth":
-            return Math.max(5, currentValue * 0.15); // 15% atau min 5Mbps
-          case "packetLoss":
-            return 0.5; // 0.5%
-          case "data_sent":
-          case "data_received":
-            return 0.1; // 0.1GB threshold
-          default:
-            return Math.max(2, currentValue * 0.1); // 10% atau min 2
-        }
-      };
-
-      const statusColors = getStatusColor(value, previousValue, type);
-      const trend = getTrendIndicator(value, previousValue, type);
-
-      return (
-        <div
-          className={`text-center p-2 sm:p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
+  // Status badge component
+  const StatusBadge = useCallback(
+    ({ status, responseTime }: { status: string; responseTime?: number }) => (
+      <div className="flex flex-col items-start">
+        <span
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${status === "online"
+            ? "bg-gradient-to-r from-green-50 to-green-100 text-green-800 border-green-200"
+            : "bg-gradient-to-r from-red-50 to-red-100 text-red-800 border-red-200"
+            }`}
         >
-          <div className="flex items-center justify-center mb-1">
-            <p
-              className={`text-lg sm:text-2xl font-bold ${statusColors.textColor}`}
-            >
-              {value}
-              {unit}
-            </p>
-            {previousValue && <TrendIndicator trend={trend.direction} />}
+          <div
+            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"
+              }`}
+          />
+          {status
+            ? status.charAt(0).toUpperCase() + status.slice(1)
+            : "Unknown"}
+        </span>
+        {responseTime && (
+          <div className="text-xs text-gray-500 mt-1 ml-1">
+            {responseTime}ms
           </div>
-          <p
-            className={`text-xs font-medium ${statusColors.textColor} mb-1 sm:mb-2 truncate`}
-          >
-            {label}
-          </p>
-        </div>
-      );
-    }
+        )}
+      </div>
+    ),
+    []
   );
 
-  MetricCard.displayName = "MetricCard";
+  // Export to CSV function
+  const exportToCSV = useCallback(() => {
+    if (exportLoading) return;
 
-  const StatusBadge: React.FC<StatusBadgeProps> = ({
-    status,
-    label,
-    icon: Icon,
-    value,
-    unit,
-    action,
-  }) => {
-    const isWorking = status === "working";
-    return (
-      <div
-        className={`flex items-center justify-between p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
-          isWorking
-            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:shadow-sm"
-            : "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
-        }`}
-      >
-        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-          <div
-            className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
-              isWorking ? "bg-green-100" : "bg-red-100"
-            }`}
-          >
-            <Icon
-              className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                isWorking ? "text-green-600" : "text-red-600"
-              }`}
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="text-xs sm:text-sm font-semibold text-gray-900 block truncate">
-              {label}
-            </span>
-            {value && (
-              <div className="text-xs text-gray-600 mt-1 truncate">
-                {value} {unit}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <div className="flex items-center gap-1 sm:gap-2">
-            {isWorking ? (
-              <>
-                <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-                <span className="text-xs font-semibold text-green-700 hidden sm:inline">
-                  Working
-                </span>
-              </>
-            ) : (
-              <>
-                <ExclamationTriangleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
-                <span className="text-xs font-semibold text-red-700 hidden sm:inline">
-                  Error
-                </span>
-              </>
-            )}
-          </div>
-          {action && (
-            <button
-              onClick={action.onClick}
-              className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                action.type === "repair"
-                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {action.label}
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
+    setExportLoading(true);
 
-  const CustomTooltip: React.FC<CustomTooltipProps> = ({
-    active,
-    payload,
-    label,
-  }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-          <p className="text-sm font-medium text-gray-900">{`Time: ${label}`}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.name}: ${entry.value}${
-                entry.name === "Latency"
-                  ? "ms"
-                  : entry.name === "Bandwidth"
-                  ? "Mbps"
-                  : entry.name === "Jitter"
-                  ? "ms"
-                  : entry.name === "Packet Loss"
-                  ? "%"
-                  : ""
-              }`}
-            </p>
-          ))}
-        </div>
-      );
+    try {
+      // Header CSV
+      const headers = [
+        "Room Number",
+        "IP Address",
+        "Model",
+        "Status",
+        "Response Time (ms)",
+        "Last Checked",
+        "Error Message",
+      ];
+
+      // Convert filtered data ke CSV format
+      const csvData = filteredTVs.map((tv) => [
+        tv.roomNo || "",
+        tv.ipAddress || "",
+        tv.model || "Samsung Hospitality",
+        tv.status || "",
+        tv.responseTime?.toString() || "",
+        tv.lastChecked ? new Date(tv.lastChecked).toLocaleString() : "",
+        tv.error || "",
+      ]);
+
+      // Gabungkan header dan data
+      const csvContent = [headers, ...csvData]
+        .map((row) =>
+          row
+            .map((field) => {
+              const stringField = String(field);
+              // Escape quotes dan wrap dengan quotes jika mengandung koma, quotes, atau newlines
+              if (
+                stringField.includes(",") ||
+                stringField.includes('"') ||
+                stringField.includes("\n") ||
+                stringField.includes("\r")
+              ) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+              }
+              return stringField;
+            })
+            .join(",")
+        )
+        .join("\n");
+
+      // Buat file dan download
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+
+        // Generate filename dengan timestamp
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:-]/g, "");
+        const filename = `hospitality_tvs_export_${timestamp}.csv`;
+        link.setAttribute("download", filename);
+
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      alert("Failed to export CSV. Please try again.");
+    } finally {
+      setExportLoading(false);
     }
-    return null;
-  };
+  }, [filteredTVs, exportLoading]);
+
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number, screenSize: string) => {
+      let maxVisiblePages: number;
+      let showFirstLast: boolean;
+
+      switch (screenSize) {
+        case "mobile":
+          maxVisiblePages = 3;
+          showFirstLast = false;
+          break;
+        case "tablet":
+          maxVisiblePages = 5;
+          showFirstLast = true;
+          break;
+        default: // desktop
+          maxVisiblePages = 7;
+          showFirstLast = true;
+          break;
+      }
+
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      // Adjust start page if we're near the end
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      return {
+        startPage,
+        endPage,
+        maxVisiblePages,
+        showFirstLast,
+        showEllipsis: {
+          start: showFirstLast && startPage > 2,
+          end: showFirstLast && endPage < totalPages - 1,
+        },
+      };
+    },
+    []
+  );
 
   if (!mounted || loading) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
-        <div className="max-w-6xl mx-auto">
-          {/* Skeleton loading untuk header */}
-          <div className="mb-6">
-            <div className="h-4 bg-gray-200 rounded animate-pulse mb-2 w-48"></div>
-          </div>
-
-          {/* Skeleton loading untuk main content */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="animate-pulse">
-              <div className="h-6 bg-gray-200 rounded mb-4 w-32"></div>
-              <div className="h-16 bg-gray-100 rounded mb-4"></div>
-              <div className="grid grid-cols-7 gap-4">
-                {[...Array(7)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gray-100 rounded"></div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Loading message */}
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-3 text-gray-600">
-              Loading device details...
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
-        <div className="max-w-4xl mx-auto">
-          {/* Breadcrumb */}
-          <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-            <button
-              onClick={() => router.push("/hospitality")}
-              className="hover:text-blue-600 transition-colors truncate"
-            >
-              Hospitality TV
-            </button>
-            <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-            <span className="text-gray-400 truncate">Error</span>
-          </nav>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
-            <div className="text-center mb-4 sm:mb-6">
-              <ExclamationTriangleIcon className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto mb-3 sm:mb-4" />
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-                TV Not Found
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 px-2">
-                {error}
-              </p>
-            </div>
-
-            {/* Debug Information - stack di mobile */}
-            {debugInfo && (
-              <div className="bg-gray-50 rounded-lg p-3 sm:p-6 mb-4 sm:mb-6">
-                <h4 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">
-                  Debug Information:
-                </h4>
-                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                    <span className="font-medium">Searching for:</span>
-                    <code className="bg-gray-200 px-2 py-1 rounded text-xs break-all">
-                      {debugInfo.searchingFor}
-                    </code>
-                  </div>
-
-                  {debugInfo.exactMatch && (
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                      <span className="font-medium text-green-600">
-                        Exact match found:
-                      </span>
-                      <code className="bg-green-100 px-2 py-1 rounded text-xs">
-                        {debugInfo.exactMatch.roomNo}
-                      </code>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                    <span className="font-medium">Total TVs available:</span>
-                    <span>{debugInfo.totalDevices}</span>
-                  </div>
-
-                  {debugInfo.availableDevices &&
-                    debugInfo.availableDevices.length > 0 && (
-                      <div>
-                        <span className="font-medium block mb-2">
-                          Sample room numbers:
-                        </span>
-                        <ul className="ml-2 sm:ml-4 space-y-1">
-                          {debugInfo.availableDevices
-                            .slice(0, 5)
-                            .map((tvs, index) => (
-                              <li
-                                key={index}
-                                className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2"
-                              >
-                                <code className="bg-gray-200 px-2 py-1 rounded text-xs break-all">
-                                  {tvs.roomNo || "Unnamed"}
-                                </code>
-                                <span className="text-gray-500 text-xs">
-                                  ({tvs.id})
-                                </span>
-                              </li>
-                            ))}
-                          {debugInfo.availableDevices.length > 5 && (
-                            <li className="text-gray-500 text-xs">
-                              ... and {debugInfo.availableDevices.length - 5}{" "}
-                              more
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                </div>
-              </div>
-            )}
-
-            <div className="text-center space-y-3">
-              <button
-                onClick={() => router.push("/hospitality")}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                Back to TV List
-              </button>
-              <div className="text-xs sm:text-sm text-gray-500 px-4">
-                <p>
-                  Room Number:{" "}
-                  <code className="bg-gray-100 px-2 py-1 rounded break-all">
-                    {tvId}
-                  </code>
-                </p>
-                <p className="mt-1">
-                  If this TV should exist, please check the room number or
-                  contact support.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!tvs) return null;
-
-  if (showTroubleshooting) {
-    return (
-      <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
-        <div className="max-w-4xl mx-auto">
-          {/* Breadcrumb */}
-          <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-            <button
-              onClick={() => router.push("/hospitality")}
-              className="hover:text-blue-600 transition-colors truncate"
-            >
-              Hospitality TV
-            </button>
-            <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-            <button
-              onClick={() => setShowTroubleshooting(false)}
-              className="hover:text-blue-600 transition-colors truncate"
-            >
-              Room {tvs.roomNo}
-            </button>
-            <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-            <span className="text-gray-400 truncate">Troubleshooting</span>
-          </nav>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
-                    Troubleshooting Issues
-                  </h1>
-                  <p className="text-sm sm:text-base text-gray-600 mt-1">
-                    Detected {detectedIssues.length} issue
-                    {detectedIssues.length !== 1 ? "s" : ""} with Room{" "}
-                    {tvs.roomNo}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowTroubleshooting(false)}
-                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                >
-                  <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                </button>
-              </div>
-            </div>
-
-            {/* Issues List */}
-            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-              {detectedIssues.length === 0 ? (
-                <div className="text-center py-6 sm:py-8">
-                  <CheckCircleIcon className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-3 sm:mb-4" />
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-                    No Issues Detected
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600">
-                    The chromecast appears to be working normally.
-                  </p>
-                </div>
-              ) : (
-                detectedIssues.map((issue) => (
-                  <div
-                    key={issue.id}
-                    className="border border-gray-200 rounded-xl p-4 sm:p-6 bg-gradient-to-br from-white to-gray-50"
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 sm:gap-3 mb-2">
-                          <div
-                            className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
-                              issue.priority === "High"
-                                ? "bg-red-100"
-                                : issue.priority === "Medium"
-                                ? "bg-yellow-100"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <WrenchScrewdriverIcon
-                              className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                                issue.priority === "High"
-                                  ? "text-red-600"
-                                  : issue.priority === "Medium"
-                                  ? "text-yellow-600"
-                                  : "text-gray-600"
-                              }`}
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-lg break-words">
-                              {issue.issue}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                              {issue.category}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <span
-                        className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
-                          issue.priority === "High"
-                            ? "bg-red-100 text-red-800"
-                            : issue.priority === "Medium"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {issue.priority}
-                      </span>
-                    </div>
-
-                    <div className="mb-4 sm:mb-6">
-                      <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 flex items-center text-sm sm:text-base">
-                        <DocumentTextIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-2 text-blue-600" />
-                        Recommended Solutions:
-                      </h4>
-                      <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
-                        <ul className="space-y-2">
-                          {issue.solutions.map((solution, index) => (
-                            <li
-                              key={index}
-                              className="flex items-start text-xs sm:text-sm text-gray-700"
-                            >
-                              <span className="inline-block w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full text-xs font-medium flex items-center justify-center mr-2 sm:mr-3 mt-0.5 flex-shrink-0">
-                                {index + 1}
-                              </span>
-                              <span className="break-words">{solution}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200">
-                      {issue.actionType === "System" ? (
-                        <button
-                          onClick={() => handleRepairAction(issue)}
-                          disabled={checking}
-                          className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-all duration-200 shadow-sm hover:shadow-md"
-                        >
-                          <WrenchScrewdriverIcon
-                            className={`w-4 h-4 mr-2 ${
-                              checking ? "animate-spin" : ""
-                            }`}
-                          />
-                          {checking ? "Repairing..." : "Auto Repair"}
-                        </button>
-                      ) : (
-                        <div className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 text-sm font-medium rounded-xl border border-orange-200">
-                          <WrenchScrewdriverIcon className="w-4 h-4 mr-2" />
-                          <span className="hidden sm:inline">
-                            On-Site Service Required
-                          </span>
-                          <span className="sm:hidden">On-Site Required</span>
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() =>
-                          router.push(`/help/details/${issue.slug}`)
-                        }
-                        className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 text-sm font-medium rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 border border-blue-200"
-                      >
-                        <DocumentTextIcon className="w-4 h-4 mr-2" />
-                        <span className="hidden sm:inline">
-                          View Detailed Guide
-                        </span>
-                        <span className="sm:hidden">View Guide</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading TVs...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-3 sm:p-6 bg-blue-50 min-h-screen">
-      <div className="max-w-6xl mx-auto">
-        {/* Breadcrumb */}
-        <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-          <button
-            onClick={() => router.push("/hospitality")}
-            className="hover:text-blue-600 transition-colors truncate"
-          >
-            Hospitality TV
-          </button>
-          <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-          <span className="text-gray-400 truncate">Room {tvs.roomNo}</span>
-        </nav>
-
-        {/* Header Table - stack di mobile */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-4 sm:mb-6">
-          {/* Mobile Card Layout */}
-          <div className="block sm:hidden">
-            <div className="space-y-4">
-              {/* TV Info */}
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 h-10 w-10">
-                  <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <ComputerDesktopIcon className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    Room {tvs.roomNo}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {tvs.model || "Samsung Hospitality"}
-                  </div>
-                </div>
+    <div className="p-6 bg-blue-50 min-h-screen">
+      {/* Header Stats */}
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium mb-1">
+                  Total TVs
+                </p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {stats.totalTVs || 0}
+                </p>
               </div>
-
-              {/* Network Info */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">IP Address</span>
-                  <code className="text-xs text-gray-900 font-mono px-2 py-1 bg-gray-100 rounded">
-                    {tvs.ipAddress || "N/A"}
-                  </code>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Response Time</span>
-                  <div className="flex items-center">
-                    <SignalIcon
-                      className={`h-3 w-3 mr-1 ${
-                        tvs.status === "online"
-                          ? "text-green-500"
-                          : "text-red-500"
-                      }`}
-                    />
-                    <span className="text-xs text-gray-700">
-                      {tvs.responseTime || 0}ms
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Info */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Status</span>
-                  <div className="flex flex-col items-end gap-1">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        tvs.status === "online"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      <div
-                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                          tvs.status === "online"
-                            ? "bg-green-500"
-                            : "bg-red-500"
-                        }`}
-                      ></div>
-                      {tvs.status
-                        ? tvs.status.charAt(0).toUpperCase() +
-                          tvs.status.slice(1)
-                        : "Unknown"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Last Checked</span>
-                  <DateFormatter
-                    date={tvs.lastChecked}
-                    fallback="Never checked"
-                    className="text-xs text-gray-600"
-                  />
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <div className="pt-2 border-t border-gray-100">
-                <button
-                  onClick={handleCheckTV}
-                  disabled={checking}
-                  className="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                >
-                  <ArrowPathIcon
-                    className={`w-4 h-4 mr-2 ${checking ? "animate-spin" : ""}`}
-                  />
-                  {checking ? "Checking..." : "Check Status"}
-                </button>
+              <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                <ComputerDesktopIcon className="w-8 h-8 text-blue-600" />
               </div>
             </div>
           </div>
 
-          {/* Desktop Table Layout */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Room
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IP Address
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Model
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Checked
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                          <ComputerDesktopIcon className="h-6 w-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          Room {tvs.roomNo}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {tvs.model || "Samsung Hospitality"}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-mono">
-                      {tvs.ipAddress || "N/A"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        tvs.status === "online"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium mb-1">Online</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {stats.onlineTVs || 0}
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                <CheckCircleIcon className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium mb-1">
+                  Offline
+                </p>
+                <p className="text-3xl font-bold text-red-600">
+                  {stats.offlineTVs || 0}
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl">
+                <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-1 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium mb-1">
+                  System Uptime
+                </p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {stats.uptime || "0"}%
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${parseFloat(stats.uptime || "0") >= 95
+                    ? "bg-gradient-to-br from-green-100 to-emerald-100"
+                    : parseFloat(stats.uptime || "0") >= 80
+                      ? "bg-gradient-to-br from-yellow-100 to-orange-100"
+                      : "bg-gradient-to-br from-red-100 to-pink-100"
+                    }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full ${parseFloat(stats.uptime || "0") >= 95
+                      ? "bg-green-500"
+                      : parseFloat(stats.uptime || "0") >= 80
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
                       }`}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+          {/* Search Bar */}
+          <div className="relative w-full">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder={
+                screenSize === "mobile"
+                  ? "Search..."
+                  : "Search by room number or IP address..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+            />
+          </div>
+
+          {/* Filters and Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
+            {/* Status Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg sm:rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md group flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm text-green-700 font-medium truncate">
+                    {statusFilter === "All"
+                      ? screenSize === "mobile"
+                        ? "All"
+                        : "All Status"
+                      : statusFilter}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 group-hover:text-green-600 transition-colors flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[120px] sm:min-w-32 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["All", "Online", "Offline"].map((status) => (
+                    <DropdownMenu.Item
+                      key={`status-${status}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      onClick={() => setStatusFilter(status)}
                     >
                       <div
-                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                          tvs.status === "online"
-                            ? "bg-green-500"
-                            : "bg-red-500"
-                        }`}
+                        className={`w-2 h-2 rounded-full mr-3 ${status === "Online"
+                          ? "bg-green-500"
+                          : status === "Offline"
+                            ? "bg-red-500"
+                            : "bg-gray-400"
+                          } opacity-0 group-hover:opacity-100 transition-opacity`}
                       ></div>
-                      {tvs.status
-                        ? tvs.status.charAt(0).toUpperCase() +
-                          tvs.status.slice(1)
-                        : "Unknown"}
-                    </span>
+                      {status}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
+            {/* Export Button */}
+            <button
+              onClick={exportToCSV}
+              disabled={exportLoading || filteredTVs.length === 0}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={exportLoading ? "Exporting..." : "Export CSV"}
+            >
+              <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {exportLoading ? "Exporting..." : "Export"}
+              </span>
+            </button>
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 touch-target"
+              title={refreshing ? "Refreshing..." : "Refresh"}
+            >
+              <ArrowPathIcon
+                className={`w-4 h-4 flex-shrink-0 ${refreshing ? "animate-spin" : ""
+                  }`}
+              />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* TVs Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200/50 overflow-hidden">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Room
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  IP Address
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Model
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Last Checked
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paginationData.paginatedTVs.map((tv, index) => (
+                <tr
+                  key={`desktop-tv-${tv.id || tv.roomNo || index}`}
+                  className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200 group cursor-pointer"
+                  onClick={() => handleTvClick(tv)}
+                >
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                        <span className="text-sm font-bold text-white">
+                          {tv.roomNo || "-"}
+                        </span>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <code className="text-sm text-gray-900 bg-gray-100 px-3 py-1 rounded-lg font-mono border">
+                        {tv.ipAddress || "N/A"}
+                      </code>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200">
-                      {tvs.model || "Samsung Hospitality"}
+                      {tv.model || "Samsung Hospitality"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <StatusBadge
+                      status={tv.status}
+                      responseTime={tv.responseTime}
+                    />
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
-                      date={tvs.lastChecked}
+                      date={tv.lastChecked}
                       fallback="Never checked"
                       className="text-xs"
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <button
-                      onClick={handleCheckTV}
-                      disabled={checking}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:opacity-50 transition-all duration-200 transform hover:scale-105"
+                      key={`desktop-check-${tv.roomNo}-${index}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        checkTVStatus(tv.roomNo);
+                      }}
+                      disabled={!tv.roomNo || checkingId === tv.roomNo}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     >
                       <ArrowPathIcon
-                        className={`w-3 h-3 mr-1 ${
-                          checking ? "animate-spin" : ""
-                        }`}
+                        className={`w-3 h-3 mr-1 ${checkingId === tv.roomNo ? "animate-spin" : ""
+                          }`}
                       />
-                      {checking ? "Checking..." : "Check"}
+                      {checkingId === tv.roomNo ? "Checking..." : "Check"}
                     </button>
                   </td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        {/* Main Grid - stack di mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-3 sm:space-y-6">
-            {/* Network Performance Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  Network Performance
-                </h2>
-                <div className="flex items-center space-x-1 sm:space-x-2 text-sm">
-                  <button
-                    onClick={() => handleTabChange("1h")}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors text-xs sm:text-sm ${
-                      activeTab === "1h"
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:text-blue-600"
-                    }`}
-                  >
-                    1H
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("24h")}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors text-xs sm:text-sm ${
-                      activeTab === "24h"
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:text-blue-600"
-                    }`}
-                  >
-                    24H
-                  </button>
-                  <button
-                    onClick={() => handleTabChange("7d")}
-                    className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-colors text-xs sm:text-sm ${
-                      activeTab === "7d"
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:text-blue-600"
-                    }`}
-                  >
-                    7D
-                  </button>
-                </div>
-              </div>
-
-              {/* Chart Area */}
-              <div className="h-48 sm:h-64 mb-4">
-                {loadingMetrics ? (
-                  <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 sm:ml-3 text-gray-600 text-sm">
-                      Loading network data...
-                    </span>
-                  </div>
-                ) : networkHistory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={networkHistory}
-                      margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorLatency"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3B82F6"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#3B82F6"
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorBandwidth"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#10B981"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#10B981"
-                            stopOpacity={0.05}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis
-                        dataKey="time"
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tick={{ fill: "#6B7280" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        stroke="#6B7280"
-                        fontSize={12}
-                        tick={{ fill: "#6B7280" }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={35}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area
-                        type="monotone"
-                        dataKey="latency"
-                        stroke="#3B82F6"
-                        fillOpacity={1}
-                        fill="url(#colorLatency)"
-                        strokeWidth={2}
-                        name="Latency"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="bandwidth"
-                        stroke="#10B981"
-                        fillOpacity={1}
-                        fill="url(#colorBandwidth)"
-                        strokeWidth={2}
-                        name="Bandwidth"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <SignalIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">
-                        Network performance data unavailable
+        {/* Mobile Card Layout */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {paginationData.paginatedTVs.map((tv, index) => (
+            <div
+              key={`mobile-card-${tv.id}-${tv.roomNo}-${index}`}
+              className="p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div onClick={() => handleTvClick(tv)} className="cursor-pointer">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <span className="text-xs font-bold text-white">
+                        {tv.roomNo || "-"}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">
+                        Room {tv.roomNo || "Unknown"}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {tv.model || "Samsung Hospitality"}
                       </p>
                     </div>
                   </div>
-                )}
+                  <StatusBadge
+                    status={tv.status}
+                    responseTime={tv.responseTime}
+                  />
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">IP Address:</span>
+                    <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs break-all">
+                      {tv.ipAddress || "N/A"}
+                    </code>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Last Checked:</span>
+                    <DateFormatter
+                      date={tv.lastChecked}
+                      fallback="Never checked"
+                      className="text-xs text-gray-600"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Stats Grid */}
-              {networkMetrics && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <button
+                  key={`mobile-action-${tv.roomNo}-${index}-${Date.now()}`} // Dynamic key to prevent conflicts
+                  onClick={() => checkTVStatus(tv.roomNo)}
+                  disabled={!tv.roomNo || checkingId === tv.roomNo}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:text-blue-700 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <ArrowPathIcon
+                    className={`w-4 h-4 ${checkingId === tv.roomNo ? "animate-spin" : ""
+                      }`}
+                  />
+                  {checkingId === tv.roomNo ? "Checking..." : "Check Now"}
+                </button>
+
+                {/* Error message */}
+                {tv.error && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs text-red-600 break-words">
+                      {tv.error}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredTVs.length === 0 && (
+          <div className="text-center py-16 px-4">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+              <ComputerDesktopIcon className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No TVs found
+            </h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto text-sm">
+              {searchTerm
+                ? `No TVs match "${searchTerm}". Try adjusting your search terms.`
+                : "No TVs available with current filters. Try changing your filter settings."}
+            </p>
+            {(searchTerm || statusFilter !== "All") && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("All");
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all duration-200 transform hover:scale-105 active:scale-95"
+              >
+                <XMarkIcon className="w-4 h-4 mr-2" />
+                Clear all filters
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {paginationData.totalPages > 1 && (
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 backdrop-blur-sm">
+          <div
+            className={`flex items-center justify-between gap-2 sm:gap-4 ${screenSize === "mobile"
+              ? "flex-col space-y-3"
+              : "flex-col sm:flex-row"
+              }`}
+          >
+            {/* Info Text */}
+            <div
+              className={`text-xs sm:text-sm text-gray-600 ${screenSize === "mobile" ? "order-2" : "order-2 sm:order-1"
+                }`}
+            >
+              {screenSize === "mobile" ? (
+                // Compact info for mobile
+                <div className="text-center bg-gray-50 px-3 py-2 rounded-lg border">
+                  <span className="font-medium">
+                    Page {currentPage} of {paginationData.totalPages}
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    ({paginationData.startIndex + 1}-{paginationData.endIndex}{" "}
+                    of {filteredTVs.length} TVs)
+                  </span>
+                </div>
+              ) : (
+                // Full info for tablet/desktop
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-gray-200">
-                    <MetricCard
-                      value={networkMetrics.jitter || 0}
-                      previousValue={previousMetrics?.jitter}
-                      type="latency"
-                      unit="ms"
-                      label="Jitter"
-                      isOnline={tvs.status === "online"}
-                    />
-
-                    <MetricCard
-                      value={networkMetrics.ttl || 0}
-                      previousValue={previousMetrics?.ttl}
-                      type="bandwidth"
-                      unit=""
-                      label="TTL"
-                      isOnline={tvs.status === "online"}
-                    />
-
-                    <MetricCard
-                      value={networkMetrics.packetLoss || 0}
-                      previousValue={previousMetrics?.packetLoss}
-                      type="packetLoss"
-                      unit="%"
-                      label="Packet Loss"
-                      isOnline={tvs.status === "online"}
-                    />
-
-                    <MetricCard
-                      value={parseFloat(networkMetrics?.sent || "0")}
-                      previousValue={
-                        previousMetrics?.sent
-                          ? parseFloat(previousMetrics.sent)
-                          : undefined
-                      }
-                      type="data_sent"
-                      unit="GB"
-                      label="Data Sent"
-                      isOnline={tvs.status === "online"}
-                    />
-                  </div>
-
-                  {/* Second row of metrics */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-gray-100">
-                    <MetricCard
-                      value={networkMetrics?.hops || 0}
-                      previousValue={previousMetrics?.hops}
-                      type="latency"
-                      unit=""
-                      label="Hops"
-                      isOnline={tvs.status === "online"}
-                    />
-
-                    <MetricCard
-                      value={networkMetrics.bandwidth || 0}
-                      previousValue={previousMetrics?.bandwidth}
-                      type="bandwidth"
-                      unit="Mbps"
-                      label="Bandwidth"
-                      isOnline={tvs.status === "online"}
-                    />
-
-                    <MetricCard
-                      value={networkMetrics?.latency || tvs?.responseTime || 0}
-                      previousValue={previousMetrics?.latency}
-                      type="latency"
-                      unit="ms"
-                      label="Latency"
-                      isOnline={tvs.status === "online"}
-                    />
-
-                    <MetricCard
-                      value={parseFloat(networkMetrics?.received || "0")}
-                      previousValue={
-                        previousMetrics?.received
-                          ? parseFloat(previousMetrics.received)
-                          : undefined
-                      }
-                      type="data_received"
-                      unit="GB"
-                      label="Data Received"
-                      isOnline={tvs.status === "online"}
-                    />
-                  </div>
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.startIndex + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-gray-900">
+                    {paginationData.endIndex}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {filteredTVs.length}
+                  </span>{" "}
+                  TVs
                 </>
               )}
             </div>
 
-            {/* Quick Actions Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                Quick Actions
-              </h2>
-              <div className="space-y-2 sm:space-y-3">
-                <button
-                  onClick={handleCheckTV}
-                  disabled={checking}
-                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 disabled:opacity-50"
-                >
-                  <div className="flex items-center">
-                    <ArrowPathIcon
-                      className={`w-4 h-4 mr-2 sm:mr-3 ${
-                        checking ? "animate-spin" : ""
-                      }`}
-                    />
-                    <span className="font-medium">
-                      {checking ? "Refreshing..." : "Refresh Status"}
-                    </span>
-                  </div>
-                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full hidden sm:block">
-                    Real-time
-                  </div>
-                </button>
+            {/* Pagination Controls */}
+            <div
+              className={`flex items-center gap-1 sm:gap-2 ${screenSize === "mobile" ? "order-1" : "order-1 sm:order-2"
+                }`}
+            >
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
+              >
+                <ChevronLeftIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Previous</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Prev</span>
+                )}
+              </button>
 
-                <button
-                  onClick={() => setShowTroubleshooting(true)}
-                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm bg-gradient-to-r from-orange-50 to-yellow-50 text-orange-700 border border-orange-200 rounded-xl hover:from-orange-100 hover:to-yellow-100 hover:border-orange-300 transition-all duration-200"
-                >
-                  <div className="flex items-center">
-                    <WrenchScrewdriverIcon className="w-4 h-4 mr-2 sm:mr-3" />
-                    <span className="font-medium">Troubleshoot</span>
-                  </div>
-                  {detectedIssues.length > 0 && (
-                    <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
-                      {detectedIssues.length}
-                    </div>
-                  )}
-                </button>
+              {/* Page Numbers - Fully Responsive */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const { totalPages } = paginationData;
+                  const { startPage, endPage, showFirstLast, showEllipsis } =
+                    getVisiblePages(currentPage, totalPages, screenSize);
 
-                <button
-                  onClick={() => router.push("/help")}
-                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200 rounded-xl hover:from-gray-100 hover:to-slate-100 hover:border-gray-300 transition-all duration-200"
-                >
-                  <div className="flex items-center">
-                    <DocumentTextIcon className="w-4 h-4 mr-2 sm:mr-3" />
-                    <span className="font-medium">Help Guide</span>
-                  </div>
-                  <ChevronRightIcon className="w-3 h-3 text-gray-500" />
-                </button>
+                  const pages = [];
+
+                  // First page + ellipsis (desktop/tablet only)
+                  if (showFirstLast && startPage > 1) {
+                    pages.push(
+                      <button
+                        key="page-1"
+                        onClick={() => handlePageChange(1)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === 1
+                          ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                          : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        1
+                      </button>
+                    );
+
+                    if (showEllipsis.start) {
+                      pages.push(
+                        <span
+                          key="ellipsis-start"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+
+                  // Main page numbers
+                  for (let i = startPage; i <= endPage; i++) {
+                    // Skip if this is the last page and we'll add it separately
+                    if (
+                      showFirstLast &&
+                      i === totalPages &&
+                      totalPages > endPage
+                    )
+                      continue;
+
+                    pages.push(
+                      <button
+                        key={`page-${i}-${currentPage}`}
+                        onClick={() => handlePageChange(i)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === i
+                          ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                          : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  // Ellipsis + last page (desktop/tablet only)
+                  if (showFirstLast && endPage < totalPages) {
+                    if (showEllipsis.end) {
+                      pages.push(
+                        <span
+                          key="ellipsis-end"
+                          className="px-1 sm:px-2 py-2 text-gray-400 text-xs sm:text-sm"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    pages.push(
+                      <button
+                        key="page-last"
+                        onClick={() => handlePageChange(totalPages)}
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${currentPage === totalPages
+                          ? "text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-md"
+                          : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                          }`}
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
               </div>
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === paginationData.totalPages}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${screenSize === "mobile" ? "min-w-[60px]" : ""
+                  }`}
+              >
+                {screenSize !== "mobile" && (
+                  <span className="hidden sm:inline">Next</span>
+                )}
+                {screenSize === "mobile" && (
+                  <span className="text-xs">Next</span>
+                )}
+                <ChevronRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Sidebar */}
-          <div className="lg:col-span-2 space-y-3 sm:space-y-6">
-            {/* TV Status */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                    TV Status
-                  </h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Real-time connectivity monitoring
-                  </p>
-                </div>
-                <div className="text-xs text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded-full">
-                  <DateFormatter date={new Date().toISOString()} />
-                </div>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                <StatusBadge
-                  status={deviceStatus.power}
-                  label="Power"
-                  icon={PowerIcon}
-                  value={tvs.status === "online" ? "On" : "Off"}
-                  unit=""
-                />
-                <StatusBadge
-                  status={deviceStatus.lanIp}
-                  label="Network / IP"
-                  icon={GlobeAltIcon}
-                  value={
-                    tvs.status === "online" ? tvs.ipAddress : "Disconnected"
-                  }
-                  unit=""
-                />
-                <StatusBadge
-                  status={deviceStatus.hdmi}
-                  label="HDMI Input"
-                  icon={ComputerDesktopIcon}
-                  value={tvs.status === "online" ? "HDMI-1" : "No Signal"}
-                  unit=""
-                />
-                <StatusBadge
-                  status={deviceStatus.network}
-                  label="Network Connection"
-                  icon={WifiIcon}
-                  value={
-                    tvs.responseTime ? `${tvs.responseTime}ms` : "No Response"
-                  }
-                  unit=""
-                />
-                <StatusBadge
-                  status={deviceStatus.other}
-                  label="System Health"
-                  icon={WrenchScrewdriverIcon}
-                  value={tvs.error ? "Error" : "Normal"}
-                  unit=""
-                />
-              </div>
-            </div>
-
-            {/* Issue Detection Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                    Issue Detection
-                  </h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Automated system diagnostics
-                  </p>
-                </div>
-              </div>
-
-              {detectedIssues.length > 0 ? (
-                <div className="space-y-2 sm:space-y-3">
-                  {detectedIssues.slice(0, 2).map((issue) => (
-                    <div
-                      key={issue.id}
-                      className="p-3 sm:p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl"
-                    >
-                      <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
-                        <div className="p-1 sm:p-1.5 bg-red-100 rounded-lg">
-                          <ExclamationTriangleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm font-semibold text-red-900 break-words">
-                            {issue.issue}
-                          </p>
-                          <p className="text-xs text-red-700">
-                            {issue.priority} Priority
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {issue.actionType === "System" && (
-                          <button
-                            onClick={() => handleRepairAction(issue)}
-                            disabled={checking}
-                            className="flex-1 bg-red-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                          >
-                            {checking ? "Fixing..." : "Auto Fix"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {detectedIssues.length > 2 && (
-                    <p className="text-xs text-gray-600 text-center">
-                      +{detectedIssues.length - 2} more issue
-                      {detectedIssues.length - 2 !== 1 ? "s" : ""}
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() => setShowTroubleshooting(true)}
-                    className="w-full bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-                  >
-                    View All Issues ({detectedIssues.length})
-                  </button>
-                </div>
-              ) : (
-                <div className="p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
-                  <div className="flex items-center space-x-2 sm:space-x-3">
-                    <div className="p-1 sm:p-1.5 bg-green-100 rounded-lg">
-                      <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm font-semibold text-green-900">
-                        All Systems Normal
-                      </p>
-                      <p className="text-xs text-green-700">
-                        No issues detected
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+      {/* Footer Info */}
+      <div className="mt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-4">
+            {stats && stats.lastUpdated && (
+              <span className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Last updated: <DateFormatter date={stats.lastUpdated} />
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500">
+            Auto-refresh every 2 minutes
           </div>
         </div>
       </div>
