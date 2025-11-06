@@ -323,11 +323,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         const metricsIdentifier = tvs.roomNo || tvs.id;
         const encodedIdentifier = encodeURIComponent(metricsIdentifier);
 
-        console.log("Fetching metrics for:", {
-          tvId: tvs.id,
-          tvsRoom: tvs.roomNo,
-          using: metricsIdentifier,
-        });
+        
 
         const response = await fetch(
           `/api/hospitality/tvs/${encodedIdentifier}/metrics`,
@@ -346,7 +342,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
         if (response.ok) {
           const result = await response.json();
-          console.log("Metrics response:", result);
 
           if (result.success && result.data) {
             setNetworkMetrics((prevMetrics) => {
@@ -468,8 +463,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         }
 
         const encodedTvId = encodeURIComponent(tvId);
-        console.log("Fetching tv with ID:", tvId);
-        console.log("Encoded tvId:", encodedTvId);
 
         const response = await fetch(`/api/hospitality/tvs/${encodedTvId}`, {
           credentials: "include",
@@ -487,7 +480,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
           if (response.status === 404) {
             const errorResult = await response.json();
-            console.log("404 Error details:", errorResult);
 
             const suggestions: TvSuggestion[] =
               errorResult.details?.suggestions || [];
@@ -517,7 +509,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           throw new Error(errorResult.message || `HTTP ${response.status}`);
         }
         const result = await response.json();
-        console.log("API Response:", result);
 
         if (result.success && result.data) {
           setTv(result.data);
@@ -613,7 +604,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
     try {
-      console.log("Attempting automated repair for:", issue.issue);
       setChecking(true);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -647,11 +637,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       setLoadingMetrics(true);
       const encodedIdentifier = encodeURIComponent(tvIdentifier);
 
-      console.log("Fetching history for:", {
-        identifier: tvIdentifier,
-        encoded: encodedIdentifier,
-        timeRange,
-      });
+      
 
       const response = await fetch(
         `/api/hospitality/tvs/${encodedIdentifier}/history?timeRange=${timeRange}`,
@@ -670,7 +656,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       if (response.ok) {
         const result = await response.json();
-        console.log("History response:", result);
 
         if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
@@ -706,7 +691,6 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   useEffect(() => {
     if (!mounted || !tvs) return;
-    console.log("Fetching initial network history for device:", tvs);
 
     const historyIdentifier = tvs.roomNo || tvs.id;
     fetchNetworkHistory(historyIdentifier.toString(), activeTab);

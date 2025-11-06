@@ -91,8 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const result = await response.json();
         return result;
       } catch (error) {
-        console.error("API call error:", error);
-        throw error;
+          throw error;
       }
     },
     [user]
@@ -116,12 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       cookies["session-token"] ||
       cookies.jwt;
 
-    console.log("Cookie extraction:", {
-      allCookies: Object.keys(cookies),
-      tokenFound: !!token,
-      tokenSource: token ? "cookie" : "none",
-    });
-
+  
     // Jika tidak ada di cookie, cek localStorage
     if (!token) {
       try {
@@ -134,18 +128,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           "";
 
         if (token) {
-          console.log("Token retrieved from localStorage as fallback");
-
+  
           // SYNC: Set token ke cookie jika ditemukan di localStorage
           const isProduction = window.location.protocol === "https:";
           const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
             }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
           document.cookie = cookieValue;
-          console.log("Token synced from localStorage to cookie");
-        }
+          }
       } catch (e) {
-        console.warn("Could not access localStorage:", e);
-      }
+        }
     }
 
     // Fallback dari URL
@@ -175,12 +166,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = getAuthToken();
 
       if (!token) {
-        console.log("No auth token found in cookie or localStorage");
         if (user !== null) setUser(null);
         return;
       }
 
-      console.log("Token found, verifying...");
 
       let retryCount = 0;
       const maxRetries = isMobile ? 2 : 3; // Fewer retries on mobile for better UX
@@ -197,7 +186,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             };
 
             setUser(userData);
-            console.log("Auth check successful:", result.user.username);
 
             // MOBILE OPTIMIZATION: Sync token ke cookie jika hanya ada di localStorage
             if (!document.cookie.includes("token=") && token) {
@@ -221,13 +209,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             return;
           } else {
-            console.log("Auth check failed:", result);
             if (user !== null) setUser(null);
             return;
           }
         } catch (error) {
           retryCount++;
-          console.log(`Auth check attempt ${retryCount} failed:`, error);
 
           if (retryCount >= maxRetries) {
             throw error;
@@ -246,10 +232,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error instanceof Error &&
         !error.message.includes("Authentication failed")
       ) {
-        console.log("Network error, keeping tokens");
       } else {
         // Clear invalid tokens
-        console.log("Clearing invalid tokens");
 
         // Clear cookie with multiple configurations for mobile compatibility
         const cookieConfigs = [
@@ -291,14 +275,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         setUser(userData);
-        console.log("Login successful:", userData.username);
 
         return { success: true };
       } else {
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
-      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
@@ -329,8 +311,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
 
-      console.log("Google OAuth URL:", googleAuthUrl);
-      console.log("State parameter:", state);
       console.log("Is mobile device:", isMobile);
 
       // Tambahkan error handling
@@ -347,7 +327,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         window.location.href = googleAuthUrl;
       }
     } catch (error) {
-      console.error("Gmail login redirect error:", error);
       // Tampilkan error ke user
       alert("Failed to initiate Google login. Please try again.");
     }
@@ -382,13 +361,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         setUser(userData);
-        console.log("Registration successful:", userData.username);
         return { success: true };
       } else {
         return { success: false, error: result.error || "Registration failed" };
       }
     } catch (error) {
-      console.error("Registration error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
@@ -407,8 +384,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         await apiCall("/api/auth/logout");
       } catch (error) {
-        console.error("Logout API call failed:", error);
-      }
+        }
 
       // Cookie clearing for mobile
       const clearCookie = (name: string) => {
@@ -439,7 +415,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.warn("Could not clear storage:", e);
       }
 
-      console.log("Logout successful, redirecting...");
 
       // Mobile-optimized redirect
       if (isMobile) {
@@ -475,7 +450,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const timestamp = urlParams.get("_t");
 
     if (googleLoginSuccess === "success") {
-      console.log("Google login success detected, checking auth...");
       console.log("Is mobile device:", isMobile);
 
       // Remove URL parameters
@@ -488,7 +462,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const authCheckDelay = isMobile ? 2000 : 1000;
 
       setTimeout(() => {
-        console.log("Performing auth check after Google login redirect");
         checkAuth();
       }, authCheckDelay);
     }
@@ -504,14 +477,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const interval = setInterval(async () => {
       const token = getAuthToken();
       if (!token) {
-        console.log("Token not found during periodic check, logging out...");
         setUser(null);
       } else {
         // Tambahkan verify token secara periodik
         try {
           const result = await apiCall("/api/auth/verify");
           if (!result.success || !result.user) {
-            console.log("Token invalid during periodic check, logging out...");
             setUser(null);
             // Clear invalid tokens
             const cookieConfigs = [
@@ -529,10 +500,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           }
         } catch (error) {
-          console.error("Periodic auth check failed:", error);
-          // Jangan logout jika hanya network error
+            // Jangan logout jika hanya network error
           if (error instanceof Error && !error.message.includes("Authentication failed")) {
-            console.log("Network error during periodic check, keeping user logged in");
           } else {
             setUser(null);
           }

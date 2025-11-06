@@ -60,8 +60,9 @@ export default function ChromecastPage() {
 
   const router = useRouter();
   const handleDeviceClick = (device: Chromecast) => {
-    const deviceId = device.deviceName || device.idCast;
-    router.push(`/chromecast/${encodeURIComponent(deviceId)}`);
+    // Gunakan deviceName untuk consistency, fallback ke idCast
+    const deviceId = device.deviceName || device.idCast.toString();
+    router.push(`/chromecast/${deviceId}`); // TANPA encodeURIComponent
   };
 
   // Effect untuk mounted state
@@ -211,7 +212,6 @@ export default function ChromecastPage() {
     setCheckingId(deviceName);
 
     try {
-      console.log(`Checking status for device: ${deviceName}`);
 
       const encodedDeviceName = encodeURIComponent(deviceName);
       const response = await fetch(
@@ -225,7 +225,6 @@ export default function ChromecastPage() {
         }
       );
 
-      console.log(`Response status: ${response.status}`);
 
       if (response.status === 401) {
         window.location.href = "/login";
@@ -273,7 +272,6 @@ export default function ChromecastPage() {
       }
 
       const result = await response.json();
-      console.log("Check result:", result);
 
       if (result.success && result.data) {
         setChromecasts((prev) =>

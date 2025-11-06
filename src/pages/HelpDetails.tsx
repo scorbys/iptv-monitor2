@@ -1059,11 +1059,9 @@ const HelpDetails: React.FC = () => {
 
   useEffect(() => {
     const slug = params?.slug as string;
-    console.log("Article slug from URL:", slug);
 
     if (slug) {
       const foundArticle = faqData.find((item) => item.slug === slug);
-      console.log("Found article:", foundArticle);
       if (foundArticle) {
         setArticle(foundArticle);
       }

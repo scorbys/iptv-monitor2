@@ -149,7 +149,6 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
         showNotification("error", result.error || "Registration failed");
       }
     } catch (error) {
-      console.error("Registration error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
       setErrors({ general: errorMessage });
@@ -168,7 +167,6 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
       showNotification("success", "Gmail login successful! Redirecting...");
       router.push("/dashboard");
     } catch (error) {
-      console.error("Gmail login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Gmail login failed";
       setErrors({ general: errorMessage });

@@ -35,7 +35,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
       if (!loading && !hasRedirected) {
         if (requireAuth && !user) {
           // User is not authenticated but auth is required
-          console.log("AuthGuard: Redirecting to login - no user");
           setHasRedirected(true);
           router.replace(redirectTo || "/login");
           return;

@@ -118,7 +118,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
         showNotification("error", result.error || "Login failed");
       }
     } catch (error) {
-      console.error("Login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
       setErrors({ general: errorMessage });
@@ -137,7 +136,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
       // Tidak perlu menangani result karena akan redirect
       loginWithGmail();
     } catch (error) {
-      console.error("Gmail login error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Gmail login failed";
       setErrors({ general: errorMessage });

@@ -351,14 +351,7 @@ export default function ChannelDetailsPage({
           channel.slug || channel.channelNumber || channel.id;
         const encodedIdentifier = encodeURIComponent(metricsIdentifier);
 
-        console.log("Fetching metrics for:", {
-          channelId: channel.id,
-          channelNumber: channel.channelNumber,
-          channelName: channel.channelName,
-          slug: channel.slug,
-          using: metricsIdentifier,
-        });
-
+  
         const response = await fetch(
           `/api/channels/${encodedIdentifier}/metrics`,
           {
@@ -376,7 +369,6 @@ export default function ChannelDetailsPage({
 
         if (response.ok) {
           const result = await response.json();
-          console.log("Metrics response:", result);
 
           if (result.success && result.data) {
             setNetworkMetrics((prevMetrics) => {
@@ -498,8 +490,6 @@ export default function ChannelDetailsPage({
         }
 
         const encodedChannelId = encodeURIComponent(channelId);
-        console.log("Fetching channel with ID:", channelId);
-        console.log("Encoded channelId:", encodedChannelId);
 
         const response = await fetch(`/api/channels/${encodedChannelId}`, {
           credentials: "include",
@@ -509,7 +499,6 @@ export default function ChannelDetailsPage({
           },
         });
 
-        console.log("Response status:", response.status);
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -519,7 +508,6 @@ export default function ChannelDetailsPage({
 
           if (response.status === 404) {
             const errorResult = await response.json();
-            console.log("404 Error details:", errorResult);
 
             const suggestions: ChannelSuggestion[] =
               errorResult.details?.suggestions || [];
@@ -555,7 +543,6 @@ export default function ChannelDetailsPage({
         }
 
         const result = await response.json();
-        console.log("API Response:", result);
 
         if (result.success && result.data) {
           setChannel(result.data);
@@ -662,7 +649,6 @@ export default function ChannelDetailsPage({
   // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
     try {
-      console.log("Attempting automated repair for:", issue.issue);
       setChecking(true);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -782,11 +768,7 @@ export default function ChannelDetailsPage({
       setLoadingMetrics(true);
       const encodedIdentifier = encodeURIComponent(channelIdentifier);
 
-      console.log("Fetching history for:", {
-        identifier: channelIdentifier,
-        encoded: encodedIdentifier,
-        timeRange,
-      });
+      
 
       const response = await fetch(
         `/api/channels/${encodedIdentifier}/history?timeRange=${timeRange}`,
@@ -805,7 +787,6 @@ export default function ChannelDetailsPage({
 
       if (response.ok) {
         const result = await response.json();
-        console.log("History response:", result);
 
         if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
@@ -841,7 +822,6 @@ export default function ChannelDetailsPage({
 
   useEffect(() => {
     if (!mounted || !channel) return;
-    console.log("Fetching initial network history for channel:", channel);
 
     const historyIdentifier =
       channel.slug || channel.channelNumber || channel.id;

@@ -341,11 +341,7 @@ export default function ChromecastDetailPage({
         const metricsIdentifier = device.deviceName || device.idCast;
         const encodedIdentifier = encodeURIComponent(metricsIdentifier);
 
-        console.log("Fetching metrics for:", {
-          deviceId: device.idCast,
-          deviceName: device.deviceName,
-          using: metricsIdentifier,
-        });
+        
 
         const response = await fetch(
           `/api/channels/${encodedIdentifier}/metrics`,
@@ -364,7 +360,6 @@ export default function ChromecastDetailPage({
 
         if (response.ok) {
           const result = await response.json();
-          console.log("Metrics response:", result);
 
           if (result.success && result.data) {
             setNetworkMetrics((prevMetrics) => {
@@ -486,8 +481,6 @@ export default function ChromecastDetailPage({
         }
 
         const encodedDeviceId = encodeURIComponent(deviceId);
-        console.log("Fetching chromecast with ID:", deviceId);
-        console.log("Encoded devicelId:", encodedDeviceId);
 
         const response = await fetch(`/api/chromecast/${encodedDeviceId}`, {
           credentials: "include",
@@ -505,7 +498,6 @@ export default function ChromecastDetailPage({
 
           if (response.status === 404) {
             const errorResult = await response.json();
-            console.log("404 Error details:", errorResult);
 
             const suggestions: DeviceSuggestion[] =
               errorResult.details?.suggestions || [];
@@ -514,9 +506,11 @@ export default function ChromecastDetailPage({
             if (suggestions.length > 0) {
               errorMessage += `\n\nSuggestions:\n${suggestions
                 .map(
-                  (s) => `• Device ${s.idCast}: ${s.deviceName || "Unnamed"}`
+                  (s) => `• Device ${s.idCast}: ${s.deviceName || "Unnamed"} (Use ID: ${s.idCast})`
                 )
                 .join("\n")}`;
+            } else {
+              errorMessage += "\n\nTry using the numeric Device ID instead of device name.";
             }
 
             setError(errorMessage);
@@ -537,7 +531,6 @@ export default function ChromecastDetailPage({
           throw new Error(errorResult.message || `HTTP ${response.status}`);
         }
         const result = await response.json();
-        console.log("API Response:", result);
 
         if (result.success && result.data) {
           setDevice(result.data);
@@ -636,7 +629,6 @@ export default function ChromecastDetailPage({
   // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
     try {
-      console.log("Attempting automated repair for:", issue.issue);
       setChecking(true);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -740,11 +732,7 @@ export default function ChromecastDetailPage({
       setLoadingMetrics(true);
       const encodedIdentifier = encodeURIComponent(deviceIdentifier);
 
-      console.log("Fetching history for:", {
-        identifier: deviceIdentifier,
-        encoded: encodedIdentifier,
-        timeRange,
-      });
+      
 
       const response = await fetch(
         `/api/chromecast/${encodedIdentifier}/history?timeRange=${timeRange}`,
@@ -763,7 +751,6 @@ export default function ChromecastDetailPage({
 
       if (response.ok) {
         const result = await response.json();
-        console.log("History response:", result);
 
         if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
@@ -799,7 +786,6 @@ export default function ChromecastDetailPage({
 
   useEffect(() => {
     if (!mounted || !device) return;
-    console.log("Fetching initial network history for device:", device);
 
     const historyIdentifier = device.deviceName || device.idCast;
     fetchNetworkHistory(historyIdentifier.toString(), activeTab);

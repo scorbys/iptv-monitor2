@@ -321,15 +321,7 @@ export default function AccountPage() {
     // Current password required only for local users with existing password
     const requiresCurrentPassword = isLocalUser && hasExistingPassword;
 
-    console.log("Password form validation:", {
-      isLocalUser,
-      isGoogleUser,
-      hasExistingPassword,
-      requiresCurrentPassword,
-      currentPasswordProvided: !!passwordData.currentPassword,
-      passwordValue: user?.password,
-    });
-
+  
     if (requiresCurrentPassword && !passwordData.currentPassword) return true;
 
     return false;
@@ -380,17 +372,7 @@ export default function AccountPage() {
     }
   }, [message, clearMessage]);
 
-  useEffect(() => {
-    if (user) {
-      console.log("User password info:", {
-        hasPassword: !!user.password,
-        passwordValue: user.password,
-        provider: user.provider,
-        canChangePassword: canChangePassword(),
-      });
-    }
-  }, [user]);
-
+  
   const isGoogleUser = user?.provider === "google";
   const canEditProfile = !isGoogleUser || (isGoogleUser && !user?.googleId);
   const passwordChangeAllowed = canChangePassword();

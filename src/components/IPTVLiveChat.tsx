@@ -110,10 +110,8 @@ const IPTVLiveChat = () => {
     fetch("/api/auth/verify", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
-        console.log("Auth status:", data);
         if (!data.authenticated) {
-          console.warn("User not authenticated!");
-        }
+          }
       })
       .catch((err) => console.error("Auth check failed:", err));
   }, []);

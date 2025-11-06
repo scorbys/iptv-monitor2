@@ -189,7 +189,6 @@ export default function Topbar() {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.user) {
-          console.log("User data from verify API:", result.user); // Debug log
 
           setUser({
             username: result.user.username,
@@ -201,8 +200,7 @@ export default function Topbar() {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch user data:", error);
-      setUser({
+        setUser({
         username: "User",
         email: "user@example.com",
         avatar: null,
