@@ -174,8 +174,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                 <div
                   key={index}
                   className={`absolute inset-0 transition-all duration-1000 ease-in-out transform ${index === currentImageIndex
-                      ? "opacity-100 scale-100"
-                      : "opacity-0 scale-105"
+                    ? "opacity-100 scale-100"
+                    : "opacity-0 scale-105"
                     }`}
                 >
                   <div
@@ -209,14 +209,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
                     className={`relative transition-all duration-300 ${index === currentImageIndex
-                        ? "w-6 sm:w-8 h-2 sm:h-3"
-                        : "w-2 sm:w-3 h-2 sm:h-3 hover:scale-110"
+                      ? "w-6 sm:w-8 h-2 sm:h-3"
+                      : "w-2 sm:w-3 h-2 sm:h-3 hover:scale-110"
                       }`}
                   >
                     <div
                       className={`w-full h-full rounded-full transition-all duration-300 ${index === currentImageIndex
-                          ? "bg-white shadow-lg"
-                          : "bg-white/50 hover:bg-white/75"
+                        ? "bg-white shadow-lg"
+                        : "bg-white/50 hover:bg-white/75"
                         }`}
                     />
                   </button>
@@ -231,8 +231,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
             {notification.show && (
               <div
                 className={`fixed top-6 right-6 z-50 flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-all duration-500 transform max-w-sm border ${notification.type === "success"
-                    ? "bg-green-50/95 border-green-200 text-green-700"
-                    : "bg-red-50/95 border-red-200 text-red-700"
+                  ? "bg-green-50/95 border-green-200 text-green-700"
+                  : "bg-red-50/95 border-red-200 text-red-700"
                   }`}
               >
                 {notification.type === "success" ? (

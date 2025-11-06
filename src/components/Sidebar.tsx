@@ -12,9 +12,9 @@ import {
   IconMichelinBibGourmand,
 } from "@tabler/icons-react";
 import { Stack, Tooltip, UnstyledButton } from "@mantine/core";
-import classes from "@/app/NavbarMinimalColored.module.css";
+import classes from "../app/NavbarMinimalColored.module.css";
 import { useAuth } from "./AuthContext";
-import { useScrollDirection } from "@/app/useScrollDirection";
+import { useScrollDirection } from '../app/useScrollDirection';
 
 interface NavbarLinkProps {
   icon: typeof IconHome2;
@@ -117,6 +117,7 @@ export function NavbarMinimalColored() {
     />
   ));
 
+  // Improved mobile navbar visibility logic
   const getNavbarClasses = () => {
     let navbarClasses = classes.navbar;
 
@@ -144,7 +145,11 @@ export function NavbarMinimalColored() {
 
       <div className={classes.navbarActions}>
         {isMobile ? (
-          <NavbarLink icon={IconLogout} label="Logout" onClick={handleLogout} />
+          <NavbarLink
+            icon={IconLogout}
+            label="Logout"
+            onClick={handleLogout}
+          />
         ) : (
           <Stack justify="center" gap={0}>
             <NavbarLink

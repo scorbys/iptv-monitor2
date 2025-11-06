@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 interface DateFormatterProps {
   date: string;
@@ -8,11 +8,11 @@ interface DateFormatterProps {
   className?: string;
 }
 
-export function DateFormatter({
-  date,
-  fallback = "-",
-  className,
-}: DateFormatterProps) {
+/**
+ * Component untuk format tanggal yang aman dari hydration error
+ * Menampilkan placeholder saat server render, kemudian format lokal setelah mount
+ */
+export function DateFormatter({ date, fallback = '-', className }: DateFormatterProps) {
   const [mounted, setMounted] = useState(false);
   const [formattedDate, setFormattedDate] = useState(fallback);
 
@@ -34,6 +34,7 @@ export function DateFormatter({
     }
   }, [date, fallback]);
 
+  // Tampilkan placeholder sampai component ter-mount di client
   if (!mounted) {
     return <span className={className}>{fallback}</span>;
   }
@@ -41,7 +42,10 @@ export function DateFormatter({
   return <span className={className}>{formattedDate}</span>;
 }
 
-export function useSafeDate(date: string, fallback: string = "-") {
+/**
+ * Hook untuk format tanggal yang aman
+ */
+export function useSafeDate(date: string, fallback: string = '-') {
   const [mounted, setMounted] = useState(false);
   const [formattedDate, setFormattedDate] = useState(fallback);
 

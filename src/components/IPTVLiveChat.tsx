@@ -111,7 +111,7 @@ const IPTVLiveChat = () => {
       .then((res) => res.json())
       .then((data) => {
         if (!data.authenticated) {
-          }
+        }
       })
       .catch((err) => console.error("Auth check failed:", err));
   }, []);
@@ -165,15 +165,12 @@ const IPTVLiveChat = () => {
                 ? "Channel"
                 : "device";
 
-        const contextMessage = `Saya ada masalah dengan ${deviceType} ${
-          notification.deviceName ? `"${notification.deviceName}"` : ""
-        } ${notification.roomNo ? `di kamar ${notification.roomNo}` : ""}.  Status: ${notification.status}. ${
-          notification.error ? `Error: ${notification.error}.` : ""
-        }${
-          notification.errorCategory
+        const contextMessage = `Saya ada masalah dengan ${deviceType} ${notification.deviceName ? `"${notification.deviceName}"` : ""
+          } ${notification.roomNo ? `di kamar ${notification.roomNo}` : ""}.  Status: ${notification.status}. ${notification.error ? `Error: ${notification.error}.` : ""
+          }${notification.errorCategory
             ? ` Kategori error: ${notification.errorCategory}.`
             : ""
-        } Bagaimana cara mengatasinya?`;
+          } Bagaimana cara mengatasinya?`;
 
         setInputMessage(contextMessage);
         setTimeout(() => {
@@ -334,18 +331,16 @@ const IPTVLiveChat = () => {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.type === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${message.type === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-3 py-2 ${
-                    message.type === "user"
+                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-3 py-2 ${message.type === "user"
                       ? "bg-blue-600 text-white rounded-br-none"
                       : message.isError
                         ? "bg-red-50 text-red-800 border border-red-200 rounded-bl-none"
                         : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-none"
-                  }`}
+                    }`}
                 >
                   {message.isError && (
                     <div className="flex items-center gap-2 mb-1">
@@ -436,11 +431,10 @@ const IPTVLiveChat = () => {
                   )}
 
                   <p
-                    className={`text-[10px] md:text-xs mt-1 ${
-                      message.type === "user"
+                    className={`text-[10px] md:text-xs mt-1 ${message.type === "user"
                         ? "text-blue-200"
                         : "text-gray-400"
-                    }`}
+                      }`}
                   >
                     {formatTime(message.timestamp)}
                   </p>
