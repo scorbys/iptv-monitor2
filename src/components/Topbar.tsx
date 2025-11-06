@@ -199,7 +199,7 @@ export default function Topbar() {
           });
         }
       }
-    } catch (error) {
+    } catch {
         setUser({
         username: "User",
         email: "user@example.com",

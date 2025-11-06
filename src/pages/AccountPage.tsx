@@ -313,7 +313,6 @@ export default function AccountPage() {
 
     // Logic untuk local user dan Google user
     const isLocalUser = !user?.provider || user?.provider === "local";
-    const isGoogleUser = user?.provider === "google";
 
     // Check if user has existing password with better validation
     const hasExistingPassword = user?.password === "exists";
