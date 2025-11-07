@@ -426,6 +426,13 @@ export function createNotification(
   };
 }
 
+// Debug logging utility - only logs in development mode
+const debugLog = (message: string, ...args: unknown[]): void => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[NOTIF_DEBUG] ${message}`, ...args);
+  }
+};
+
 export function cleanOldNotifications(
   notifications: Notification[]
 ): Notification[] {
@@ -438,9 +445,7 @@ export function cleanOldNotifications(
 
   const removedCount = beforeCount - cleaned.length;
   if (removedCount > 0) {
-    console.log(
-      `Cleaned ${removedCount} old notifications (older than 7 days)`
-    );
+    debugLog(`Cleaned ${removedCount} old notifications (older than 7 days)`);
   }
 
   return cleaned;
@@ -539,9 +544,7 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
 
           if (dataArray.length >= 0) {
             source.processor(dataArray);
-            console.log(
-              `Processed ${dataArray.length} items from ${source.name}`
-            );
+            debugLog(`Processed ${dataArray.length} items from ${source.name}`);
           }
         } else {
           const errorText = await response.text();
@@ -577,9 +580,7 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     console.warn("Some fetch operations failed:", errors);
   }
 
-  console.log(
-    `Fetched ${all.length} total notifications (${errors.length} errors)`
-  );
+  debugLog(`Fetched ${all.length} total notifications (${errors.length} errors)`);
   return sortedAndCleaned;
 }
 
