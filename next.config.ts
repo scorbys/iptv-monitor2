@@ -54,7 +54,7 @@ const nextConfig: NextConfig = {
     ];
   },
 
- async rewrites() {
+ /* async rewrites() {
     return [
       {
         source: "/api/:path*",
@@ -64,9 +64,9 @@ const nextConfig: NextConfig = {
             : "https://iptv-monitor-backend-production.up.railway.app/api/:path*", // production
       },
     ];
-  },
+  }, */
 
-   /* async rewrites() {
+  async rewrites() {
     return [
       {
         source: "/api/:path*",
@@ -74,7 +74,7 @@ const nextConfig: NextConfig = {
           "https://iptv-monitor-backend-production.up.railway.app/api/:path*",
       },
     ];
-  }, */
+  },
 
   // Handling timeout
   async redirects() {
