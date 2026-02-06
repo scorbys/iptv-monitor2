@@ -76,24 +76,14 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // Increase timeout untuk external API calls
+  experimental: {
+    serverComponentsExternalPackages: ['mongodb'],
+  },
+
   // Handling timeout
   async redirects() {
     return [];
-  },
-
-  // Error handling
-  onDemandEntries: {
-    maxInactiveAge: 25 * 1000,
-    pagesBufferLength: 2,
-  },
-
-  experimental: {
-    serverActions: {
-      allowedOrigins: [
-        "https://iptv-monitor2.vercel.app",
-        "https://iptv-monitor-backend-production.up.railway.app",
-      ],
-    },
   },
 };
 
