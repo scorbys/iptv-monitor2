@@ -76,10 +76,8 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Increase timeout untuk external API calls
-  experimental: {
-    serverComponentsExternalPackages: ['mongodb'],
-  },
+  // External packages untuk MongoDB
+  serverExternalPackages: ['mongodb'],
 
   // Handling timeout
   async redirects() {
