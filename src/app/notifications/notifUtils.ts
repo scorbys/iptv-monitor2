@@ -1,3 +1,81 @@
+/**
+ * Get authentication token from cookies or localStorage
+ * This function replicates the token retrieval logic from AuthContext
+ */
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  // Check cookies first
+  const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+    const [key, ...rest] = cookie.trim().split("=");
+    if (key) acc[key] = rest.join("=");
+    return acc;
+  }, {} as Record<string, string>);
+
+  let token: string | null =
+    cookies.token ||
+    cookies["auth-token"] ||
+    cookies.authToken ||
+    cookies["token-fallback"] ||
+    cookies["session-token"] ||
+    cookies.jwt;
+
+  // If not in cookies, check localStorage
+  if (!token) {
+    try {
+      token =
+        localStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("auth-token") ||
+        localStorage.getItem("session-token") ||
+        localStorage.getItem("jwt");
+    } catch (e) {
+      console.warn("Failed to access localStorage:", e);
+    }
+  }
+
+  // Check URL params as fallback (for Google OAuth callback)
+  if (!token) {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get("temp_token");
+      if (urlToken) {
+        token = urlToken;
+        // Clean URL params
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    } catch (e) {
+      console.warn("Failed to parse URL params:", e);
+    }
+  }
+
+  return token;
+}
+
+/**
+ * Fetch with authentication token
+ * Automatically includes JWT token from cookies/localStorage
+ */
+async function authenticatedFetch(url: string, options?: RequestInit): Promise<Response> {
+  const token = getAuthToken();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string>),
+  };
+
+  // Add Authorization header if token exists
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: "include", // Include cookies for cross-origin requests
+  });
+}
+
 export interface Notification {
   id: string | number;
   title: string;
@@ -516,12 +594,8 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   await Promise.allSettled(
     fetchSources.map(async (source) => {
       try {
-        const response = await fetch(source.url, {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        // Use authenticatedFetch to include JWT token
+        const response = await authenticatedFetch(source.url);
 
         if (response.ok) {
           const json = await response.json();
