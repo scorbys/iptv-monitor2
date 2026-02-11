@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const hasCheckedRef = useRef(false);
+  const oauthHandledRef = useRef(false);
 
   // Detect mobile browser
   const isMobile = React.useMemo(() => {
@@ -602,17 +603,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Google OAuth redirect handling dengan mobile optimization
   useEffect(() => {
+    // Prevent multiple executions
+    if (oauthHandledRef.current) {
+      console.log("⏭️ [OAuth] Already handled, skipping...");
+      return;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const googleLoginSuccess = urlParams.get("google_login");
     const timestamp = urlParams.get("_t");
     const tempToken = urlParams.get("temp_token");
 
-    if (googleLoginSuccess === "success" || tempToken) {
-      console.log("Google OAuth callback detected:", {
+    console.log("🔍 [OAuth Effect] Checking URL params:", {
+      googleLoginSuccess,
+      hasTempToken: !!tempToken,
+      currentUrl: window.location.href,
+      oauthHandled: oauthHandledRef.current
+    });
+
+    if ((googleLoginSuccess === "success" || tempToken) && !oauthHandledRef.current) {
+      console.log("✅ Google OAuth callback detected:", {
         googleLoginSuccess,
         hasTempToken: !!tempToken,
         isMobile
       });
+
+      // Mark as handled to prevent re-processing
+      oauthHandledRef.current = true;
 
       // Helper function for dynamic cookie domain
       const getCookieDomain = () => {
@@ -631,6 +648,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (tempToken) {
         try {
           const decodedToken = decodeURIComponent(tempToken);
+          console.log("🔑 [OAuth] Storing temp_token to localStorage...");
           localStorage.setItem("authToken", decodedToken);
 
           // Set cookie with proper environment detection
@@ -642,13 +660,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
-          console.log("Token extracted from URL and saved with config:", {
+          console.log("✅ [OAuth] Token extracted from URL and saved with config:", {
             isProduction,
             domain,
-            hasSecure: !!secure
+            hasSecure: !!secure,
+            tokenLength: decodedToken.length
           });
         } catch (e) {
-          console.error("Failed to decode temp_token:", e);
+          console.error("❌ [OAuth] Failed to decode temp_token:", e);
         }
       }
 
@@ -659,15 +678,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       url.searchParams.delete("temp_token");
       window.history.replaceState({}, "", url.toString());
 
+      console.log("🔄 [OAuth] URL cleaned, triggering auth check...");
+
       // Mobile-optimized delay untuk ensure cookie is set
       const authCheckDelay = isMobile ? 2000 : 1000;
 
       setTimeout(() => {
-        console.log("Triggering auth check after OAuth callback");
+        console.log("🔄 [OAuth] Triggering auth check after OAuth callback");
         checkAuth();
       }, authCheckDelay);
     }
-  }, [checkAuth, isMobile]);
+  }, []); // ✅ FIX: Empty deps - only run once on mount
 
   // Periodic auth check dengan mobile consideration
   useEffect(() => {
