@@ -53,59 +53,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
   }, []);
 
-  const apiCall = React.useCallback(
-    async (endpoint: string, data?: Record<string, unknown>) => {
-      try {
-        // Build full URL to backend if endpoint is relative
-        let url = endpoint;
-        if (endpoint.startsWith("/")) {
-          const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
-            process.env.NEXT_PUBLIC_API_BASE_URL ||
-            (typeof window !== "undefined" ? window.location.origin : "");
-          url = `${backendUrl}${endpoint}`;
-        }
-
-        const response = await fetch(url, {
-          method: data ? "POST" : "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: data ? JSON.stringify(data) : undefined,
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            if (user !== null) setUser(null);
-            throw new Error("Authentication failed");
-          }
-
-          if (response.status === 502) {
-            throw new Error(
-              "Server temporarily unavailable. Please try again later."
-            );
-          }
-
-          let errorMessage = `HTTP ${response.status}`;
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch {
-            errorMessage = response.statusText || errorMessage;
-          }
-          throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-        return result;
-      } catch (error) {
-        throw error;
-      }
-    },
-    [user]
-  );
-
   // Token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
     // CRITICAL: Dynamic cookie domain based on current hostname
@@ -201,6 +148,69 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return token;
   }, []);
+
+  const apiCall = React.useCallback(
+    async (endpoint: string, data?: Record<string, unknown>) => {
+      try {
+        // Build full URL to backend if endpoint is relative
+        let url = endpoint;
+        if (endpoint.startsWith("/")) {
+          const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
+            process.env.NEXT_PUBLIC_API_BASE_URL ||
+            (typeof window !== "undefined" ? window.location.origin : "");
+          url = `${backendUrl}${endpoint}`;
+        }
+
+        // Get token for Authorization header (CRITICAL for cross-domain requests)
+        const token = getAuthToken();
+
+        // Build headers with Authorization if token exists
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
+
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+          method: data ? "POST" : "GET",
+          headers,
+          body: data ? JSON.stringify(data) : undefined,
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            if (user !== null) setUser(null);
+            throw new Error("Authentication failed");
+          }
+
+          if (response.status === 502) {
+            throw new Error(
+              "Server temporarily unavailable. Please try again later."
+            );
+          }
+
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        return result;
+      } catch (error) {
+        throw error;
+      }
+    },
+    [user]
+  );
 
   const checkAuth = React.useCallback(async () => {
     try {
