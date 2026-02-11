@@ -292,8 +292,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Gmail login - langsung redirect ke Google OAuth
   const loginWithGmail = () => {
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
+      // Use NEXT_PUBLIC_API_URL instead of NEXT_PUBLIC_API_BASE_URL
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
         (typeof window !== "undefined" ? window.location.origin : "");
 
       const currentPath =
@@ -303,15 +303,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ? "/dashboard"
           : currentPath;
 
-      // Encode current URL sebagai state untuk redirect setelah login
+      // Build frontend URL for state parameter
       const frontendUrl =
-        process.env.NEXT_PUBLIC_FRONTEND_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
+        typeof window !== "undefined" ? window.location.origin : "";
       const state = encodeURIComponent(`${frontendUrl}${redirectPath}`);
 
-      const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
+      // Use relative path since we're using Next.js rewrites
+      const googleAuthUrl = `/api/auth/google?state=${state}`;
 
-      console.log("Is mobile device:", isMobile);
+      console.log("Initiating Google OAuth login:", {
+        backendUrl,
+        redirectPath,
+        state,
+        googleAuthUrl
+      });
 
       // Tambahkan error handling
       if (!backendUrl) {
@@ -328,6 +333,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       // Tampilkan error ke user
+      console.error("Google login initiation error:", error);
       alert("Failed to initiate Google login. Please try again.");
     }
   };
@@ -448,20 +454,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const urlParams = new URLSearchParams(window.location.search);
     const googleLoginSuccess = urlParams.get("google_login");
     const timestamp = urlParams.get("_t");
+    const tempToken = urlParams.get("temp_token");
 
-    if (googleLoginSuccess === "success") {
-      console.log("Is mobile device:", isMobile);
+    if (googleLoginSuccess === "success" || tempToken) {
+      console.log("Google OAuth callback detected:", {
+        googleLoginSuccess,
+        hasTempToken: !!tempToken,
+        isMobile
+      });
+
+      // Handle temp_token from URL (mobile fallback)
+      if (tempToken) {
+        try {
+          const decodedToken = decodeURIComponent(tempToken);
+          localStorage.setItem("authToken", decodedToken);
+          console.log("Token extracted from URL and saved to localStorage");
+        } catch (e) {
+          console.error("Failed to decode temp_token:", e);
+        }
+      }
 
       // Remove URL parameters
       const url = new URL(window.location.href);
       url.searchParams.delete("google_login");
       url.searchParams.delete("_t");
+      url.searchParams.delete("temp_token");
       window.history.replaceState({}, "", url.toString());
 
       // Mobile-optimized delay untuk ensure cookie is set
       const authCheckDelay = isMobile ? 2000 : 1000;
 
       setTimeout(() => {
+        console.log("Triggering auth check after OAuth callback");
         checkAuth();
       }, authCheckDelay);
     }
