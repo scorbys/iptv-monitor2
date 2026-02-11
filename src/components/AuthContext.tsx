@@ -593,15 +593,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Check authentication on mount
-  useEffect(() => {
-    if (!hasCheckedRef.current) {
-      hasCheckedRef.current = true;
-      checkAuth();
-    }
-  }, [checkAuth]);
-
-  // Google OAuth redirect handling - check on every render/update
+  // Google OAuth redirect handling - MUST RUN BEFORE checkAuth effect!
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const googleLoginSuccess = urlParams.get("google_login");
@@ -671,7 +663,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         checkAuth();
       }, authCheckDelay);
     }
-  }); // ✅ NO dependencies - runs on every render to catch OAuth callback
+  }); // ✅ NO dependencies - runs on every render to catch OAuth callback FIRST
+
+  // Check authentication on mount - RUNS AFTER OAuth check
+  useEffect(() => {
+    // Don't run checkAuth if OAuth callback is being handled
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasOAuthParams = urlParams.get("google_login") || urlParams.get("temp_token");
+
+    if (!hasCheckedRef.current && !hasOAuthParams) {
+      console.log("🔄 [checkAuth] No OAuth params, running initial auth check...");
+      hasCheckedRef.current = true;
+      checkAuth();
+    } else if (hasOAuthParams) {
+      console.log("⏸️ [checkAuth] OAuth params detected, skipping initial check (OAuth handler will take care)");
+    }
+  }, [checkAuth]);
 
   // Periodic auth check dengan mobile consideration
   useEffect(() => {
