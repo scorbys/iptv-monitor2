@@ -150,7 +150,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const apiCall = React.useCallback(
-    async (endpoint: string, data?: Record<string, unknown>) => {
+    async (endpoint: string, data?: Record<string, unknown>, token?: string) => {
       try {
         // Build full URL to backend if endpoint is relative
         let url = endpoint;
@@ -161,8 +161,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           url = `${backendUrl}${endpoint}`;
         }
 
-        // Get token for Authorization header (CRITICAL for cross-domain requests)
-        const token = getAuthToken();
+        // Get token if not provided
+        const authToken = token || getAuthToken();
 
         // Build headers with Authorization if token exists
         const headers: Record<string, string> = {
@@ -170,8 +170,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           Accept: "application/json",
         };
 
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
+        if (authToken) {
+          headers["Authorization"] = `Bearer ${authToken}`;
         }
 
         const response = await fetch(url, {
@@ -216,10 +216,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
 
+      // FIRST: Check if we have temp_token in URL (just redirected from Google OAuth)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tempToken = urlParams.get("temp_token");
+      const googleLoginSuccess = urlParams.get("google_login");
+
+      if (tempToken && googleLoginSuccess === "success") {
+        console.log("Found temp_token in URL, extracting and storing...");
+
+        try {
+          const decodedToken = decodeURIComponent(tempToken);
+          localStorage.setItem("authToken", decodedToken);
+
+          // Remove URL parameters
+          const url = new URL(window.location.href);
+          url.searchParams.delete("google_login");
+          url.searchParams.delete("_t");
+          url.searchParams.delete("temp_token");
+          window.history.replaceState({}, "", url.toString());
+
+          // Use this token for verification
+          const result = await apiCall("/api/auth/verify", undefined, decodedToken);
+
+          if (result.success && result.user) {
+            const userData = {
+              id: result.user.userId || result.user.id,
+              username: result.user.username,
+              email: result.user.email,
+            };
+            setUser(userData);
+            console.log("✅ User authenticated via temp_token");
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to verify temp_token:", error);
+        }
+      }
+
+      // SECOND: Check if we have token in localStorage/cookie
       const token = getAuthToken();
 
       if (!token) {
+        console.log("No token found, user not authenticated");
         if (user !== null) setUser(null);
+        setLoading(false);
         return;
       }
 
@@ -271,6 +311,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           } else {
             if (user !== null) setUser(null);
+            setLoading(false);
             return;
           }
         } catch (error) {
