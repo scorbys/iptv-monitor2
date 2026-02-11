@@ -56,7 +56,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>) => {
       try {
-        const response = await fetch(endpoint, {
+        // Build full URL to backend if endpoint is relative
+        let url = endpoint;
+        if (endpoint.startsWith("/")) {
+          const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
+            process.env.NEXT_PUBLIC_API_BASE_URL ||
+            (typeof window !== "undefined" ? window.location.origin : "");
+          url = `${backendUrl}${endpoint}`;
+        }
+
+        const response = await fetch(url, {
           method: data ? "POST" : "GET",
           headers: {
             "Content-Type": "application/json",
@@ -334,8 +343,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Gmail login - langsung redirect ke Google OAuth
   const loginWithGmail = () => {
     try {
-      // Use NEXT_PUBLIC_API_URL instead of NEXT_PUBLIC_API_BASE_URL
+      // Use NEXT_PUBLIC_API_URL or NEXT_PUBLIC_API_BASE_URL
       const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
+        process.env.NEXT_PUBLIC_API_BASE_URL ||
         (typeof window !== "undefined" ? window.location.origin : "");
 
       const currentPath =
@@ -350,8 +360,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         typeof window !== "undefined" ? window.location.origin : "";
       const state = encodeURIComponent(`${frontendUrl}${redirectPath}`);
 
-      // Use relative path since we're using Next.js rewrites
-      const googleAuthUrl = `/api/auth/google?state=${state}`;
+      // Use full URL to backend for Google OAuth
+      const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
 
       console.log("Initiating Google OAuth login:", {
         backendUrl,
