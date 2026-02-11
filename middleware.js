@@ -34,13 +34,13 @@ const ROUTE_CONFIG = {
     "/api/config",
   ],
 
-  // Public API routes
+  // Public API routes (bypass auth, still proxy to Railway)
   publicAPI: [
     "/api/auth/login",
     "/api/auth/register",
     "/api/auth/google",
     "/api/auth/google/callback",
-    "/api/auth/verify",
+    "/api/auth/logout",
     "/api/auth/health",
   ],
 
