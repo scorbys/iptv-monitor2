@@ -164,6 +164,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Get token if not provided
         const authToken = token || getAuthToken();
 
+        console.log("🔑 [apiCall] Request details:", {
+          endpoint,
+          url,
+          hasToken: !!authToken,
+          tokenLength: authToken?.length,
+          tokenPreview: authToken ? `${authToken.substring(0, 20)}...${authToken.substring(authToken.length - 20)}` : 'none'
+        });
+
         // Build headers with Authorization if token exists
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -174,11 +182,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           headers["Authorization"] = `Bearer ${authToken}`;
         }
 
+        console.log("📤 [apiCall] Request headers:", {
+          "Content-Type": headers["Content-Type"],
+          "Accept": headers["Accept"],
+          "Authorization": headers["Authorization"] ? `Bearer ${authToken.substring(0, 20)}...` : 'none',
+          "credentials": "include"
+        });
+
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
           headers,
           body: data ? JSON.stringify(data) : undefined,
           credentials: "include",
+        });
+
+        console.log("📥 [apiCall] Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
         });
 
         if (!response.ok) {
@@ -221,8 +242,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const tempToken = urlParams.get("temp_token");
       const googleLoginSuccess = urlParams.get("google_login");
 
+      console.log("🔍 [checkAuth] URL Parameters check:", {
+        currentUrl: window.location.href,
+        hasTempToken: !!tempToken,
+        googleLoginSuccess,
+        allParams: Object.fromEntries(urlParams)
+      });
+
       if (tempToken && googleLoginSuccess === "success") {
-        console.log("Found temp_token in URL, extracting and storing...");
+        console.log("✅ Found temp_token in URL, extracting and storing...");
 
         try {
           const decodedToken = decodeURIComponent(tempToken);
