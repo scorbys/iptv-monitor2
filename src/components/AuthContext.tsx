@@ -131,8 +131,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // SYNC: Set token ke cookie jika ditemukan di localStorage
           const isProduction = window.location.protocol === "https:";
+          const domain = isProduction ? ".vercel.app" : "";
+          const secure = isProduction ? "secure;" : "";
+
           const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-            }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
+            }; ${secure}${isProduction ? " samesite=none; domain=" + domain : "samesite=lax"}`;
           document.cookie = cookieValue;
         }
       } catch (e) {
@@ -193,16 +196,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 "Syncing token from localStorage to cookie (mobile optimization)"
               );
               const isProduction = window.location.protocol === "https:";
+              const domain = isProduction ? ".vercel.app" : "";
+              const secure = isProduction ? "secure;" : "";
 
-              // Mobile-friendly cookie setting
-              let cookieValue;
-              if (isMobile) {
-                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-                  }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
-              } else {
-                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-                  }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
-              }
+              // Cookie setting yang sama untuk mobile dan desktop
+              const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
+                  }; ${secure}${isProduction ? " samesite=none; domain=" + domain : "samesite=lax"}`;
 
               document.cookie = cookieValue;
             }
@@ -393,6 +392,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Cookie clearing for mobile
+      const isProduction = window.location.protocol === "https:";
+      const domain = isProduction ? ".vercel.app" : "";
+
       const clearCookie = (name: string) => {
         const cookieConfigs = [
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
@@ -402,7 +404,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
-          `${name}=; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}; secure`,
+          // Production domain-specific clearing
+          ...(isProduction ? [
+            `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${domain}; secure; samesite=none`,
+          ] : []),
         ];
 
         cookieConfigs.forEach((config) => {
@@ -468,7 +474,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           const decodedToken = decodeURIComponent(tempToken);
           localStorage.setItem("authToken", decodedToken);
-          console.log("Token extracted from URL and saved to localStorage");
+
+          // Set cookie with proper environment detection
+          const isProduction = window.location.protocol === "https:";
+          const domain = isProduction ? ".vercel.app" : "";
+          const secure = isProduction ? "secure;" : "";
+
+          const cookieValue = `token=${decodedToken}; path=/; max-age=${7 * 24 * 60 * 60
+            }; ${secure}${isProduction ? " samesite=none; domain=" + domain : "samesite=lax"}`;
+          document.cookie = cookieValue;
+
+          console.log("Token extracted from URL and saved with config:", {
+            isProduction,
+            domain,
+            hasSecure: !!secure
+          });
         } catch (e) {
           console.error("Failed to decode temp_token:", e);
         }

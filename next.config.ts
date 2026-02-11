@@ -55,11 +55,12 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
+    // Support both NEXT_PUBLIC_API_URL and NEXT_PUBLIC_API_BASE_URL for backward compatibility
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
 
-    // Production: Gunakan NEXT_PUBLIC_API_URL atau fallback ke Railway
+    // Production: Gunakan backend URL atau fallback ke Railway
     if (process.env.NODE_ENV === "production") {
-      // Fallback ke Railway URL jika NEXT_PUBLIC_API_URL tidak diset
+      // Fallback ke Railway URL jika backend URL tidak diset
       const productionBackendUrl = backendUrl || "https://iptv-monitor-backend-production.up.railway.app";
 
       // Validasi HTTPS hanya jika backendUrl diset secara manual
@@ -67,13 +68,15 @@ const nextConfig: NextConfig = {
         try {
           const url = new URL(backendUrl);
           if (url.protocol !== 'https:') {
-            console.warn(`Warning: NEXT_PUBLIC_API_URL should use HTTPS in production. Current: ${url.protocol}`);
+            console.warn(`Warning: Backend URL should use HTTPS in production. Current: ${url.protocol}`);
           }
         } catch (error) {
           // Invalid URL, use fallback
-          console.warn(`Warning: Invalid NEXT_PUBLIC_API_URL, using fallback URL`);
+          console.warn(`Warning: Invalid backend URL, using fallback Railway URL`);
         }
       }
+
+      console.log(`[Next.js] Production backend: ${productionBackendUrl}`);
 
       return [
         {
@@ -83,8 +86,10 @@ const nextConfig: NextConfig = {
       ];
     }
 
-    // Development: Gunakan NEXT_PUBLIC_API_URL atau fallback ke localhost
+    // Development: Gunakan backend URL atau fallback ke localhost
     const devBackendUrl = backendUrl || "http://localhost:3001";
+
+    console.log(`[Next.js] Development backend: ${devBackendUrl}`);
 
     return [
       {
