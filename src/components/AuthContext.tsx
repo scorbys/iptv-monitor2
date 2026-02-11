@@ -99,6 +99,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
+    // CRITICAL: Dynamic cookie domain based on current hostname
+    const getCookieDomain = () => {
+      if (typeof window === "undefined") return "";
+
+      const isProduction = window.location.protocol === "https:";
+      if (!isProduction) return "";
+
+      const hostname = window.location.hostname;
+      const parts = hostname.split('.');
+
+      // Vercel deployment preview (3+ parts like xxx-yyy-zzz.vercel.app)
+      // -> DON'T set domain attribute
+      if (hostname.endsWith('.vercel.app') && parts.length > 2) {
+        return "";
+      }
+
+      // Production Vercel domain (2 parts like xxx.vercel.app)
+      // -> Set domain to .vercel.app
+      if (hostname.endsWith('.vercel.app') && parts.length === 2) {
+        return ".vercel.app";
+      }
+
+      // Custom domain with subdomain
+      if (parts.length >= 2) {
+        return `.${parts.slice(-2).join('.')}`;
+      }
+
+      return "";
+    };
+
     // Cek semua possible cookie names
     const cookies = document.cookie.split(";").reduce((acc, cookie) => {
       const [key, ...rest] = cookie.trim().split("=");
@@ -131,11 +161,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // SYNC: Set token ke cookie jika ditemukan di localStorage
           const isProduction = window.location.protocol === "https:";
-          const domain = isProduction ? ".vercel.app" : "";
+          const domain = getCookieDomain();
           const secure = isProduction ? "secure;" : "";
 
           const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-            }; ${secure}${isProduction ? " samesite=none; domain=" + domain : "samesite=lax"}`;
+            }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
         }
       } catch (e) {
@@ -150,8 +180,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         token = urlToken;
         localStorage.setItem("authToken", token);
         const isProduction = window.location.protocol === "https:";
+        const domain = getCookieDomain();
         const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-          }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
+          }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
         document.cookie = cookieValue;
         console.log(
           "Token extracted from URL and synced to cookie/localStorage"
@@ -173,6 +204,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
+      // Helper function for dynamic cookie domain
+      const getCookieDomain = () => {
+        if (typeof window === "undefined") return "";
+        const isProduction = window.location.protocol === "https:";
+        if (!isProduction) return "";
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+        if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+        if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+        return "";
+      };
 
       let retryCount = 0;
       const maxRetries = isMobile ? 2 : 3; // Fewer retries on mobile for better UX
@@ -196,12 +239,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 "Syncing token from localStorage to cookie (mobile optimization)"
               );
               const isProduction = window.location.protocol === "https:";
-              const domain = isProduction ? ".vercel.app" : "";
+              const domain = getCookieDomain();
               const secure = isProduction ? "secure;" : "";
 
               // Cookie setting yang sama untuk mobile dan desktop
               const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-                  }; ${secure}${isProduction ? " samesite=none; domain=" + domain : "samesite=lax"}`;
+                  }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
 
               document.cookie = cookieValue;
             }
@@ -391,9 +434,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
       }
 
+      // Helper function for dynamic cookie domain
+      const getCookieDomain = () => {
+        if (typeof window === "undefined") return "";
+        const isProduction = window.location.protocol === "https:";
+        if (!isProduction) return "";
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+        if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+        if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+        return "";
+      };
+
       // Cookie clearing for mobile
       const isProduction = window.location.protocol === "https:";
-      const domain = isProduction ? ".vercel.app" : "";
+      const domain = getCookieDomain();
 
       const clearCookie = (name: string) => {
         const cookieConfigs = [
@@ -406,7 +462,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
           `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}; secure`,
           // Production domain-specific clearing
-          ...(isProduction ? [
+          ...(isProduction && domain ? [
             `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${domain}; secure; samesite=none`,
           ] : []),
         ];
@@ -469,6 +525,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isMobile
       });
 
+      // Helper function for dynamic cookie domain
+      const getCookieDomain = () => {
+        if (typeof window === "undefined") return "";
+        const isProduction = window.location.protocol === "https:";
+        if (!isProduction) return "";
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+        if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+        if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+        return "";
+      };
+
       // Handle temp_token from URL (mobile fallback)
       if (tempToken) {
         try {
@@ -477,11 +546,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // Set cookie with proper environment detection
           const isProduction = window.location.protocol === "https:";
-          const domain = isProduction ? ".vercel.app" : "";
+          const domain = getCookieDomain();
           const secure = isProduction ? "secure;" : "";
 
           const cookieValue = `token=${decodedToken}; path=/; max-age=${7 * 24 * 60 * 60
-            }; ${secure}${isProduction ? " samesite=none; domain=" + domain : "samesite=lax"}`;
+            }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
           console.log("Token extracted from URL and saved with config:", {
