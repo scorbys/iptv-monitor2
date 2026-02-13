@@ -411,6 +411,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("✅ [Login] Setting user state:", userData);
         setUser(userData);
 
+        // CRITICAL FIX: Save token to localStorage and cookie after successful login
+        if (result.token) {
+          console.log("🔑 [Login] Saving token to storage...");
+
+          // Helper function for dynamic cookie domain
+          const getCookieDomain = () => {
+            if (typeof window === "undefined") return "";
+            const isProduction = window.location.protocol === "https:";
+            if (!isProduction) return "";
+            const hostname = window.location.hostname;
+            const parts = hostname.split('.');
+            if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+            if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+            if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+            return "";
+          };
+
+          const isProduction = window.location.protocol === "https:";
+          const domain = getCookieDomain();
+
+          // Save to localStorage
+          localStorage.setItem("authToken", result.token);
+
+          // Save to cookie
+          const cookieValue = `token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60
+            }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
+          document.cookie = cookieValue;
+
+          console.log("✅ [Login] Token saved successfully");
+        } else {
+          console.warn("⚠️ [Login] No token in response, user may not be fully authenticated");
+        }
+
         return { success: true };
       } else {
         console.error("❌ [Login] Login failed:", result);
@@ -504,6 +537,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         setUser(userData);
+
+        // CRITICAL FIX: Save token to localStorage and cookie after successful registration
+        if (result.token) {
+          console.log("🔑 [Register] Saving token to storage...");
+
+          // Helper function for dynamic cookie domain
+          const getCookieDomain = () => {
+            if (typeof window === "undefined") return "";
+            const isProduction = window.location.protocol === "https:";
+            if (!isProduction) return "";
+            const hostname = window.location.hostname;
+            const parts = hostname.split('.');
+            if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+            if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+            if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+            return "";
+          };
+
+          const isProduction = window.location.protocol === "https:";
+          const domain = getCookieDomain();
+
+          // Save to localStorage
+          localStorage.setItem("authToken", result.token);
+
+          // Save to cookie
+          const cookieValue = `token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60
+            }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
+          document.cookie = cookieValue;
+
+          console.log("✅ [Register] Token saved successfully");
+        } else {
+          console.warn("⚠️ [Register] No token in response, user may not be fully authenticated");
+        }
+
         return { success: true };
       } else {
         return { success: false, error: result.error || "Registration failed" };
