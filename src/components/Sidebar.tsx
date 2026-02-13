@@ -97,14 +97,7 @@ export function NavbarMinimalColored() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout failed:", error);
-      localStorage.removeItem("token");
-      sessionStorage.removeItem("token");
-      window.location.href = "/login";
-    }
+    await logout();
   };
 
   const links = mockdata.map((link) => (

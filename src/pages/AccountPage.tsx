@@ -35,6 +35,29 @@ interface ValidationResult {
 
 export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
+
+  // Helper function to get backend URL for avatar
+  const getBackendUrl = (path: string) => {
+    if (!path) return "";
+
+    // If already a full URL, return as is
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+
+    // Get backend URL from environment or default to localhost:3001
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
+                     process.env.NEXT_PUBLIC_API_BASE_URL ||
+                     'http://localhost:3001';
+
+    // Remove trailing slash from backend URL
+    const baseUrl = backendUrl.replace(/\/$/, '');
+
+    // Remove leading slash from path if exists
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${baseUrl}${cleanPath}`;
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
@@ -237,11 +260,14 @@ export default function AccountPage() {
 
     if (url.startsWith("data:image/")) return true;
 
+    // Check if it's a valid URL or relative path
     try {
       new URL(url);
       return url.startsWith("http://") || url.startsWith("https://");
     } catch {
-      return false;
+      // If URL parsing fails, it might be a relative path
+      // Relative paths are considered valid for our use case
+      return url.startsWith('/');
     }
   };
 
@@ -448,8 +474,8 @@ export default function AccountPage() {
                 <div className="relative flex-shrink-0">
                   {user?.avatar && isValidImageUrl(user.avatar) ? (
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-gray-200">
-                      <Image
-                        src={user.avatar}
+                      <img
+                        src={getBackendUrl(user.avatar)}
                         alt={user.name || user.username}
                         width={80}
                         height={80}

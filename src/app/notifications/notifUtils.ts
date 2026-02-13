@@ -29,6 +29,14 @@ function getAuthToken(): string | null {
         localStorage.getItem("auth-token") ||
         localStorage.getItem("session-token") ||
         localStorage.getItem("jwt");
+
+      // If token found in localStorage, sync to cookie for future requests
+      if (token) {
+        const isProduction = window.location.protocol === "https:";
+        const secure = isProduction ? "secure;" : "";
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${secure}${isProduction ? " samesite=none" : "samesite=lax"}`;
+        console.log("[notifUtils] Token synced to cookie from localStorage");
+      }
     } catch (e) {
       console.warn("Failed to access localStorage:", e);
     }
@@ -49,6 +57,7 @@ function getAuthToken(): string | null {
     }
   }
 
+  console.log("[notifUtils] Token found:", !!token);
   return token;
 }
 

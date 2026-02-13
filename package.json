@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "dev:all": "concurrently \"npm run dev\" \"node backend/server.js\" --names \"NEXT,BACKEND\" --prefix-colors \"blue,green\"",
-    "dev:backend": "node backend/server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\" --names \"NEXT,BACKEND\" --prefix-colors \"blue,green\"",
+    "dev:backend": "cd backend && npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

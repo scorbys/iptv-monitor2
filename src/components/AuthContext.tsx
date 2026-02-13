@@ -226,6 +226,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         const result = await response.json();
+        console.log("📦 [apiCall] Response data:", result);
         return result;
       } catch (error) {
         throw error;
@@ -398,6 +399,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password: password,
       });
 
+      console.log("🔑 [Login] API result:", result);
+
       if (result.success && result.user) {
         const userData = {
           id: result.user.userId || result.user.id,
@@ -405,10 +408,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: result.user.email,
         };
 
+        console.log("✅ [Login] Setting user state:", userData);
         setUser(userData);
 
         return { success: true };
       } else {
+        console.error("❌ [Login] Login failed:", result);
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
@@ -514,83 +519,74 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    console.log("🚪 [Logout] Starting logout process...");
+
+    // Clear user state immediately
+    if (user !== null) setUser(null);
+
     try {
-      setLoading(true);
-
-      if (user !== null) setUser(null);
-
-      try {
-        await apiCall("/api/auth/logout");
-      } catch (error) {
-      }
-
-      // Helper function for dynamic cookie domain
-      const getCookieDomain = () => {
-        if (typeof window === "undefined") return "";
-        const isProduction = window.location.protocol === "https:";
-        if (!isProduction) return "";
-        const hostname = window.location.hostname;
-        const parts = hostname.split('.');
-        if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
-        if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
-        if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
-        return "";
-      };
-
-      // Cookie clearing for mobile
-      const isProduction = window.location.protocol === "https:";
-      const domain = getCookieDomain();
-
-      const clearCookie = (name: string) => {
-        const cookieConfigs = [
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}; secure`,
-          // Production domain-specific clearing
-          ...(isProduction && domain ? [
-            `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${domain}; secure; samesite=none`,
-          ] : []),
-        ];
-
-        cookieConfigs.forEach((config) => {
-          document.cookie = config;
-        });
-      };
-
-      clearCookie("token");
-      clearCookie("auth-token");
-      clearCookie("jwt");
-
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (e) {
-        console.warn("Could not clear storage:", e);
-      }
-
-
-      // Mobile-optimized redirect
-      if (isMobile) {
-        window.location.replace("/login");
-      } else {
-        window.location.replace("/login");
-      }
+      // Call backend logout API with POST method (fire and forget)
+      apiCall("/api/auth/logout", {}).catch(err => {
+        console.warn("Backend logout failed:", err);
+      });
     } catch (error) {
-      console.error("Logout error:", error);
-      if (user !== null) setUser(null);
-    } finally {
-      setLoading(false);
-      if (isMobile) {
-        window.location.replace("/login");
-      } else {
-        window.location.replace("/login");
-      }
+      console.warn("Backend logout error:", error);
     }
+
+    // Helper function for dynamic cookie domain
+    const getCookieDomain = () => {
+      if (typeof window === "undefined") return "";
+      const isProduction = window.location.protocol === "https:";
+      if (!isProduction) return "";
+      const hostname = window.location.hostname;
+      const parts = hostname.split('.');
+      if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+      if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+      if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+      return "";
+    };
+
+    const isProduction = window.location.protocol === "https:";
+    const domain = getCookieDomain();
+
+    // Clear all cookies with multiple configurations
+    const cookieNames = ["token", "auth-token", "authToken", "jwt", "token-fallback", "session-token"];
+
+    const clearCookie = (name: string) => {
+      const cookieConfigs = [
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}; secure`,
+        // Production domain-specific clearing
+        ...(isProduction && domain ? [
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${domain}; secure; samesite=none`,
+        ] : []),
+      ];
+
+      cookieConfigs.forEach((config) => {
+        document.cookie = config;
+      });
+    };
+
+    cookieNames.forEach(name => clearCookie(name));
+
+    // Clear all storage
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn("Could not clear storage:", e);
+    }
+
+    console.log("✅ [Logout] Cleanup complete, redirecting to /login...");
+
+    // Single redirect at the end
+    window.location.replace("/login");
   };
 
   // Google OAuth redirect handling - MUST RUN BEFORE checkAuth effect!
