@@ -116,6 +116,7 @@ const nextConfig: NextConfig = {
       allowedOrigins: [
         "https://iptv-monitor.vercel.app",
         "https://iptv-monitor-backend-production.up.railway.app",
+        "https://iptv.adolin.id"
       ],
     },
   },
