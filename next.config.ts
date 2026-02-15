@@ -114,7 +114,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
-        "https://iptv-monitor2.vercel.app",
+        "https://iptv-monitor.vercel.app",
         "https://iptv-monitor-backend-production.up.railway.app",
       ],
     },
