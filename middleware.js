@@ -174,6 +174,46 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // CRITICAL FIX: Check for token in query parameter (for cross-origin login scenarios)
+  const url = request.nextUrl;
+  const queryToken = url.searchParams.get("token");
+
+  if (queryToken && pathname !== "/login") {
+    console.log("[MIDDLEWARE] Token found in query parameter, setting cookie...");
+
+    // Verify the token first
+    try {
+      if (JWT_SECRET) {
+        const verifyPromise = jwtVerify(queryToken, JWT_SECRET);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('JWT verification timeout')), 5000)
+        );
+
+        const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
+
+        // Token is valid, set cookie and redirect
+        const response = NextResponse.redirect(new URL(pathname, request.url));
+
+        // Set cookie with proper configuration
+        const isProduction = process.env.NODE_ENV === "production";
+        const cookieOptions = isProduction
+          ? `Path=/; HttpOnly=false; Secure; SameSite=None; Max-Age=${7 * 24 * 60 * 60}`
+          : `Path=/; HttpOnly=false; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`;
+
+        response.cookies.set("token", queryToken, cookieOptions);
+
+        // Remove token from URL
+        const cleanUrl = new URL(request.url);
+        cleanUrl.searchParams.delete("token");
+        response.headers.set('Location', cleanUrl.pathname + cleanUrl.search);
+
+        return response;
+      }
+    } catch (error) {
+      console.error("[MIDDLEWARE] Query token verification failed:", error);
+    }
+  }
+
   // Allow all public API routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.publicAPI)) {
     return NextResponse.next();
