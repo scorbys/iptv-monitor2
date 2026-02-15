@@ -53,7 +53,7 @@ router.use(setCorsHeaders);
 
 // Cookie options configuration
 const cookieOptions = {
-  httpOnly: true,
+  httpOnly: false, // Changed to false so frontend can read the token
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
