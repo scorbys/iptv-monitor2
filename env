@@ -1,4 +1,0 @@
-# Buat file .env.local di root project
-NEXT_PUBLIC_API_BASE_URL="URL"
-NEXT_PUBLIC_ML_API_URL="URL"
-JWT_SECRET="YOUR_JWT"
