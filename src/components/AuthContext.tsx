@@ -56,98 +56,73 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
-    // CRITICAL: Dynamic cookie domain based on current hostname
-    const getCookieDomain = () => {
-      if (typeof window === "undefined") return "";
+    // CRITICAL FIX: In production cross-domain scenario, httpOnly cookies are NOT accessible via JavaScript
+    // We MUST rely on localStorage and Authorization header instead
+    // Priority: localStorage > URL params > cookies (for cross-domain compatibility)
 
-      const isProduction = window.location.protocol === "https:";
-      if (!isProduction) return "";
+    let token = null;
 
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
+    // FIRST: Check localStorage (highest priority for cross-domain)
+    try {
+      token =
+        localStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("auth-token") ||
+        localStorage.getItem("session-token") ||
+        localStorage.getItem("jwt") ||
+        null;
 
-      // Vercel deployment preview (3+ parts like xxx-yyy-zzz.vercel.app)
-      // -> DON'T set domain attribute
-      if (hostname.endsWith('.vercel.app') && parts.length > 2) {
-        return "";
+      if (token) {
+        console.log("✅ [getAuthToken] Token found in localStorage");
+        return token;
       }
+    } catch (e) {
+      console.warn("Could not access localStorage:", e);
+    }
 
-      // Production Vercel domain (2 parts like xxx.vercel.app)
-      // -> Set domain to .vercel.app
-      if (hostname.endsWith('.vercel.app') && parts.length === 2) {
-        return ".vercel.app";
-      }
-
-      // Custom domain with subdomain
-      if (parts.length >= 2) {
-        return `.${parts.slice(-2).join('.')}`;
-      }
-
-      return "";
-    };
-
-    // Cek semua possible cookie names
-    const cookies = document.cookie.split(";").reduce((acc, cookie) => {
-      const [key, ...rest] = cookie.trim().split("=");
-      if (key) acc[key] = rest.join("=");
-      return acc;
-    }, {} as Record<string, string>);
-
-    // Check multiple cookie names untuk compatibility
-    let token =
-      cookies.token ||
-      cookies["auth-token"] ||
-      cookies.authToken ||
-      cookies["token-fallback"] ||
-      cookies["session-token"] ||
-      cookies.jwt;
-
-
-    // Jika tidak ada di cookie, cek localStorage
-    if (!token) {
+    // SECOND: Check URL params (for OAuth callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get("temp_token");
+    if (urlToken) {
+      console.log("✅ [getAuthToken] Token found in URL params");
       try {
-        token =
-          localStorage.getItem("authToken") ||
-          localStorage.getItem("token") ||
-          localStorage.getItem("auth-token") ||
-          localStorage.getItem("session-token") ||
-          localStorage.getItem("jwt") ||
-          "";
-
-        if (token) {
-
-          // SYNC: Set token ke cookie jika ditemukan di localStorage
-          const isProduction = window.location.protocol === "https:";
-          const domain = getCookieDomain();
-          const secure = isProduction ? "secure;" : "";
-
-          const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-            }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
-          document.cookie = cookieValue;
-        }
+        const decodedToken = decodeURIComponent(urlToken);
+        localStorage.setItem("authToken", decodedToken);
+        return decodedToken;
       } catch (e) {
+        console.error("Failed to decode URL token:", e);
       }
     }
 
-    // Fallback dari URL
-    if (!token) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlToken = urlParams.get("temp_token");
-      if (urlToken) {
-        token = urlToken;
+    // THIRD: Check cookies (as fallback - will NOT work for httpOnly cookies in cross-domain)
+    try {
+      const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+        const [key, ...rest] = cookie.trim().split("=");
+        if (key) acc[key] = rest.join("=");
+        return acc;
+      }, {} as Record<string, string>);
+
+      token =
+        cookies.token ||
+        cookies["auth-token"] ||
+        cookies.authToken ||
+        cookies["token-fallback"] ||
+        cookies["session-token"] ||
+        cookies.jwt ||
+        null;
+
+      if (token) {
+        console.log("✅ [getAuthToken] Token found in cookies (non-httpOnly)");
+        // Sync to localStorage for consistency
         localStorage.setItem("authToken", token);
-        const isProduction = window.location.protocol === "https:";
-        const domain = getCookieDomain();
-        const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-          }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
-        document.cookie = cookieValue;
-        console.log(
-          "Token extracted from URL and synced to cookie/localStorage"
-        );
+        return token;
       }
+    } catch (e) {
+      console.warn("Could not access cookies:", e);
     }
 
-    return token;
+    console.log("❌ [getAuthToken] No token found in any storage");
+    return null;
   }, []);
 
   const apiCall = React.useCallback(
@@ -186,7 +161,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("📤 [apiCall] Request headers:", {
           "Content-Type": headers["Content-Type"],
           "Accept": headers["Accept"],
-          "Authorization": headers["Authorization"] ? `Bearer ${authToken.substring(0, 20)}...` : 'none',
+          "Authorization": headers["Authorization"] ? `Bearer ${authToken?.substring(0, 20)}...` : 'none',
           "credentials": "include"
         });
 
