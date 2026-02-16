@@ -137,17 +137,35 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
   const response = NextResponse.redirect(new URL(destination, request.url));
 
   if (clearCookie) {
-    // Clear cookie dengan berbagai konfigurasi
+    // Clear cookie dengan berbagai konfigurasi untuk Edge Runtime
     const cookieConfigs = [
       { httpOnly: true, secure: true, sameSite: "none", maxAge: 0, path: "/" },
       { httpOnly: true, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
       { httpOnly: true, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
+      { httpOnly: false, secure: true, sameSite: "none", maxAge: 0, path: "/" },
+      { httpOnly: false, secure: true, sameSite: "lax", maxAge: 0, path: "/" },
+      { httpOnly: false, secure: false, sameSite: "lax", maxAge: 0, path: "/" },
       { maxAge: 0, path: "/" },
       { expires: new Date(0), path: "/" }
     ];
 
     cookieConfigs.forEach(config => {
-      response.cookies.set("token", "", config);
+      try {
+        response.cookies.set("token", "", config);
+      } catch (e) {
+        // Ignore errors from cookie clearing
+        console.warn("[MIDDLEWARE] Failed to clear cookie with config:", config);
+      }
+    });
+
+    // Also try to clear with different cookie names
+    const cookieNames = ["token", "auth-token", "authToken", "jwt"];
+    cookieNames.forEach(name => {
+      try {
+        response.cookies.delete(name);
+      } catch (e) {
+        // Ignore errors
+      }
     });
 
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -194,11 +212,22 @@ export async function middleware(request) {
         // Token is valid, set cookie and redirect
         const response = NextResponse.redirect(new URL(pathname, request.url));
 
-        // Set cookie with proper configuration
+        // Set cookie with proper configuration for Edge Runtime
         const isProduction = process.env.NODE_ENV === "production";
         const cookieOptions = isProduction
-          ? `Path=/; HttpOnly=false; Secure; SameSite=None; Max-Age=${7 * 24 * 60 * 60}`
-          : `Path=/; HttpOnly=false; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`;
+          ? {
+              httpOnly: false,
+              secure: true,
+              sameSite: "none",
+              maxAge: 7 * 24 * 60 * 60, // 7 days
+              path: "/"
+            }
+          : {
+              httpOnly: false,
+              sameSite: "lax",
+              maxAge: 7 * 24 * 60 * 60,
+              path: "/"
+            };
 
         response.cookies.set("token", queryToken, cookieOptions);
 
