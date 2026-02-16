@@ -6,6 +6,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAuth } from "./AuthContext";
 
 import {
   Notification,
@@ -132,6 +133,30 @@ const setReadIds = (ids: string[]) => {
 };
 
 export default function Topbar() {
+  const { user: authUser, loading: authLoading } = useAuth();
+
+  // Helper function to get backend URL for avatar
+  const getBackendUrl = (path: string) => {
+    if (!path) return "";
+
+    // If already a full URL, return as is
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+
+    // Get backend URL from environment or default to localhost:3001
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
+                     process.env.NEXT_PUBLIC_API_BASE_URL ||
+                     'http://localhost:3001';
+
+    // Remove trailing slash from backend URL
+    const baseUrl = backendUrl.replace(/\/$/, '');
+
+    // Remove leading slash from path if exists
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${baseUrl}${cleanPath}`;
+  };
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -189,6 +214,7 @@ export default function Topbar() {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.user) {
+          console.log("[Topbar] User authenticated:", result.user.username);
 
           setUser({
             username: result.user.username,
@@ -197,12 +223,31 @@ export default function Topbar() {
             provider: result.user.provider,
             name: result.user.name, // Pastikan name dari Google ditampilkan
           });
+        } else {
+          console.log("[Topbar] User not authenticated or invalid response");
+          setUser({
+            username: "Guest",
+            email: "guest@example.com",
+            avatar: null,
+            provider: undefined,
+            name: undefined,
+          });
         }
+      } else {
+        console.log("[Topbar] Auth verification failed:", response.status);
+        setUser({
+          username: "Guest",
+          email: "guest@example.com",
+          avatar: null,
+          provider: undefined,
+          name: undefined,
+        });
       }
-    } catch {
+    } catch (error) {
+      console.error("[Topbar] Auth check error:", error);
       setUser({
-        username: "User",
-        email: "user@example.com",
+        username: "Guest",
+        email: "guest@example.com",
         avatar: null,
         provider: undefined,
         name: undefined,
@@ -241,13 +286,17 @@ export default function Topbar() {
   }, [calculateStats]);
 
   useEffect(() => {
-    fetchNotifications();
     fetchUserData();
 
-    // Auto-refresh every 2 minutes untuk topbar
-    const interval = setInterval(fetchNotifications, 120000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications, fetchUserData]);
+    // Only fetch notifications if user is authenticated
+    if (authUser && !authLoading) {
+      fetchNotifications();
+
+      // Auto-refresh every 2 minutes untuk topbar
+      const interval = setInterval(fetchNotifications, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [fetchNotifications, fetchUserData, authUser, authLoading]);
 
   const handleViewAllNotifications = () => {
     setNotificationOpen(false);
@@ -267,7 +316,7 @@ export default function Topbar() {
       {/* Left Section - Logo and Title dengan glassmorphism effect */}
       <div className="flex items-center gap-4 flex-1 min-w-0 relative z-10">
         <div className="relative">
-          <Image
+          <img
             src="/logo-white.png"
             alt="Logo"
             width={480}
@@ -532,12 +581,12 @@ export default function Topbar() {
                 <div className="hidden sm:flex items-center gap-2 px-3 py-2 transition-all duration-300 group rounded-xl hover:bg-white/10 backdrop-blur-sm border border-transparent hover:border-white/10">
                   <div className="relative">
                     {user?.avatar ? (
-                      <Image
-                        src={user.avatar}
+                      <img
+                        src={getBackendUrl(user.avatar)}
                         alt="User Avatar"
                         width={32}
                         height={32}
-                        className="w-8 h-8 rounded-full border-2 border-white/30 shadow-lg"
+                        className="w-8 h-8 rounded-full border-2 border-white/30 shadow-lg object-cover"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.style.display = "none";
@@ -574,8 +623,8 @@ export default function Topbar() {
                 <div className="block sm:hidden relative p-1 rounded-xl hover:bg-white/10 transition-colors">
                   {user?.avatar ? (
                     <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/30">
-                      <Image
-                        src={user.avatar}
+                      <img
+                        src={getBackendUrl(user.avatar)}
                         alt={user.username}
                         width={32}
                         height={32}
@@ -620,7 +669,7 @@ export default function Topbar() {
                       <div className="relative">
                         {user.avatar ? (
                           <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
-                            <Image
+                            <img
                               src={user.avatar}
                               alt={user.username}
                               width={48}

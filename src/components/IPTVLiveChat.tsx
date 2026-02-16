@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2, AlertCircle } from "lucide-react";
+import { useAuth } from "./AuthContext";
 
 interface Message {
   id: number;
@@ -27,6 +28,7 @@ interface Message {
 }
 
 const IPTVLiveChat = () => {
+  const { user, loading: authLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -107,14 +109,42 @@ const IPTVLiveChat = () => {
   }, [isOpen]);
 
   useEffect(() => {
-    fetch("/api/auth/verify", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.authenticated) {
+    // Only verify authentication if auth loading is complete AND user is logged in
+    if (authLoading) return; // Wait for auth to finish loading
+    if (!user) {
+      // User not logged in - skip auth check
+      console.log("[IPTVLiveChat] User not logged in, skipping auth check");
+      return;
+    }
+
+    // User is logged in - verify session
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/verify", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            console.log("[IPTVLiveChat] User authenticated:", data.user.username);
+          } else {
+            console.log("[IPTVLiveChat] User not authenticated");
+          }
+        } else {
+          console.log("[IPTVLiveChat] Auth check failed:", response.status);
         }
-      })
-      .catch((err) => console.error("Auth check failed:", err));
-  }, []);
+      } catch (error) {
+        console.error("[IPTVLiveChat] Auth check error:", error);
+      }
+    };
+
+    checkAuth();
+  }, [user, authLoading]);
 
   useEffect(() => {
     const handleOpenChat = (event: Event) => {

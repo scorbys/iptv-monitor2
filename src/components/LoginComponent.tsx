@@ -112,7 +112,17 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
       if (result.success) {
         showNotification("success", "Login successful! Redirecting...");
-        router.push("/dashboard");
+
+        // CRITICAL FIX: Get token from localStorage and include in redirect
+        // This allows Vercel middleware to authenticate the user
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          // Use query parameter to pass token to middleware
+          router.push(`/dashboard?token=${encodeURIComponent(token)}`);
+        } else {
+          // Fallback without token
+          router.push("/dashboard");
+        }
       } else {
         setErrors({ general: result.error || "Login failed" });
         showNotification("error", result.error || "Login failed");

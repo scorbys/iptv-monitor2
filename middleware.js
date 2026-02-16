@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+const JWT_SECRET = process.env.JWT_SECRET
+  ? new TextEncoder().encode(process.env.JWT_SECRET)
+  : null;
+
+// Fallback untuk development/testing
+if (!JWT_SECRET && process.env.NODE_ENV !== 'production') {
+  console.warn('[MIDDLEWARE] JWT_SECRET not set, using fallback for development');
+}
 
 // Configuration for different path types
 const ROUTE_CONFIG = {
@@ -27,13 +34,13 @@ const ROUTE_CONFIG = {
     "/api/config",
   ],
 
-  // Public API routes
+  // Public API routes (bypass auth, still proxy to Railway)
   publicAPI: [
     "/api/auth/login",
     "/api/auth/register",
     "/api/auth/google",
     "/api/auth/google/callback",
-    "/api/auth/verify",
+    "/api/auth/logout",
     "/api/auth/health",
   ],
 
@@ -52,9 +59,14 @@ const ROUTE_CONFIG = {
  */
 async function verifyAuthToken(token) {
   try {
+    // Check JWT_SECRET
+    if (!JWT_SECRET) {
+      console.error("[MIDDLEWARE] JWT_SECRET is not configured");
+      return { isValid: false, user: null };
+    }
+
     // Validasi token format
     if (!token || typeof token !== 'string' || token.length < 10) {
-      console.error("Invalid token format");
       return { isValid: false, user: null };
     }
 
@@ -122,10 +134,6 @@ function isStaticFile(pathname) {
  * Create a redirect response with optional cookie clearing
  */
 function createRedirect(request, destination, clearCookie = false, reason = "") {
-  console.log(
-    `[MIDDLEWARE] Redirecting to ${destination}: ${reason} (from: ${request.nextUrl.pathname})`
-  );
-
   const response = NextResponse.redirect(new URL(destination, request.url));
 
   if (clearCookie) {
@@ -157,21 +165,57 @@ function createRedirect(request, destination, clearCookie = false, reason = "") 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  console.log(`[MIDDLEWARE] Processing: ${pathname}`);
-
   // Skip middleware untuk static files dan Next.js internals
   if (isStaticFile(pathname)) {
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/api/auth/google")) {
-    console.log(`[MIDDLEWARE] Allowing Google OAuth path: ${pathname}`);
     return NextResponse.next();
+  }
+
+  // CRITICAL FIX: Check for token in query parameter (for cross-origin login scenarios)
+  const url = request.nextUrl;
+  const queryToken = url.searchParams.get("token");
+
+  if (queryToken && pathname !== "/login") {
+    console.log("[MIDDLEWARE] Token found in query parameter, setting cookie...");
+
+    // Verify the token first
+    try {
+      if (JWT_SECRET) {
+        const verifyPromise = jwtVerify(queryToken, JWT_SECRET);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('JWT verification timeout')), 5000)
+        );
+
+        const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
+
+        // Token is valid, set cookie and redirect
+        const response = NextResponse.redirect(new URL(pathname, request.url));
+
+        // Set cookie with proper configuration
+        const isProduction = process.env.NODE_ENV === "production";
+        const cookieOptions = isProduction
+          ? `Path=/; HttpOnly=false; Secure; SameSite=None; Max-Age=${7 * 24 * 60 * 60}`
+          : `Path=/; HttpOnly=false; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`;
+
+        response.cookies.set("token", queryToken, cookieOptions);
+
+        // Remove token from URL
+        const cleanUrl = new URL(request.url);
+        cleanUrl.searchParams.delete("token");
+        response.headers.set('Location', cleanUrl.pathname + cleanUrl.search);
+
+        return response;
+      }
+    } catch (error) {
+      console.error("[MIDDLEWARE] Query token verification failed:", error);
+    }
   }
 
   // Allow all public API routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.publicAPI)) {
-    console.log(`[MIDDLEWARE] Allowing public API access: ${pathname}`);
     return NextResponse.next();
   }
 
@@ -189,33 +233,13 @@ export async function middleware(request) {
     const authHeader = request.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7);
-      console.log(`[MIDDLEWARE] Token found in Authorization header`);
     }
-  }
-
-  // Debug cookie information
-  console.log(`[MIDDLEWARE] Cookie debug:`, {
-    allCookies: Array.from(request.cookies.keys()),
-    tokenFound: !!token,
-    tokenSource: token ? "found" : "not_found",
-    userAgent: request.headers.get("user-agent")?.substring(0, 50),
-  });
-
-  console.log(`[MIDDLEWARE] Token present: ${!!token}`);
-  if (token) {
-    console.log(`[MIDDLEWARE] Token preview: ${token.substring(0, 20)}...`);
   }
 
   // Verify token if present
   let authResult = { isValid: false, user: null };
   if (token) {
     authResult = await verifyAuthToken(token);
-    console.log(`[MIDDLEWARE] Token valid: ${authResult.isValid}`);
-    if (authResult.user) {
-      console.log(
-        `[MIDDLEWARE] User: ${authResult.user.username} (ID: ${authResult.user.id})`
-      );
-    }
   }
 
   // Handle root path
@@ -253,9 +277,6 @@ export async function middleware(request) {
   // Handle protected pages
   if (matchesRoutes(pathname, ROUTE_CONFIG.protected)) {
     if (!authResult.isValid) {
-      console.log(
-        `[MIDDLEWARE] Blocking protected page access: ${pathname} - Invalid token`
-      );
       const shouldClearCookie = !!token && !authResult.isValid;
       return createRedirect(
         request,
@@ -273,23 +294,16 @@ export async function middleware(request) {
       response.headers.set("x-user-email", authResult.user.email);
     }
     response.headers.set("Vary", "Cookie");
-    console.log(
-      `[MIDDLEWARE] Allowing protected page access: ${pathname} for user: ${authResult.user?.username}`
-    );
     return response;
   }
 
   // Handle protected API routes
   if (matchesRoutes(pathname, ROUTE_CONFIG.protectedAPI)) {
     if (!authResult.isValid) {
-      console.log(
-        `[MIDDLEWARE] Blocking protected API access: ${pathname} - Invalid token`
-      );
       return NextResponse.json(
         {
           success: false,
           error: "Authentication required",
-          debug: { tokenPresent: !!token, tokenValid: authResult.isValid },
         },
         {
           status: 401,
@@ -309,14 +323,10 @@ export async function middleware(request) {
       response.headers.set("x-user-email", authResult.user.email);
     }
     response.headers.set("Vary", "Cookie");
-    console.log(
-      `[MIDDLEWARE] Allowing protected API access: ${pathname} for user: ${authResult.user?.username}`
-    );
     return response;
   }
 
   // Default behavior for other routes
-  console.log(`[MIDDLEWARE] Default handling for: ${pathname}`);
   return NextResponse.next();
 }
 

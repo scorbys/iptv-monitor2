@@ -344,7 +344,7 @@ export default function ChromecastDetailPage({
 
 
         const response = await fetch(
-          `/api/channels/${encodedIdentifier}/metrics`,
+          `/api/chromecasts/${encodedIdentifier}/metrics`,
           {
             credentials: "include",
             headers: {

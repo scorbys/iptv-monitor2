@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const hasCheckedRef = useRef(false);
+  const oauthHandledRef = useRef(false);
 
   // Detect mobile browser
   const isMobile = React.useMemo(() => {
@@ -53,52 +54,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
   }, []);
 
-  const apiCall = React.useCallback(
-    async (endpoint: string, data?: Record<string, unknown>) => {
-      try {
-        const response = await fetch(endpoint, {
-          method: data ? "POST" : "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: data ? JSON.stringify(data) : undefined,
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            if (user !== null) setUser(null);
-            throw new Error("Authentication failed");
-          }
-
-          if (response.status === 502) {
-            throw new Error(
-              "Server temporarily unavailable. Please try again later."
-            );
-          }
-
-          let errorMessage = `HTTP ${response.status}`;
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch {
-            errorMessage = response.statusText || errorMessage;
-          }
-          throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-        return result;
-      } catch (error) {
-        throw error;
-      }
-    },
-    [user]
-  );
-
   // Token checking dengan mobile optimization
   const getAuthToken = React.useCallback(() => {
+    // CRITICAL: Dynamic cookie domain based on current hostname
+    const getCookieDomain = () => {
+      if (typeof window === "undefined") return "";
+
+      const isProduction = window.location.protocol === "https:";
+      if (!isProduction) return "";
+
+      const hostname = window.location.hostname;
+      const parts = hostname.split('.');
+
+      // Vercel deployment preview (3+ parts like xxx-yyy-zzz.vercel.app)
+      // -> DON'T set domain attribute
+      if (hostname.endsWith('.vercel.app') && parts.length > 2) {
+        return "";
+      }
+
+      // Production Vercel domain (2 parts like xxx.vercel.app)
+      // -> Set domain to .vercel.app
+      if (hostname.endsWith('.vercel.app') && parts.length === 2) {
+        return ".vercel.app";
+      }
+
+      // Custom domain with subdomain
+      if (parts.length >= 2) {
+        return `.${parts.slice(-2).join('.')}`;
+      }
+
+      return "";
+    };
+
     // Cek semua possible cookie names
     const cookies = document.cookie.split(";").reduce((acc, cookie) => {
       const [key, ...rest] = cookie.trim().split("=");
@@ -131,8 +118,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // SYNC: Set token ke cookie jika ditemukan di localStorage
           const isProduction = window.location.protocol === "https:";
+          const domain = getCookieDomain();
+          const secure = isProduction ? "secure;" : "";
+
           const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-            }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
+            }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
         }
       } catch (e) {
@@ -147,8 +137,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         token = urlToken;
         localStorage.setItem("authToken", token);
         const isProduction = window.location.protocol === "https:";
+        const domain = getCookieDomain();
         const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-          }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
+          }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
         document.cookie = cookieValue;
         console.log(
           "Token extracted from URL and synced to cookie/localStorage"
@@ -159,17 +150,161 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return token;
   }, []);
 
+  const apiCall = React.useCallback(
+    async (endpoint: string, data?: Record<string, unknown>, token?: string) => {
+      try {
+        // Build full URL to backend if endpoint is relative
+        let url = endpoint;
+        if (endpoint.startsWith("/")) {
+          const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
+            process.env.NEXT_PUBLIC_API_BASE_URL ||
+            (typeof window !== "undefined" ? window.location.origin : "");
+          url = `${backendUrl}${endpoint}`;
+        }
+
+        // Get token if not provided
+        const authToken = token || getAuthToken();
+
+        console.log("🔑 [apiCall] Request details:", {
+          endpoint,
+          url,
+          hasToken: !!authToken,
+          tokenLength: authToken?.length,
+          tokenPreview: authToken ? `${authToken.substring(0, 20)}...${authToken.substring(authToken.length - 20)}` : 'none'
+        });
+
+        // Build headers with Authorization if token exists
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
+
+        if (authToken) {
+          headers["Authorization"] = `Bearer ${authToken}`;
+        }
+
+        console.log("📤 [apiCall] Request headers:", {
+          "Content-Type": headers["Content-Type"],
+          "Accept": headers["Accept"],
+          "Authorization": headers["Authorization"] ? `Bearer ${authToken.substring(0, 20)}...` : 'none',
+          "credentials": "include"
+        });
+
+        const response = await fetch(url, {
+          method: data ? "POST" : "GET",
+          headers,
+          body: data ? JSON.stringify(data) : undefined,
+          credentials: "include",
+        });
+
+        console.log("📥 [apiCall] Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            if (user !== null) setUser(null);
+            throw new Error("Authentication failed");
+          }
+
+          if (response.status === 502) {
+            throw new Error(
+              "Server temporarily unavailable. Please try again later."
+            );
+          }
+
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        console.log("📦 [apiCall] Response data:", result);
+        return result;
+      } catch (error) {
+        throw error;
+      }
+    },
+    [user]
+  );
+
   const checkAuth = React.useCallback(async () => {
     try {
       setLoading(true);
 
+      // FIRST: Check if we have temp_token in URL (just redirected from Google OAuth)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tempToken = urlParams.get("temp_token");
+      const googleLoginSuccess = urlParams.get("google_login");
+
+      console.log("🔍 [checkAuth] URL Parameters check:", {
+        currentUrl: window.location.href,
+        hasTempToken: !!tempToken,
+        googleLoginSuccess,
+        allParams: Object.fromEntries(urlParams)
+      });
+
+      if (tempToken && googleLoginSuccess === "success") {
+        console.log("✅ Found temp_token in URL, extracting and storing...");
+
+        try {
+          const decodedToken = decodeURIComponent(tempToken);
+          localStorage.setItem("authToken", decodedToken);
+
+          // Remove URL parameters
+          const url = new URL(window.location.href);
+          url.searchParams.delete("google_login");
+          url.searchParams.delete("_t");
+          url.searchParams.delete("temp_token");
+          window.history.replaceState({}, "", url.toString());
+
+          // Use this token for verification
+          const result = await apiCall("/api/auth/verify", undefined, decodedToken);
+
+          if (result.success && result.user) {
+            const userData = {
+              id: result.user.userId || result.user.id,
+              username: result.user.username,
+              email: result.user.email,
+            };
+            setUser(userData);
+            console.log("✅ User authenticated via temp_token");
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to verify temp_token:", error);
+        }
+      }
+
+      // SECOND: Check if we have token in localStorage/cookie
       const token = getAuthToken();
 
       if (!token) {
+        console.log("No token found, user not authenticated");
         if (user !== null) setUser(null);
+        setLoading(false);
         return;
       }
 
+      // Helper function for dynamic cookie domain
+      const getCookieDomain = () => {
+        if (typeof window === "undefined") return "";
+        const isProduction = window.location.protocol === "https:";
+        if (!isProduction) return "";
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+        if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+        if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+        return "";
+      };
 
       let retryCount = 0;
       const maxRetries = isMobile ? 2 : 3; // Fewer retries on mobile for better UX
@@ -193,16 +328,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 "Syncing token from localStorage to cookie (mobile optimization)"
               );
               const isProduction = window.location.protocol === "https:";
+              const domain = getCookieDomain();
+              const secure = isProduction ? "secure;" : "";
 
-              // Mobile-friendly cookie setting
-              let cookieValue;
-              if (isMobile) {
-                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-                  }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
-              } else {
-                cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
-                  }; ${isProduction ? "secure; samesite=none" : "samesite=lax"}`;
-              }
+              // Cookie setting yang sama untuk mobile dan desktop
+              const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
+                  }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
 
               document.cookie = cookieValue;
             }
@@ -210,6 +341,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           } else {
             if (user !== null) setUser(null);
+            setLoading(false);
             return;
           }
         } catch (error) {
@@ -267,6 +399,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password: password,
       });
 
+      console.log("🔑 [Login] API result:", result);
+
       if (result.success && result.user) {
         const userData = {
           id: result.user.userId || result.user.id,
@@ -274,10 +408,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: result.user.email,
         };
 
+        console.log("✅ [Login] Setting user state:", userData);
         setUser(userData);
+
+        // CRITICAL FIX: Save token to localStorage and cookie after successful login
+        if (result.token) {
+          console.log("🔑 [Login] Saving token to storage...");
+
+          // Helper function for dynamic cookie domain
+          const getCookieDomain = () => {
+            if (typeof window === "undefined") return "";
+            const isProduction = window.location.protocol === "https:";
+            if (!isProduction) return "";
+            const hostname = window.location.hostname;
+            const parts = hostname.split('.');
+            if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+            if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+            if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+            return "";
+          };
+
+          const isProduction = window.location.protocol === "https:";
+          const domain = getCookieDomain();
+
+          // Save to localStorage
+          localStorage.setItem("authToken", result.token);
+
+          // Save to cookie
+          const cookieValue = `token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60
+            }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
+          document.cookie = cookieValue;
+
+          console.log("✅ [Login] Token saved successfully");
+        } else {
+          console.warn("⚠️ [Login] No token in response, user may not be fully authenticated");
+        }
 
         return { success: true };
       } else {
+        console.error("❌ [Login] Login failed:", result);
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
@@ -292,7 +461,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Gmail login - langsung redirect ke Google OAuth
   const loginWithGmail = () => {
     try {
-      const backendUrl =
+      // Use NEXT_PUBLIC_API_URL or NEXT_PUBLIC_API_BASE_URL
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL ||
         process.env.NEXT_PUBLIC_API_BASE_URL ||
         (typeof window !== "undefined" ? window.location.origin : "");
 
@@ -303,15 +473,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ? "/dashboard"
           : currentPath;
 
-      // Encode current URL sebagai state untuk redirect setelah login
+      // Build frontend URL for state parameter
       const frontendUrl =
-        process.env.NEXT_PUBLIC_FRONTEND_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
+        typeof window !== "undefined" ? window.location.origin : "";
       const state = encodeURIComponent(`${frontendUrl}${redirectPath}`);
 
+      // Use full URL to backend for Google OAuth
       const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
 
-      console.log("Is mobile device:", isMobile);
+      console.log("Initiating Google OAuth login:", {
+        backendUrl,
+        redirectPath,
+        state,
+        googleAuthUrl
+      });
 
       // Tambahkan error handling
       if (!backendUrl) {
@@ -328,6 +503,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       // Tampilkan error ke user
+      console.error("Google login initiation error:", error);
       alert("Failed to initiate Google login. Please try again.");
     }
   };
@@ -361,6 +537,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         setUser(userData);
+
+        // CRITICAL FIX: Save token to localStorage and cookie after successful registration
+        if (result.token) {
+          console.log("🔑 [Register] Saving token to storage...");
+
+          // Helper function for dynamic cookie domain
+          const getCookieDomain = () => {
+            if (typeof window === "undefined") return "";
+            const isProduction = window.location.protocol === "https:";
+            if (!isProduction) return "";
+            const hostname = window.location.hostname;
+            const parts = hostname.split('.');
+            if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+            if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+            if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+            return "";
+          };
+
+          const isProduction = window.location.protocol === "https:";
+          const domain = getCookieDomain();
+
+          // Save to localStorage
+          localStorage.setItem("authToken", result.token);
+
+          // Save to cookie
+          const cookieValue = `token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60
+            }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
+          document.cookie = cookieValue;
+
+          console.log("✅ [Register] Token saved successfully");
+        } else {
+          console.warn("⚠️ [Register] No token in response, user may not be fully authenticated");
+        }
+
         return { success: true };
       } else {
         return { success: false, error: result.error || "Registration failed" };
@@ -376,96 +586,162 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    console.log("🚪 [Logout] Starting logout process...");
+
+    // Clear user state immediately
+    if (user !== null) setUser(null);
+
     try {
-      setLoading(true);
-
-      if (user !== null) setUser(null);
-
-      try {
-        await apiCall("/api/auth/logout");
-      } catch (error) {
-      }
-
-      // Cookie clearing for mobile
-      const clearCookie = (name: string) => {
-        const cookieConfigs = [
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
-          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
-          `${name}=; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
-        ];
-
-        cookieConfigs.forEach((config) => {
-          document.cookie = config;
-        });
-      };
-
-      clearCookie("token");
-      clearCookie("auth-token");
-      clearCookie("jwt");
-
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (e) {
-        console.warn("Could not clear storage:", e);
-      }
-
-
-      // Mobile-optimized redirect
-      if (isMobile) {
-        window.location.replace("/login");
-      } else {
-        window.location.replace("/login");
-      }
+      // Call backend logout API with POST method (fire and forget)
+      apiCall("/api/auth/logout", {}).catch(err => {
+        console.warn("Backend logout failed:", err);
+      });
     } catch (error) {
-      console.error("Logout error:", error);
-      if (user !== null) setUser(null);
-    } finally {
-      setLoading(false);
-      if (isMobile) {
-        window.location.replace("/login");
-      } else {
-        window.location.replace("/login");
-      }
+      console.warn("Backend logout error:", error);
     }
+
+    // Helper function for dynamic cookie domain
+    const getCookieDomain = () => {
+      if (typeof window === "undefined") return "";
+      const isProduction = window.location.protocol === "https:";
+      if (!isProduction) return "";
+      const hostname = window.location.hostname;
+      const parts = hostname.split('.');
+      if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+      if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+      if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+      return "";
+    };
+
+    const isProduction = window.location.protocol === "https:";
+    const domain = getCookieDomain();
+
+    // Clear all cookies with multiple configurations
+    const cookieNames = ["token", "auth-token", "authToken", "jwt", "token-fallback", "session-token"];
+
+    const clearCookie = (name: string) => {
+      const cookieConfigs = [
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=lax`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; secure; samesite=none`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=lax`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; samesite=none`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}`,
+        `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${window.location.hostname}; secure`,
+        // Production domain-specific clearing
+        ...(isProduction && domain ? [
+          `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=${domain}; secure; samesite=none`,
+        ] : []),
+      ];
+
+      cookieConfigs.forEach((config) => {
+        document.cookie = config;
+      });
+    };
+
+    cookieNames.forEach(name => clearCookie(name));
+
+    // Clear all storage
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn("Could not clear storage:", e);
+    }
+
+    console.log("✅ [Logout] Cleanup complete, redirecting to /login...");
+
+    // Single redirect at the end
+    window.location.replace("/login");
   };
 
-  // Check authentication on mount
-  useEffect(() => {
-    if (!hasCheckedRef.current) {
-      hasCheckedRef.current = true;
-      checkAuth();
-    }
-  }, [checkAuth]);
-
-  // Google OAuth redirect handling dengan mobile optimization
+  // Google OAuth redirect handling - MUST RUN BEFORE checkAuth effect!
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const googleLoginSuccess = urlParams.get("google_login");
-    const timestamp = urlParams.get("_t");
+    const tempToken = urlParams.get("temp_token");
 
-    if (googleLoginSuccess === "success") {
-      console.log("Is mobile device:", isMobile);
+    console.log("🔍 [OAuth] Checking URL params:", {
+      googleLoginSuccess,
+      hasTempToken: !!tempToken,
+      oauthHandled: oauthHandledRef.current,
+      currentPath: window.location.pathname
+    });
+
+    if ((googleLoginSuccess === "success" || tempToken) && !oauthHandledRef.current) {
+      console.log("✅ [OAuth] Google OAuth callback detected!");
+
+      // Mark as handled to prevent re-processing
+      oauthHandledRef.current = true;
+
+      // Helper function for dynamic cookie domain
+      const getCookieDomain = () => {
+        if (typeof window === "undefined") return "";
+        const isProduction = window.location.protocol === "https:";
+        if (!isProduction) return "";
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        if (hostname.endsWith('.vercel.app') && parts.length > 2) return "";
+        if (hostname.endsWith('.vercel.app') && parts.length === 2) return ".vercel.app";
+        if (parts.length >= 2) return `.${parts.slice(-2).join('.')}`;
+        return "";
+      };
+
+      // Handle temp_token from URL
+      if (tempToken) {
+        try {
+          const decodedToken = decodeURIComponent(tempToken);
+          console.log("🔑 [OAuth] Storing temp_token to localStorage...");
+
+          // Store in localStorage
+          localStorage.setItem("authToken", decodedToken);
+
+          // Set cookie with proper domain
+          const isProduction = window.location.protocol === "https:";
+          const domain = getCookieDomain();
+          const cookieValue = `token=${decodedToken}; path=/; max-age=${7 * 24 * 60 * 60
+            }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
+          document.cookie = cookieValue;
+
+          console.log("✅ [OAuth] Token stored successfully in localStorage and cookie");
+        } catch (e) {
+          console.error("❌ [OAuth] Failed to decode temp_token:", e);
+        }
+      }
 
       // Remove URL parameters
       const url = new URL(window.location.href);
       url.searchParams.delete("google_login");
       url.searchParams.delete("_t");
+      url.searchParams.delete("temp_token");
       window.history.replaceState({}, "", url.toString());
 
-      // Mobile-optimized delay untuk ensure cookie is set
-      const authCheckDelay = isMobile ? 2000 : 1000;
+      console.log("🔄 [OAuth] URL cleaned, triggering auth check...");
 
+      // Trigger auth check after a short delay to ensure cookie is set
+      const authCheckDelay = isMobile ? 2000 : 1000;
       setTimeout(() => {
+        console.log("🔄 [OAuth] Calling checkAuth()...");
         checkAuth();
       }, authCheckDelay);
     }
-  }, [checkAuth, isMobile]);
+  }); // ✅ NO dependencies - runs on every render to catch OAuth callback FIRST
+
+  // Check authentication on mount - RUNS AFTER OAuth check
+  useEffect(() => {
+    // Don't run checkAuth if OAuth callback is being handled
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasOAuthParams = urlParams.get("google_login") || urlParams.get("temp_token");
+
+    if (!hasCheckedRef.current && !hasOAuthParams) {
+      console.log("🔄 [checkAuth] No OAuth params, running initial auth check...");
+      hasCheckedRef.current = true;
+      checkAuth();
+    } else if (hasOAuthParams) {
+      console.log("⏸️ [checkAuth] OAuth params detected, skipping initial check (OAuth handler will take care)");
+    }
+  }, [checkAuth]);
 
   // Periodic auth check dengan mobile consideration
   useEffect(() => {
