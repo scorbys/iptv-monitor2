@@ -120,12 +120,40 @@ const IPTVLiveChat = () => {
     // User is logged in - verify session
     const checkAuth = async () => {
       try {
+        // Get token from localStorage (priority for cross-domain)
+        const getAuthToken = () => {
+          try {
+            return (
+              localStorage.getItem("authToken") ||
+              localStorage.getItem("token") ||
+              localStorage.getItem("auth-token") ||
+              null
+            );
+          } catch (e) {
+            console.warn("[IPTVLiveChat] Could not access localStorage:", e);
+            return null;
+          }
+        };
+
+        const token = getAuthToken();
+
+        console.log("[IPTVLiveChat] Checking auth with token:", {
+          hasToken: !!token,
+          tokenLength: token?.length
+        });
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        };
+
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const response = await fetch("/api/auth/verify", {
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache",
-          },
+          headers,
         });
 
         if (response.ok) {
@@ -231,11 +259,34 @@ const IPTVLiveChat = () => {
     setIsLoading(true);
 
     try {
+      // Get token from localStorage for Authorization header
+      const getAuthToken = () => {
+        try {
+          return (
+            localStorage.getItem("authToken") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("auth-token") ||
+            null
+          );
+        } catch (e) {
+          console.warn("[IPTVLiveChat] Could not access localStorage:", e);
+          return null;
+        }
+      };
+
+      const token = getAuthToken();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch("/api/chat/query", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         credentials: "include",
         body: JSON.stringify({
           message: messageText,
