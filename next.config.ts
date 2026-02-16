@@ -97,7 +97,7 @@ const nextConfig: NextConfig = {
         destination: `${devBackendUrl}/api/:path*`,
       },
     ];
-  }, */
+  },
 
   // Handling timeout
   async redirects() {
