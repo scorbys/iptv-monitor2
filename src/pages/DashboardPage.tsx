@@ -102,38 +102,44 @@ export default function NetworkTrafficDashboard() {
       const response = await fetch('/api/dashboard/stats');
 
       if (response.ok) {
-        const apiData = await response.json();
+        // Validate content type before parsing
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const apiData = await response.json();
 
-        if (apiData.success && apiData.data) {
-          const { data } = apiData;
+          if (apiData.success && apiData.data) {
+            const { data } = apiData;
 
-          setCurrentStats({
-            channels: {
-              requests: data.channels.active || 0,
-              responseTime: 50 + Math.random() * 50,
-              errorRate: data.channels.total > 0 ? ((data.channels.inactive / data.channels.total) * 100) : 0,
-              throughput: (data.channels.active || 0) * 0.1,
-            },
-            hospitality: {
-              requests: data.tvs?.online || 0,
-              responseTime: 40 + Math.random() * 30,
-              errorRate: data.tvs?.total > 0 ? ((data.tvs?.offline / data.tvs?.total) * 100) : 0,
-              throughput: (data.tvs?.online || 0) * 0.15,
-            },
-            chromecast: {
-              requests: data.chromecasts?.online || 0,
-              responseTime: 30 + Math.random() * 20,
-              errorRate: data.chromecasts?.total > 0 ? ((data.chromecasts?.offline / data.chromecasts?.total) * 100) : 0,
-              throughput: (data.chromecasts?.online || 0) * 0.08,
-            },
-          });
-          setError(null);
-          return;
+            setCurrentStats({
+              channels: {
+                requests: data.channels.active || 0,
+                responseTime: 50 + Math.random() * 50,
+                errorRate: data.channels.total > 0 ? ((data.channels.inactive / data.channels.total) * 100) : 0,
+                throughput: (data.channels.active || 0) * 0.1,
+              },
+              hospitality: {
+                requests: data.tvs?.online || 0,
+                responseTime: 40 + Math.random() * 30,
+                errorRate: data.tvs?.total > 0 ? ((data.tvs?.offline / data.tvs?.total) * 100) : 0,
+                throughput: (data.tvs?.online || 0) * 0.15,
+              },
+              chromecast: {
+                requests: data.chromecasts?.online || 0,
+                responseTime: 30 + Math.random() * 20,
+                errorRate: data.chromecasts?.total > 0 ? ((data.chromecasts?.offline / data.chromecasts?.total) * 100) : 0,
+                throughput: (data.chromecasts?.online || 0) * 0.08,
+              },
+            });
+            setError(null);
+            return;
+          }
+        } else {
+          console.warn('API returned non-JSON response, using mock data');
         }
       }
 
       // Enhanced fallback with realistic data
-      console.warn('API not available, using enhanced mock data');
+      console.warn('API not available or returned error, using enhanced mock data');
     } catch (err) {
       console.warn('API error, using enhanced mock data:', err);
     }

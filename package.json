@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\" --names \"NEXT,BACKEND\" --prefix-colors \"blue,green\"",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\" \"npm run dev:ml\" --names \"NEXT,BACKEND,ML\" --prefix-colors \"blue,green,yellow\"",
     "dev:backend": "cd backend && npm run dev",
+    "dev:ml": "cd backend/ml-service && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

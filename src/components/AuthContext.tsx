@@ -7,6 +7,7 @@ interface User {
   id: string;
   username: string;
   email: string;
+  role?: 'admin' | 'guest';  // Tambahkan role
 }
 
 interface AuthContextType {
@@ -248,8 +249,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               id: result.user.userId || result.user.id,
               username: result.user.username,
               email: result.user.email,
+              role: result.user.role || 'guest',  // Tambahkan role
             };
             setUser(userData);
+
+            // Save user to localStorage
+            try {
+              localStorage.setItem('user', JSON.stringify(userData));
+              console.log("✅ User saved to localStorage (temp_token):", userData);
+            } catch (e) {
+              console.warn("Could not save user to localStorage:", e);
+            }
+
             console.log("✅ User authenticated via temp_token");
             return;
           }
@@ -293,9 +304,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               id: result.user.userId || result.user.id,
               username: result.user.username,
               email: result.user.email,
+              role: result.user.role || 'guest',  // Add role
             };
 
             setUser(userData);
+
+            // Save user to localStorage
+            try {
+              localStorage.setItem('user', JSON.stringify(userData));
+              console.log("✅ User saved to localStorage (verify):", userData);
+            } catch (e) {
+              console.warn("Could not save user to localStorage:", e);
+            }
 
             // MOBILE OPTIMIZATION: Sync token ke cookie jika hanya ada di localStorage
             if (!document.cookie.includes("token=") && token) {
@@ -381,10 +401,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: result.user.userId || result.user.id,
           username: result.user.username,
           email: result.user.email,
+          role: result.user.role || 'guest',  // Tambahkan role
         };
 
         console.log("✅ [Login] Setting user state:", userData);
         setUser(userData);
+
+        // CRITICAL FIX: Save user to localStorage for persistence
+        try {
+          localStorage.setItem('user', JSON.stringify(userData));
+          console.log("✅ [Login] User saved to localStorage:", userData);
+        } catch (e) {
+          console.warn("Could not save user to localStorage:", e);
+        }
 
         // CRITICAL FIX: Save token to localStorage and cookie after successful login
         if (result.token) {
@@ -509,9 +538,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: result.user.userId || result.user.id,
           username: result.user.username,
           email: result.user.email,
+          role: result.user.role || 'guest',  // Tambahkan role
         };
 
         setUser(userData);
+
+        // Save user to localStorage
+        try {
+          localStorage.setItem('user', JSON.stringify(userData));
+          console.log("✅ User saved to localStorage (register):", userData);
+        } catch (e) {
+          console.warn("Could not save user to localStorage:", e);
+        }
 
         // CRITICAL FIX: Save token to localStorage and cookie after successful registration
         if (result.token) {
