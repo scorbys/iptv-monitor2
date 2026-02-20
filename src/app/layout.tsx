@@ -5,6 +5,7 @@ import "@mantine/core/styles.css";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthContext";
 import { MantineProvider } from "@mantine/core";
+import { ModalsProvider } from "@mantine/modals";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import IPTVLiveChat from "@/components/IPTVLiveChat";
@@ -28,7 +29,9 @@ export default function RootLayout({
         <SpeedInsights />
         <Analytics />
         <AuthProvider>
-          <MantineProvider>{children}</MantineProvider>
+          <MantineProvider>
+            <ModalsProvider>{children}</ModalsProvider>
+          </MantineProvider>
           <ErrorBoundary>
             <IPTVLiveChat />
           </ErrorBoundary>
