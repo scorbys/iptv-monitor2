@@ -1,47 +1,24 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
-  Title,
-  Text,
-  Table,
-  ActionIcon,
-  Button,
-  Select,
-  TextInput,
-  Group,
-  Stack,
-  Badge,
-  Pagination,
-  LoadingOverlay,
-  Alert,
-  Modal,
-  Card,
-  Avatar,
-  Center,
-  Loader,
-  Progress,
-  ThemeIcon,
-} from "@mantine/core";
-import {
-  IconTrash,
-  IconPlus,
-  IconSearch,
-  IconRefresh,
-  IconCheck,
-  IconX,
-  IconAlertTriangle,
-  IconUsers,
-  IconBuilding,
-  IconIdBadge,
-  IconBriefcase,
-  IconActivity,
-  IconToggleLeft,
-  IconShield,
-  IconMail,
-  IconPhone,
-  IconCalendar,
-} from "@tabler/icons-react";
+  MagnifyingGlassIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  UserGroupIcon,
+  TrashIcon,
+  PlusIcon,
+  CheckIcon,
+  XMarkIcon,
+  BuildingOfficeIcon,
+  BriefcaseIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  UserIcon,
+} from "@heroicons/react/24/outline";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { DateFormatter } from "../DateFormatter";
 
 interface Staff {
   _id: string;
@@ -67,26 +44,30 @@ interface StaffPageProps {
   user: any;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function StaffPage({ user }: StaffPageProps) {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState<string | null>("all");
-  const [statusFilter, setStatusFilter] = useState<string | null>("all");
+  const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; staffId: string; name: string } | null>(null);
-  const [toggleModal, setToggleModal] = useState<{ open: boolean; staffId: string; name: string; currentStatus: boolean } | null>(null);
-  const [createModal, setCreateModal] = useState<{ open: boolean } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ staffId: string; name: string } | null>(null);
+  const [toggleModal, setToggleModal] = useState<{ staffId: string; name: string; currentStatus: boolean } | null>(null);
+  const [createModal, setCreateModal] = useState(false);
   const [createStaffForm, setCreateStaffForm] = useState({ name: "", email: "", phone: "", department: "", position: "" });
   const [createLoading, setCreateLoading] = useState(false);
-  const staffPerPage = 10;
+
+  const departments = ["All", "IT Support", "Network", "Engineering", "Operations"];
+  const statuses = ["All", "Active", "Inactive"];
 
   // Fetch staff from backend
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     try {
-      setLoading(true);
       setError(null);
 
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
@@ -111,17 +92,27 @@ export default function StaffPage({ user }: StaffPageProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchStaff();
   }, []);
 
-  // Delete staff
-  const handleDeleteStaff = async (staffId: string, name: string) => {
-    setDeleteModal({ open: true, staffId, name });
-  };
+  useEffect(() => {
+    setMounted(true);
+    fetchStaff();
+  }, [fetchStaff]);
 
+  // Auto-refresh every 2 minutes
+  useEffect(() => {
+    if (!mounted) return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchStaff().catch(console.error);
+      }
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [mounted, fetchStaff]);
+
+  // Delete staff
   const confirmDeleteStaff = async () => {
     if (!deleteModal) return;
 
@@ -154,14 +145,8 @@ export default function StaffPage({ user }: StaffPageProps) {
   };
 
   // Toggle staff active status
-  const handleToggleActive = async (staffId: string, currentStatus: boolean, name: string) => {
-    setToggleModal({ open: true, staffId, name, currentStatus });
-  };
-
   const confirmToggleActive = async () => {
     if (!toggleModal) return;
-
-    const action = toggleModal.currentStatus ? "deactivate" : "activate";
 
     try {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
@@ -221,7 +206,7 @@ export default function StaffPage({ user }: StaffPageProps) {
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      setCreateModal(null);
+      setCreateModal(false);
       setCreateStaffForm({ name: "", email: "", phone: "", department: "", position: "" });
       fetchStaff();
     } catch (err) {
@@ -244,636 +229,649 @@ export default function StaffPage({ user }: StaffPageProps) {
         member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         member.phone.includes(searchQuery);
 
-      const matchesDepartment = departmentFilter === "all" || member.department === departmentFilter;
-      const matchesStatus = statusFilter === "all" ||
-        (statusFilter === "active" && member.isActive) ||
-        (statusFilter === "inactive" && !member.isActive);
+      const matchesDepartment = departmentFilter === "All" || member.department === departmentFilter;
+      const matchesStatus = statusFilter === "All" ||
+        (statusFilter === "Active" && member.isActive) ||
+        (statusFilter === "Inactive" && !member.isActive);
 
       return matchesSearch && matchesDepartment && matchesStatus;
     });
   }, [staff, searchQuery, departmentFilter, statusFilter]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredStaff.length / staffPerPage);
-  const startIndex = (currentPage - 1) * staffPerPage;
-  const paginatedStaff = filteredStaff.slice(startIndex, startIndex + staffPerPage);
+  const totalPages = Math.ceil(filteredStaff.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedStaff = filteredStaff.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Stats
-  const stats = useMemo(() => {
-    return {
-      total: staff.length,
-      active: staff.filter(s => s.isActive).length,
-      inactive: staff.filter(s => !s.isActive).length,
-      itSupport: staff.filter(s => s.department === "IT Support").length,
-      network: staff.filter(s => s.department === "Network").length,
-      engineering: staff.filter(s => s.department === "Engineering").length,
-      operations: staff.filter(s => s.department === "Operations").length,
-    };
-  }, [staff]);
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, departmentFilter, statusFilter]);
 
-  // Get department badge color
+  // Get department badge config
   const getDepartmentConfig = (department: string) => {
-    const config = {
+    const config: Record<string, { icon: any; color: string; bg: string; text: string }> = {
       "IT Support": {
-        color: "blue",
-        icon: IconBuilding,
+        icon: BuildingOfficeIcon,
+        color: "bg-blue-100 text-blue-700 border-blue-200",
         bg: "bg-blue-50",
         text: "text-blue-700"
       },
       "Network": {
-        color: "cyan",
-        icon: IconIdBadge,
+        icon: BriefcaseIcon,
+        color: "bg-cyan-100 text-cyan-700 border-cyan-200",
         bg: "bg-cyan-50",
         text: "text-cyan-700"
       },
       "Engineering": {
-        color: "grape",
-        icon: IconBriefcase,
-        bg: "bg-grape-50",
-        text: "text-grape-700"
+        icon: UserIcon,
+        color: "bg-purple-100 text-purple-700 border-purple-200",
+        bg: "bg-purple-50",
+        text: "text-purple-700"
       },
       "Operations": {
-        color: "orange",
-        icon: IconActivity,
+        icon: BuildingOfficeIcon,
+        color: "bg-orange-100 text-orange-700 border-orange-200",
         bg: "bg-orange-50",
         text: "text-orange-700"
       },
     };
-    return config[department as keyof typeof config] || {
-      color: "gray",
-      icon: IconIdBadge,
+    return config[department] || {
+      icon: UserIcon,
+      color: "bg-gray-100 text-gray-700 border-gray-200",
       bg: "bg-gray-50",
       text: "text-gray-700"
     };
   };
 
-  // Get role badge
-  const getRoleBadge = (role: string) => {
-    const config = {
-      "Admin": { color: "red", label: "Admin" },
-      "Supervisor": { color: "orange", label: "Supervisor" },
-      "Technician": { color: "blue", label: "Technician" },
-    };
-    return config[role as keyof typeof config] || { color: "gray", label: role };
-  };
-
-  if (loading) {
+  if (!mounted) {
     return (
-      <Stack gap="lg" h="100%">
-        <LoadingOverlay visible={loading} />
-        <Stack align="center">
-          <Loader size="lg" color="blue" />
-          <Text size="lg" fw={500}>Loading staff...</Text>
-        </Stack>
-      </Stack>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
   return (
-    <Stack gap="xl">
-      {/* Header Section */}
-      <Stack gap="xs">
-        <Group justify="space-between" align="center">
-          <Stack gap={0}>
-            <Group gap="sm">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg">
-                <IconUsers size={24} color="white" />
-              </div>
-              <Title order={2}>Staff Management</Title>
-            </Group>
-            <Text size="sm" c="dimmed">
-              Manage staff members, assignments, and performance
-            </Text>
-          </Stack>
-          <Group>
-            <Button
-              leftSection={<IconRefresh size={16} />}
-              variant="light"
-              onClick={fetchStaff}
-              size="lg"
-            >
-              Refresh
-            </Button>
-            <Button
-              leftSection={<IconPlus size={16} />}
-              onClick={() => setCreateModal({ open: true })}
-              size="lg"
-              gradient={{ from: "purple", to: "pink" }}
-            >
-              Add Staff
-            </Button>
-          </Group>
-        </Group>
-      </Stack>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-purple-700">{stats.total}</div>
-            <div className="text-sm font-medium text-purple-600">Total</div>
-          </Stack>
-        </Card>
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-green-700">{stats.active}</div>
-            <div className="text-sm font-medium text-green-600">Active</div>
-          </Stack>
-        </Card>
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-gray-700">{stats.inactive}</div>
-            <div className="text-sm font-medium text-gray-600">Inactive</div>
-          </Stack>
-        </Card>
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-blue-700">{stats.itSupport}</div>
-            <div className="text-sm font-medium text-blue-600">IT</div>
-          </Stack>
-        </Card>
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-cyan-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-cyan-700">{stats.network}</div>
-            <div className="text-sm font-medium text-cyan-600">Network</div>
-          </Stack>
-        </Card>
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-grape-50 to-grape-100 border-grape-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-grape-700">{stats.engineering}</div>
-            <div className="text-sm font-medium text-grape-600">Eng</div>
-          </Stack>
-        </Card>
-        <Card shadow="sm" padding="lg" radius="md" className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <Stack gap={0} align="center">
-            <div className="text-3xl font-bold text-orange-700">{stats.operations}</div>
-            <div className="text-sm font-medium text-orange-600">Ops</div>
-          </Stack>
-        </Card>
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg">
+              <UserGroupIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </div>
+            Staff Management
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Manage staff members, assignments, and performance
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchStaff}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            <ArrowPathIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            onClick={() => setCreateModal(true)}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add Staff
+          </button>
+        </div>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <Alert color="red" title="Error" icon={<IconAlertTriangle size={20} />}>
-          {error}
-        </Alert>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <ExclamationTriangleIcon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-red-900">Error</h3>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+        </div>
       )}
 
       {/* Filters */}
-      <Card shadow="sm" padding="lg" radius="md">
-        <Group>
-          <TextInput
-            placeholder="Search by name, email, or phone..."
-            leftSection={<IconSearch size={16} />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.currentTarget.value)}
-            style={{ flex: 1 }}
-            size="lg"
-            radius="md"
-          />
-          <Select
-            placeholder="Department"
-            data={[
-              { value: "all", label: "All Departments" },
-              { value: "IT Support", label: "IT Support" },
-              { value: "Network", label: "Network" },
-              { value: "Engineering", label: "Engineering" },
-              { value: "Operations", label: "Operations" },
-            ]}
-            value={departmentFilter}
-            onChange={(value) => setDepartmentFilter(value as string | null)}
-            style={{ width: 150 }}
-            clearable
-            size="lg"
-            radius="md"
-            leftSection={<IconBuilding size={16} />}
-          />
-          <Select
-            placeholder="Status"
-            data={[
-              { value: "all", label: "All Status" },
-              { value: "active", label: "Active" },
-              { value: "inactive", label: "Inactive" },
-            ]}
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value as string | null)}
-            style={{ width: 130 }}
-            clearable
-            size="lg"
-            radius="md"
-            leftSection={<IconToggleLeft size={16} />}
-          />
-        </Group>
-      </Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+          {/* Search Bar */}
+          <div className="relative w-full lg:flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, email, or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+            />
+          </div>
 
-      {/* Staff Table */}
-      <Card shadow="sm" padding={0} radius="md">
-        <Table striped highlightOnHover>
-          <Table.Thead className="bg-gray-50">
-            <Table.Tr>
-              <Table.Th fw={600}>Staff Member</Table.Th>
-              <Table.Th fw={600}>Contact</Table.Th>
-              <Table.Th fw={600}>Department</Table.Th>
-              <Table.Th fw={600}>Role</Table.Th>
-              <Table.Th fw={600}>Status</Table.Th>
-              <Table.Th fw={600}>Performance</Table.Th>
-              <Table.Th fw={600} ta="right">Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {paginatedStaff.length === 0 ? (
-              <Table.Tr>
-                <Table.Td colSpan={7} ta="center">
-                  <Stack gap="sm" py="xl" align="center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <IconSearch size={32} className="text-gray-400" />
-                    </div>
-                    <Text size="lg" fw={500} c="dimmed">No staff found</Text>
-                    <Text size="sm" c="dimmed">Try adjusting your search or filters</Text>
-                  </Stack>
-                </Table.Td>
-              </Table.Tr>
-            ) : (
-              paginatedStaff.map((member) => {
-                const deptConfig = getDepartmentConfig(member.department);
-                const DeptIcon = deptConfig.icon;
-                const roleBadge = getRoleBadge(member.role);
+          {/* Department Filter Dropdown */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl hover:from-purple-100 hover:to-pink-100 hover:border-purple-300 transition-all duration-200 shadow-sm hover:shadow-md group min-w-[160px]">
+                <span className="text-sm font-medium text-purple-700 truncate">
+                  {departmentFilter === "All" ? "All Departments" : departmentFilter}
+                </span>
+                <ChevronDownIcon className="w-4 h-4 text-purple-500 group-hover:text-purple-600 transition-colors flex-shrink-0" />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className="min-w-[160px] bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
+                {departments.map((dept) => (
+                  <DropdownMenu.Item
+                    key={`dept-${dept}`}
+                    className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setDepartmentFilter(dept)}
+                  >
+                    {dept === "All" ? "All Departments" : dept}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
 
-                return (
-                  <Table.Tr key={member._id} className="hover:bg-purple-50/30 transition-colors">
-                    <Table.Td>
-                      <Group gap="sm">
-                        <Avatar
-                          size="md"
-                          radius="xl"
-                          src={member.avatar || undefined}
-                          color={deptConfig.color}
-                        >
-                          {member.name.charAt(0).toUpperCase()}
-                        </Avatar>
-                        <Stack gap={0}>
-                          <Text fw={600} size="sm">{member.name}</Text>
-                          <Group gap={0}>
-                            <Text size="xs" c="dimmed">ID: {member._id.slice(-6)}</Text>
-                          </Group>
-                        </Stack>
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Stack gap={0}>
-                        <Group gap={0}>
-                          <IconMail size={14} className="text-gray-500" />
-                          <Text size="xs">{member.email}</Text>
-                        </Group>
-                        {member.phone && (
-                          <Group gap={0}>
-                            <IconPhone size={14} className="text-gray-500" />
-                            <Text size="xs">{member.phone}</Text>
-                          </Group>
-                        )}
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={deptConfig.color}
-                        variant="light"
-                        leftSection={<DeptIcon size={12} />}
-                        radius="md"
-                      >
-                        {member.department}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={roleBadge.color}
-                        variant="light"
-                        radius="md"
-                      >
-                        {roleBadge.label}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={member.isActive ? "green" : "gray"}
-                        variant="light"
-                        leftSection={member.isActive ? <IconCheck size={12} /> : <IconX size={12} />}
-                        radius="md"
-                      >
-                        {member.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Stack gap={0}>
-                        <Group gap={0}>
-                          <Text size="xs" c="dimmed">Assigned:</Text>
-                          <Text size="xs" fw={600}>{member.stats.totalAssigned}</Text>
-                        </Group>
-                        <Group gap={0}>
-                          <Text size="xs" c="dimmed">Resolved:</Text>
-                          <Text size="xs" fw={600}>{member.stats.totalResolved}</Text>
-                        </Group>
-                        <Group gap={0}>
-                          <Text size="xs" c="dimmed">Success:</Text>
-                          <Text
-                            size="xs"
-                            fw={600}
-                            c={member.stats.successRate >= 80 ? "green" : member.stats.successRate >= 50 ? "yellow" : "red"}
-                          >
-                            {member.stats.successRate.toFixed(0)}%
-                          </Text>
-                        </Group>
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td ta="right">
-                      <Group gap="xs" justify="right">
-                        <ActionIcon
-                          color={member.isActive ? "orange" : "green"}
-                          variant="light"
-                          onClick={() => handleToggleActive(member._id, member.isActive, member.name)}
-                          size="lg"
-                          radius="md"
-                          title={member.isActive ? "Deactivate" : "Activate"}
-                        >
-                          <IconRefresh size={16} />
-                        </ActionIcon>
-                        <ActionIcon
-                          color="red"
-                          variant="light"
-                          onClick={() => handleDeleteStaff(member._id, member.name)}
-                          size="lg"
-                          radius="md"
-                          title="Delete"
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })
-            )}
-          </Table.Tbody>
-        </Table>
+          {/* Status Filter Dropdown */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl hover:from-gray-100 hover:to-gray-150 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md group min-w-[140px]">
+                <span className="text-sm font-medium text-gray-700 truncate">
+                  {statusFilter === "All" ? "All Status" : statusFilter}
+                </span>
+                <ChevronDownIcon className="w-4 h-4 text-gray-500 group-hover:text-gray-600 transition-colors flex-shrink-0" />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className="min-w-[140px] bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
+                {statuses.map((status) => (
+                  <DropdownMenu.Item
+                    key={`status-${status}`}
+                    className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setStatusFilter(status)}
+                  >
+                    {status === "All" ? "All Status" : status}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
+      </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <Stack p="md">
-            <Group justify="center" mt="md">
-              <Pagination
-                total={totalPages}
-                value={currentPage}
-                onChange={setCurrentPage}
-                size="lg"
-                radius="md"
-              />
-            </Group>
-            <Text size="sm" c="dimmed" ta="center">
-              Showing {startIndex + 1}-{Math.min(startIndex + staffPerPage, filteredStaff.length)} of {filteredStaff.length} staff
-            </Text>
-          </Stack>
-        )}
-      </Card>
+      {/* Loading State */}
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <p className="text-gray-600 font-medium">Loading staff...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Staff Member
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Department
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden sm:table-cell">
+                    Performance
+                  </th>
+                  <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedStaff.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 sm:px-6 py-12">
+                      <div className="flex flex-col items-center justify-center gap-4">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                          <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-lg font-semibold text-gray-900">No staff found</p>
+                          <p className="text-sm text-gray-500 mt-1">Try adjusting your search or filters</p>
+                          {(searchQuery || departmentFilter !== "All" || statusFilter !== "All") && (
+                            <button
+                              onClick={() => {
+                                setSearchQuery("");
+                                setDepartmentFilter("All");
+                                setStatusFilter("All");
+                              }}
+                              className="mt-3 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                            >
+                              Clear all filters
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedStaff.map((member) => {
+                    const deptConfig = getDepartmentConfig(member.department);
+                    const DeptIcon = deptConfig.icon;
+
+                    return (
+                      <tr
+                        key={member._id}
+                        className="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50 transition-all duration-200"
+                      >
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+                              <span className="text-sm font-bold text-white">
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {member.name}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                ID: {member._id.slice(-6)}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <EnvelopeIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                              <p className="text-xs text-gray-600 truncate">{member.email}</p>
+                            </div>
+                            {member.phone && (
+                              <div className="flex items-center gap-2">
+                                <PhoneIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                <p className="text-xs text-gray-600">{member.phone}</p>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${deptConfig.color}`}>
+                            <DeptIcon className="w-3 h-3" />
+                            {member.department}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                            {member.role}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                            member.isActive
+                              ? "bg-green-100 text-green-700 border-green-200"
+                              : "bg-gray-100 text-gray-700 border-gray-200"
+                          }`}>
+                            {member.isActive ? (
+                              <CheckIcon className="w-3 h-3" />
+                            ) : (
+                              <XMarkIcon className="w-3 h-3" />
+                            )}
+                            {member.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Assigned:</span>
+                              <span className="text-xs font-semibold text-gray-900">{member.stats.totalAssigned}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Resolved:</span>
+                              <span className="text-xs font-semibold text-gray-900">{member.stats.totalResolved}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Success:</span>
+                              <span className={`text-xs font-semibold ${
+                                member.stats.successRate >= 80
+                                  ? "text-green-600"
+                                  : member.stats.successRate >= 50
+                                  ? "text-yellow-600"
+                                  : "text-red-600"
+                              }`}>
+                                {member.stats.successRate.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setToggleModal({ staffId: member._id, name: member.name, currentStatus: member.isActive })}
+                              className={`p-2 rounded-lg transition-all duration-200 ${
+                                member.isActive
+                                  ? "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                                  : "bg-green-50 text-green-600 hover:bg-green-100"
+                              }`}
+                              title={member.isActive ? "Deactivate" : "Activate"}
+                            >
+                              <ArrowPathIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteModal({ staffId: member._id, name: member.name })}
+                              className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200"
+                              title="Delete"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-sm text-gray-600">
+                  Showing <span className="font-medium text-gray-900">{startIndex + 1}</span> to{" "}
+                  <span className="font-medium text-gray-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredStaff.length)}</span> of{" "}
+                  <span className="font-medium text-gray-900">{filteredStaff.length}</span> staff
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-10 h-10 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          currentPage === page
+                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
-      <Modal
-        opened={deleteModal?.open || false}
-        onClose={() => setDeleteModal(null)}
-        title={
-          <Group gap="sm">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <IconAlertTriangle size={24} color="red" />
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Delete Staff</h3>
             </div>
-            <Text size="lg" fw={600}>Delete Staff</Text>
-          </Group>
-        }
-        centered
-        size="md"
-        radius="md"
-      >
-        <Stack gap="lg">
-          <Stack gap="xs">
-            <Text size="sm">
-              Are you sure you want to delete staff member <b>{deleteModal?.name}</b>?
-            </Text>
-            <Text size="xs" c="red" fw={500}>
+            <p className="text-sm text-gray-600 mb-2">
+              Are you sure you want to delete staff member <b>{deleteModal.name}</b>?
+            </p>
+            <p className="text-xs text-red-600 mb-6">
               This action cannot be undone and will permanently remove the staff member from the system.
-            </Text>
-          </Stack>
-          <Group justify="flex-end" gap="xs">
-            <Button
-              variant="default"
-              onClick={() => setDeleteModal(null)}
-              size="md"
-              radius="md"
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              onClick={confirmDeleteStaff}
-              size="md"
-              radius="md"
-              leftSection={<IconTrash size={16} />}
-            >
-              Delete
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteStaff}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toggle Active Confirmation Modal */}
-      <Modal
-        opened={toggleModal?.open || false}
-        onClose={() => setToggleModal(null)}
-        title={
-          <Group gap="sm">
-            <div className={`p-2 rounded-lg ${toggleModal?.currentStatus ? "bg-orange-100" : "bg-green-100"}`}>
-              <IconToggleLeft size={24} color={toggleModal?.currentStatus ? "orange" : "green"} />
+      {toggleModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`p-2 rounded-lg ${toggleModal.currentStatus ? "bg-orange-100" : "bg-green-100"}`}>
+                <ArrowPathIcon className={`w-6 h-6 ${toggleModal.currentStatus ? "text-orange-600" : "text-green-600"}`} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {toggleModal.currentStatus ? "Deactivate" : "Activate"} Staff
+              </h3>
             </div>
-            <Text size="lg" fw={600}>
-              {toggleModal?.currentStatus ? "Deactivate" : "Activate"} Staff
-            </Text>
-          </Group>
-        }
-        centered
-        size="md"
-        radius="md"
-      >
-        <Stack gap="lg">
-          <Stack gap="xs">
-            <Text size="sm">
-              Are you sure you want to <b>{toggleModal?.currentStatus ? "deactivate" : "activate"}</b> staff member <b>{toggleModal?.name}</b>?
-            </Text>
-            <Text size="xs" c="dimmed">
-              {toggleModal?.currentStatus
-                ? "This will prevent the staff member from receiving new assignments."
-                : "This will allow the staff member to receive new assignments."
-              }
-            </Text>
-          </Stack>
-          <Group justify="flex-end" gap="xs">
-            <Button
-              variant="default"
-              onClick={() => setToggleModal(null)}
-              size="md"
-              radius="md"
-            >
-              Cancel
-            </Button>
-            <Button
-              color={toggleModal?.currentStatus ? "orange" : "green"}
-              onClick={confirmToggleActive}
-              size="md"
-              radius="md"
-              leftSection={<IconToggleLeft size={16} />}
-            >
-              {toggleModal?.currentStatus ? "Deactivate" : "Activate"}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+            <p className="text-sm text-gray-600 mb-6">
+              Are you sure you want to <b>{toggleModal.currentStatus ? "deactivate" : "activate"}</b> staff member{" "}
+              <b>{toggleModal.name}</b>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setToggleModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmToggleActive}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-all duration-200 ${
+                  toggleModal.currentStatus
+                    ? "bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800"
+                    : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                }`}
+              >
+                {toggleModal.currentStatus ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Modal */}
-      <Modal
-        opened={modalError !== null}
-        onClose={() => setModalError(null)}
-        title={
-          <Group gap="sm">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <IconAlertTriangle size={24} color="red" />
+      {modalError && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">{modalError.title}</h3>
             </div>
-            <Text size="lg" fw={600}>{modalError?.title || "Error"}</Text>
-          </Group>
-        }
-        centered
-        size="md"
-        radius="md"
-      >
-        {modalError && (
-          <Stack gap="md">
-            <Group gap="sm" p="md" className="bg-red-50 rounded-lg">
-              <IconAlertTriangle size={24} color="red" />
-              <Text c="red" fw={500}>{modalError.message}</Text>
-            </Group>
-            <Group justify="flex-end">
-              <Button
+            <p className="text-sm text-red-600 mb-6">{modalError.message}</p>
+            <div className="flex justify-end">
+              <button
                 onClick={() => setModalError(null)}
-                size="md"
-                radius="md"
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-all duration-200"
               >
                 Close
-              </Button>
-            </Group>
-          </Stack>
-        )}
-      </Modal>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Staff Modal */}
-      <Modal
-        opened={createModal?.open || false}
-        onClose={() => {
-          setCreateModal(null);
-          setCreateStaffForm({ name: "", email: "", phone: "", department: "", position: "" });
-        }}
-        title={
-          <Group gap="sm">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <IconUsers size={24} color="purple" />
+      {createModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <UserGroupIcon className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Create New Staff</h3>
             </div>
-            <Text size="lg" fw={600}>Create New Staff</Text>
-          </Group>
-        }
-        centered
-        size="md"
-        radius="md"
-      >
-        <Stack gap="lg">
-          <Stack gap="md">
-            <TextInput
-              label="Name"
-              placeholder="Enter full name"
-              value={createStaffForm.name}
-              onChange={(e) => setCreateStaffForm({ ...createStaffForm, name: e.currentTarget.value })}
-              required
-              size="md"
-              radius="md"
-              leftSection={<IconUsers size={16} />}
-            />
-            <TextInput
-              label="Email"
-              type="email"
-              placeholder="staff@example.com"
-              value={createStaffForm.email}
-              onChange={(e) => setCreateStaffForm({ ...createStaffForm, email: e.currentTarget.value })}
-              required
-              size="md"
-              radius="md"
-              leftSection={<IconMail size={16} />}
-            />
-            <TextInput
-              label="Phone"
-              placeholder="+1234567890"
-              value={createStaffForm.phone}
-              onChange={(e) => setCreateStaffForm({ ...createStaffForm, phone: e.currentTarget.value })}
-              size="md"
-              radius="md"
-              leftSection={<IconPhone size={16} />}
-            />
-            <Select
-              label="Department"
-              placeholder="Select department"
-              data={[
-                { value: "IT Support", label: "IT Support" },
-                { value: "Network", label: "Network" },
-                { value: "Engineering", label: "Engineering" },
-                { value: "Operations", label: "Operations" },
-              ]}
-              value={createStaffForm.department}
-              onChange={(value) => setCreateStaffForm({ ...createStaffForm, department: value || "" })}
-              size="md"
-              radius="md"
-              leftSection={<IconBuilding size={16} />}
-            />
-            <Select
-              label="Position"
-              placeholder="Select position"
-              data={[
-                { value: "Admin", label: "Admin" },
-                { value: "Supervisor", label: "Supervisor" },
-                { value: "Technician", label: "Technician" },
-              ]}
-              value={createStaffForm.position}
-              onChange={(value) => setCreateStaffForm({ ...createStaffForm, position: value || "" })}
-              size="md"
-              radius="md"
-              leftSection={<IconBriefcase size={16} />}
-            />
-          </Stack>
-          <Group justify="flex-end" gap="xs">
-            <Button
-              variant="default"
-              onClick={() => {
-                setCreateModal(null);
-                setCreateStaffForm({ name: "", email: "", phone: "", department: "", position: "" });
-              }}
-              size="md"
-              radius="md"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateStaff}
-              loading={createLoading}
-              size="md"
-              radius="md"
-              gradient={{ from: "purple", to: "pink" }}
-              leftSection={<IconPlus size={16} />}
-            >
-              Create Staff
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Stack>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Enter full name"
+                    value={createStaffForm.name}
+                    onChange={(e) => setCreateStaffForm({ ...createStaffForm, name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    placeholder="staff@example.com"
+                    value={createStaffForm.email}
+                    onChange={(e) => setCreateStaffForm({ ...createStaffForm, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+                <div className="relative">
+                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="+1234567890"
+                    value={createStaffForm.phone}
+                    onChange={(e) => setCreateStaffForm({ ...createStaffForm, phone: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 text-sm text-left">
+                      <span className={createStaffForm.department ? "text-gray-900" : "text-gray-500"}>
+                        {createStaffForm.department || "Select department"}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
+                      {["IT Support", "Network", "Engineering", "Operations"].map((dept) => (
+                        <DropdownMenu.Item
+                          key={dept}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                          onClick={() => setCreateStaffForm({ ...createStaffForm, department: dept })}
+                        >
+                          {dept}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Position</label>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 text-sm text-left">
+                      <span className={createStaffForm.position ? "text-gray-900" : "text-gray-500"}>
+                        {createStaffForm.position || "Select position"}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
+                      {["Admin", "Supervisor", "Technician"].map((pos) => (
+                        <DropdownMenu.Item
+                          key={pos}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                          onClick={() => setCreateStaffForm({ ...createStaffForm, position: pos })}
+                        >
+                          {pos}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setCreateModal(false);
+                  setCreateStaffForm({ name: "", email: "", phone: "", department: "", position: "" });
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateStaff}
+                disabled={createLoading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all duration-200"
+              >
+                {createLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon className="w-4 h-4" />
+                    Create Staff
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
