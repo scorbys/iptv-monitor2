@@ -62,7 +62,7 @@ export default function StaffPage({ user }: StaffPageProps) {
   const [createStaffForm, setCreateStaffForm] = useState({ name: "", email: "", phone: "", department: "", position: "" });
   const [createLoading, setCreateLoading] = useState(false);
 
-  const departments = ["All", "IT Support", "Network", "Engineering", "Operations"];
+  const departments = ["All", "IT Support", "Engineering"];
   const statuses = ["All", "Active", "Inactive"];
 
   // Fetch staff from backend
@@ -98,6 +98,23 @@ export default function StaffPage({ user }: StaffPageProps) {
     setMounted(true);
     fetchStaff();
   }, [fetchStaff]);
+
+  // ESC key handler to close modals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDeleteModal(null);
+        setToggleModal(null);
+        setModalError(null);
+        setCreateModal(false);
+      }
+    };
+
+    if (deleteModal || toggleModal || modalError || createModal) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [deleteModal, toggleModal, modalError, createModal]);
 
   // Auto-refresh every 2 minutes
   useEffect(() => {
@@ -257,23 +274,11 @@ export default function StaffPage({ user }: StaffPageProps) {
         bg: "bg-blue-50",
         text: "text-blue-700"
       },
-      "Network": {
-        icon: BriefcaseIcon,
-        color: "bg-cyan-100 text-cyan-700 border-cyan-200",
-        bg: "bg-cyan-50",
-        text: "text-cyan-700"
-      },
       "Engineering": {
-        icon: UserIcon,
-        color: "bg-purple-100 text-purple-700 border-purple-200",
-        bg: "bg-purple-50",
-        text: "text-purple-700"
-      },
-      "Operations": {
-        icon: BuildingOfficeIcon,
-        color: "bg-orange-100 text-orange-700 border-orange-200",
-        bg: "bg-orange-50",
-        text: "text-orange-700"
+        icon: BriefcaseIcon,
+        color: "bg-indigo-100 text-indigo-700 border-indigo-200",
+        bg: "bg-indigo-50",
+        text: "text-indigo-700"
       },
     };
     return config[department] || {
@@ -298,7 +303,7 @@ export default function StaffPage({ user }: StaffPageProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
               <UserGroupIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             Staff Management
@@ -317,7 +322,7 @@ export default function StaffPage({ user }: StaffPageProps) {
           </button>
           <button
             onClick={() => setCreateModal(true)}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
           >
             <PlusIcon className="w-4 h-4" />
             Add Staff
@@ -347,18 +352,18 @@ export default function StaffPage({ user }: StaffPageProps) {
               placeholder="Search by name, email, or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
+              className="pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 w-full bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all duration-200 placeholder-gray-500 text-sm sm:text-base"
             />
           </div>
 
           {/* Department Filter Dropdown */}
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <button className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl hover:from-purple-100 hover:to-pink-100 hover:border-purple-300 transition-all duration-200 shadow-sm hover:shadow-md group min-w-[160px]">
-                <span className="text-sm font-medium text-purple-700 truncate">
+              <button className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md group min-w-[160px]">
+                <span className="text-sm font-medium text-blue-700 truncate">
                   {departmentFilter === "All" ? "All Departments" : departmentFilter}
                 </span>
-                <ChevronDownIcon className="w-4 h-4 text-purple-500 group-hover:text-purple-600 transition-colors flex-shrink-0" />
+                <ChevronDownIcon className="w-4 h-4 text-blue-500 group-hover:text-blue-600 transition-colors flex-shrink-0" />
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
@@ -366,7 +371,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                 {departments.map((dept) => (
                   <DropdownMenu.Item
                     key={`dept-${dept}`}
-                    className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                     onClick={() => setDepartmentFilter(dept)}
                   >
                     {dept === "All" ? "All Departments" : dept}
@@ -407,7 +412,7 @@ export default function StaffPage({ user }: StaffPageProps) {
       {loading ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
           <div className="flex flex-col items-center justify-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="text-gray-600 font-medium">Loading staff...</p>
           </div>
         </div>
@@ -458,7 +463,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                                 setDepartmentFilter("All");
                                 setStatusFilter("All");
                               }}
-                              className="mt-3 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                              className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
                             >
                               Clear all filters
                             </button>
@@ -475,11 +480,11 @@ export default function StaffPage({ user }: StaffPageProps) {
                     return (
                       <tr
                         key={member._id}
-                        className="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50 transition-all duration-200"
+                        className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-all duration-200"
                       >
                         <td className="px-4 sm:px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
                               <span className="text-sm font-bold text-white">
                                 {member.name.charAt(0).toUpperCase()}
                               </span>
@@ -611,7 +616,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                         onClick={() => setCurrentPage(page)}
                         className={`w-10 h-10 text-sm font-medium rounded-lg transition-all duration-200 ${
                           currentPage === page
-                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
+                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
                             : "text-gray-700 hover:bg-gray-100"
                         }`}
                       >
@@ -635,8 +640,11 @@ export default function StaffPage({ user }: StaffPageProps) {
 
       {/* Delete Confirmation Modal */}
       {deleteModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setDeleteModal(null)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
@@ -669,8 +677,11 @@ export default function StaffPage({ user }: StaffPageProps) {
 
       {/* Toggle Active Confirmation Modal */}
       {toggleModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setToggleModal(null)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className={`p-2 rounded-lg ${toggleModal.currentStatus ? "bg-orange-100" : "bg-green-100"}`}>
                 <ArrowPathIcon className={`w-6 h-6 ${toggleModal.currentStatus ? "text-orange-600" : "text-green-600"}`} />
@@ -707,8 +718,11 @@ export default function StaffPage({ user }: StaffPageProps) {
 
       {/* Error Modal */}
       {modalError && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setModalError(null)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
@@ -730,11 +744,14 @@ export default function StaffPage({ user }: StaffPageProps) {
 
       {/* Create Staff Modal */}
       {createModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setCreateModal(false)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <UserGroupIcon className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <UserGroupIcon className="w-6 h-6 text-blue-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Create New Staff</h3>
             </div>
@@ -751,7 +768,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                     placeholder="Enter full name"
                     value={createStaffForm.name}
                     onChange={(e) => setCreateStaffForm({ ...createStaffForm, name: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
                   />
                 </div>
               </div>
@@ -767,7 +784,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                     placeholder="staff@example.com"
                     value={createStaffForm.email}
                     onChange={(e) => setCreateStaffForm({ ...createStaffForm, email: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
                   />
                 </div>
               </div>
@@ -781,7 +798,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                     placeholder="+1234567890"
                     value={createStaffForm.phone}
                     onChange={(e) => setCreateStaffForm({ ...createStaffForm, phone: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
                   />
                 </div>
               </div>
@@ -799,10 +816,10 @@ export default function StaffPage({ user }: StaffPageProps) {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
-                      {["IT Support", "Network", "Engineering", "Operations"].map((dept) => (
+                      {["IT Support", "Engineering"].map((dept) => (
                         <DropdownMenu.Item
                           key={dept}
-                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                           onClick={() => setCreateStaffForm({ ...createStaffForm, department: dept })}
                         >
                           {dept}
@@ -829,7 +846,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                       {["Admin", "Supervisor", "Technician"].map((pos) => (
                         <DropdownMenu.Item
                           key={pos}
-                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                           onClick={() => setCreateStaffForm({ ...createStaffForm, position: pos })}
                         >
                           {pos}
@@ -854,7 +871,7 @@ export default function StaffPage({ user }: StaffPageProps) {
               <button
                 onClick={handleCreateStaff}
                 disabled={createLoading}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all duration-200"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200"
               >
                 {createLoading ? (
                   <>

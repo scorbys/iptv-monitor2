@@ -109,6 +109,22 @@ export default function UsersPage({ user }: UsersPageProps) {
     return () => clearInterval(interval);
   }, [mounted, fetchUsers]);
 
+  // ESC key handler to close modals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDeleteModal(null);
+        setRoleModal(null);
+        setModalError(null);
+      }
+    };
+
+    if (deleteModal || roleModal || modalError) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [deleteModal, roleModal, modalError]);
+
   // Manual refresh
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -506,11 +522,11 @@ export default function UsersPage({ user }: UsersPageProps) {
                             <DropdownMenu.Trigger asChild>
                               <button
                                 disabled={userData._id === user?._id}
-                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                               title="Change role"
                               >
                                 Change Role
-                                <ChevronDownIcon className="w-3 h-3 ml-1" />
+                                <ChevronDownIcon className="w-4 h-4 ml-1" />
                               </button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Portal>
@@ -518,7 +534,7 @@ export default function UsersPage({ user }: UsersPageProps) {
                                 {["admin", "guest", "user"].filter(r => r !== userData.role).map((role) => (
                                   <DropdownMenu.Item
                                     key={role}
-                                    className="flex items-center px-3 py-2.5 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                                    className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                                     onClick={() => handleChangeRole(userData._id, role, userData.username)}
                                   >
                                     {role === "admin" ? "Admin" : role === "guest" ? "Guest" : "User"}
@@ -610,8 +626,11 @@ export default function UsersPage({ user }: UsersPageProps) {
 
       {/* Delete Confirmation Modal */}
       {deleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setDeleteModal(null)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
@@ -644,8 +663,11 @@ export default function UsersPage({ user }: UsersPageProps) {
 
       {/* Change Role Confirmation Modal */}
       {roleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setRoleModal(null)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <ShieldCheckIcon className="w-6 h-6 text-blue-600" />
@@ -681,8 +703,11 @@ export default function UsersPage({ user }: UsersPageProps) {
 
       {/* Error Modal */}
       {modalError && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setModalError(null)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
