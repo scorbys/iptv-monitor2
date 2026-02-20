@@ -194,10 +194,15 @@ export async function middleware(request) {
 
   // CRITICAL FIX: Check for token in query parameter (for cross-origin login scenarios)
   const url = request.nextUrl;
-  const queryToken = url.searchParams.get("token");
+  const queryToken = url.searchParams.get("token") || url.searchParams.get("temp_token");
+  const googleLoginSuccess = url.searchParams.get("google_login");
 
   if (queryToken && pathname !== "/login") {
-    console.log("[MIDDLEWARE] Token found in query parameter, setting cookie...");
+    console.log("[MIDDLEWARE] Token found in query parameter:", {
+      tokenType: url.searchParams.get("token") ? "token" : "temp_token",
+      googleLogin: googleLoginSuccess,
+      pathname
+    });
 
     // Verify the token first
     try {
@@ -232,6 +237,7 @@ export async function middleware(request) {
             };
 
         response.cookies.set("token", queryToken, cookieOptions);
+        response.cookies.set("authToken", queryToken, cookieOptions); // Also set authToken
 
         // Add user info headers for protected pages
         response.headers.set("x-user-id", payload.userId);
@@ -239,18 +245,24 @@ export async function middleware(request) {
         response.headers.set("x-user-email", payload.email || "");
         response.headers.set("Vary", "Cookie");
 
-        // Remove token from URL by redirecting to clean URL
+        // Clean URL by removing OAuth parameters
         const cleanUrl = new URL(request.url);
         cleanUrl.searchParams.delete("token");
+        cleanUrl.searchParams.delete("temp_token");
+        cleanUrl.searchParams.delete("google_login");
+        cleanUrl.searchParams.delete("_t");
 
-        // Only redirect if token was actually removed from URL
+        // Only redirect if URL was changed
         if (cleanUrl.search !== url.search) {
           const redirectResponse = NextResponse.redirect(cleanUrl.toString());
           // Copy the cookie settings to redirect response
           redirectResponse.cookies.set("token", queryToken, cookieOptions);
+          redirectResponse.cookies.set("authToken", queryToken, cookieOptions);
+          console.log("[MIDDLEWARE] Redirecting to clean URL:", cleanUrl.pathname);
           return redirectResponse;
         }
 
+        console.log("[MIDDLEWARE] Continuing to page with token set");
         return response;
       }
     } catch (error) {
