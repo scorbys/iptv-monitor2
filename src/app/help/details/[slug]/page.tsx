@@ -1,6 +1,6 @@
 "use client";
 
-import HelpDetails from "@/pages/HelpDetails";
+import HelpDetails from "@/components/pages/HelpDetails";
 
 export default function HelpDetailsPage() {
   return <HelpDetails />;

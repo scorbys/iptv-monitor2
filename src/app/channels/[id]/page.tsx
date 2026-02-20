@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import ChannelDetailsPage from "@/pages/ChannelDetailsPage";
+import ChannelDetailsPage from "@/components/pages/ChannelDetailsPage";
 
 interface PageProps {
   params: Promise<{

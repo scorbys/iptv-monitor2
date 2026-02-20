@@ -1,6 +1,6 @@
 "use client";
 
-import HelpPage from "@/pages/HelpPage";
+import HelpPage from "@/components/pages/HelpPage";
 
 export default function Help() {
   return <HelpPage />;

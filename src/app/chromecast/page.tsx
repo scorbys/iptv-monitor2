@@ -2,7 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import ChromecastPage from "@/pages/ChromecastPage";
+import ChromecastPage from "@/components/pages/ChromecastPage";
 
 export default function Chromecast() {
   return (

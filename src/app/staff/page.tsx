@@ -2,7 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import StaffPage from "@/pages/StaffPage";
+import StaffPage from "@/components/pages/StaffPage";
 import { useAuth } from "@/components/AuthContext";
 
 export default function Staff() {

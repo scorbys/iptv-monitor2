@@ -2,7 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import TvPage from "@/pages/TvPage";
+import TvPage from "@/components/pages/TvPage";
 
 export default function Hospitality() {
   return (

@@ -2,7 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import DashboardPage from "@/pages/DashboardPage";
+import DashboardPage from "@/components/pages/DashboardPage";
 
 export default function Dashboard() {
   return (

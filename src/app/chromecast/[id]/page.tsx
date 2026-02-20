@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import ChromecastDetailsPage from "@/pages/ChromecastDetailsPage";
+import ChromecastDetailsPage from "@/components/pages/ChromecastDetailsPage";
 
 interface PageProps {
   params: Promise<{

@@ -2,7 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import NotifPage from "@/pages/NotifPage";
+import NotifPage from "@/components/pages/NotifPage";
 
 export default function Hospitality() {
   return (

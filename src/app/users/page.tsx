@@ -2,7 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import Sidebar from "@/components/Sidebar";
-import UsersPage from "@/pages/UsersPage";
+import UsersPage from "@/components/pages/UsersPage";
 import { useAuth } from "@/components/AuthContext";
 
 export default function Users() {
