@@ -24,7 +24,6 @@ import {
   IconRefresh,
   IconAlertTriangle,
 } from "@tabler/icons-react";
-import { modals } from "@mantine/modals";
 
 interface User {
   _id: string;
@@ -48,6 +47,8 @@ export default function UsersPage({ user }: UsersPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; userId: string; username: string } | null>(null);
+  const [roleModal, setRoleModal] = useState<{ open: boolean; userId: string; username: string; newRole: string } | null>(null);
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
   const usersPerPage = 10;
 
@@ -87,91 +88,77 @@ export default function UsersPage({ user }: UsersPageProps) {
 
   // Delete user
   const handleDeleteUser = async (userId: string, username: string) => {
-    modals.openConfirmModal({
-      title: "Delete User",
-      centered: true,
-      children: (
-        <Text size="sm">
-          Are you sure you want to delete user <b>{username}</b>? This action cannot be undone.
-        </Text>
-      ),
-      labels: { confirm: "Delete", cancel: "Cancel" },
-      confirmProps: { color: "red" },
-      onConfirm: async () => {
-        try {
-          const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+    setDeleteModal({ open: true, userId, username });
+  };
 
-          const response = await fetch(`${apiUrl}/api/users/${userId}`, {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+  const confirmDeleteUser = async () => {
+    if (!deleteModal) return;
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
-          // Refresh users list
-          fetchUsers();
-        } catch (err) {
-          console.error("Failed to delete user:", err);
-          setModalError({
-            title: "Error",
-            message: err instanceof Error ? err.message : "Failed to delete user"
-          });
-        }
-      },
-    });
+      const response = await fetch(`${apiUrl}/api/users/${deleteModal.userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Close modal and refresh
+      setDeleteModal(null);
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      setModalError({
+        title: "Error",
+        message: err instanceof Error ? err.message : "Failed to delete user"
+      });
+      setDeleteModal(null);
+    }
   };
 
   // Change user role
   const handleChangeRole = async (userId: string, newRole: string, username: string) => {
-    modals.openConfirmModal({
-      title: "Change User Role",
-      centered: true,
-      children: (
-        <Stack gap="xs">
-          <Text size="sm">
-            Change role for user <b>{username}</b> to <b>{newRole}</b>?
-          </Text>
-          <Text size="xs" color="dimmed">
-            This will affect the user's permissions immediately.
-          </Text>
-        </Stack>
-      ),
-      labels: { confirm: "Change", cancel: "Cancel" },
-      onConfirm: async () => {
-        try {
-          const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+    setRoleModal({ open: true, userId, username, newRole });
+  };
 
-          const response = await fetch(`${apiUrl}/api/users/${userId}/role`, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ role: newRole }),
-          });
+  const confirmChangeRole = async () => {
+    if (!roleModal) return;
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
-          // Refresh users list
-          fetchUsers();
-        } catch (err) {
-          console.error("Failed to change role:", err);
-          setModalError({
-            title: "Error",
-            message: err instanceof Error ? err.message : "Failed to change role"
-          });
-        }
-      },
-    });
+      const response = await fetch(`${apiUrl}/api/users/${roleModal.userId}/role`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ role: roleModal.newRole }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Close modal and refresh
+      setRoleModal(null);
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to change role:", err);
+      setModalError({
+        title: "Error",
+        message: err instanceof Error ? err.message : "Failed to change role"
+      });
+      setRoleModal(null);
+    }
   };
 
   // Filter users
@@ -356,6 +343,55 @@ export default function UsersPage({ user }: UsersPageProps) {
           Total: {users.length} users
         </Text>
       </Group>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModal?.open || false}
+        onClose={() => setDeleteModal(null)}
+        title="Delete User"
+        centered
+      >
+        <Stack gap="lg">
+          <Text size="sm">
+            Are you sure you want to delete user <b>{deleteModal?.username}</b>? This action cannot be undone.
+          </Text>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setDeleteModal(null)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={confirmDeleteUser}>
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Change Role Confirmation Modal */}
+      <Modal
+        opened={roleModal?.open || false}
+        onClose={() => setRoleModal(null)}
+        title="Change User Role"
+        centered
+      >
+        <Stack gap="lg">
+          <Stack gap="xs">
+            <Text size="sm">
+              Change role for user <b>{roleModal?.username}</b> to <b>{roleModal?.newRole}</b>?
+            </Text>
+            <Text size="xs" c="dimmed">
+              This will affect the user's permissions immediately.
+            </Text>
+          </Stack>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setRoleModal(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmChangeRole}>
+              Change
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* Error Modal */}
       <Modal

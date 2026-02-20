@@ -26,7 +26,6 @@ import {
   IconX,
   IconAlertTriangle,
 } from "@tabler/icons-react";
-import { modals } from "@mantine/modals";
 
 interface Staff {
   _id: string;
@@ -61,6 +60,8 @@ export default function StaffPage({ user }: StaffPageProps) {
   const [statusFilter, setStatusFilter] = useState<string | null>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; staffId: string; name: string } | null>(null);
+  const [toggleModal, setToggleModal] = useState<{ open: boolean; staffId: string; name: string; currentStatus: boolean } | null>(null);
   const staffPerPage = 10;
 
   // Fetch staff from backend
@@ -99,89 +100,79 @@ export default function StaffPage({ user }: StaffPageProps) {
 
   // Delete staff
   const handleDeleteStaff = async (staffId: string, name: string) => {
-    modals.openConfirmModal({
-      title: "Delete Staff",
-      centered: true,
-      children: (
-        <Text size="sm">
-          Are you sure you want to delete staff member <b>{name}</b>? This action cannot be undone.
-        </Text>
-      ),
-      labels: { confirm: "Delete", cancel: "Cancel" },
-      confirmProps: { color: "red" },
-      onConfirm: async () => {
-        try {
-          const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+    setDeleteModal({ open: true, staffId, name });
+  };
 
-          const response = await fetch(`${apiUrl}/api/staff/${staffId}`, {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+  const confirmDeleteStaff = async () => {
+    if (!deleteModal) return;
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
-          // Refresh staff list
-          fetchStaff();
-        } catch (err) {
-          console.error("Failed to delete staff:", err);
-          setModalError({
-            title: "Error",
-            message: err instanceof Error ? err.message : "Failed to delete staff"
-          });
-        }
-      },
-    });
+      const response = await fetch(`${apiUrl}/api/staff/${deleteModal.staffId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Close modal and refresh
+      setDeleteModal(null);
+      fetchStaff();
+    } catch (err) {
+      console.error("Failed to delete staff:", err);
+      setModalError({
+        title: "Error",
+        message: err instanceof Error ? err.message : "Failed to delete staff"
+      });
+      setDeleteModal(null);
+    }
   };
 
   // Toggle staff active status
   const handleToggleActive = async (staffId: string, currentStatus: boolean, name: string) => {
-    const action = currentStatus ? "deactivate" : "activate";
+    setToggleModal({ open: true, staffId, name, currentStatus });
+  };
 
-    modals.openConfirmModal({
-      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Staff`,
-      centered: true,
-      children: (
-        <Text size="sm">
-          Are you sure you want to <b>{action}</b> staff member <b>{name}</b>?
-        </Text>
-      ),
-      labels: { confirm: action.charAt(0).toUpperCase() + action.slice(1), cancel: "Cancel" },
-      confirmProps: { color: currentStatus ? "orange" : "green" },
-      onConfirm: async () => {
-        try {
-          const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+  const confirmToggleActive = async () => {
+    if (!toggleModal) return;
 
-          const response = await fetch(`${apiUrl}/api/staff/${staffId}`, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ isActive: !currentStatus }),
-          });
+    const action = toggleModal.currentStatus ? "deactivate" : "activate";
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
-          // Refresh staff list
-          fetchStaff();
-        } catch (err) {
-          console.error("Failed to toggle staff status:", err);
-          setModalError({
-            title: "Error",
-            message: err instanceof Error ? err.message : "Failed to update staff"
-          });
-        }
-      },
-    });
+      const response = await fetch(`${apiUrl}/api/staff/${toggleModal.staffId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isActive: !toggleModal.currentStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Close modal and refresh
+      setToggleModal(null);
+      fetchStaff();
+    } catch (err) {
+      console.error("Failed to toggle staff status:", err);
+      setModalError({
+        title: "Error",
+        message: err instanceof Error ? err.message : "Failed to update staff"
+      });
+      setToggleModal(null);
+    }
   };
 
   // Filter staff
@@ -263,13 +254,9 @@ export default function StaffPage({ user }: StaffPageProps) {
           <Button
             leftSection={<IconPlus size={16} />}
             onClick={() => {
-              modals.open({
+              setModalError({
                 title: "Add New Staff",
-                children: (
-                  <Text size="sm">
-                    Staff creation feature coming soon. For now, staff is created automatically when a user logs in.
-                  </Text>
-                ),
+                message: "Staff creation feature coming soon. For now, staff is created automatically when a user logs in."
               });
             }}
           >
@@ -443,6 +430,55 @@ export default function StaffPage({ user }: StaffPageProps) {
           Total: {staff.length} staff members
         </Text>
       </Group>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModal?.open || false}
+        onClose={() => setDeleteModal(null)}
+        title="Delete Staff"
+        centered
+      >
+        <Stack gap="lg">
+          <Text size="sm">
+            Are you sure you want to delete staff member <b>{deleteModal?.name}</b>? This action cannot be undone.
+          </Text>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setDeleteModal(null)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={confirmDeleteStaff}>
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Toggle Active Confirmation Modal */}
+      <Modal
+        opened={toggleModal?.open || false}
+        onClose={() => setToggleModal(null)}
+        title={`${toggleModal?.currentStatus ? "Deactivate" : "Activate"} Staff`}
+        centered
+      >
+        <Stack gap="lg">
+          <Stack gap="xs">
+            <Text size="sm">
+              Are you sure you want to <b>{toggleModal?.currentStatus ? "deactivate" : "activate"}</b> staff member <b>{toggleModal?.name}</b>?
+            </Text>
+            <Text size="xs" c="dimmed">
+              This will affect the staff member's ability to receive assignments immediately.
+            </Text>
+          </Stack>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setToggleModal(null)}>
+              Cancel
+            </Button>
+            <Button color={toggleModal?.currentStatus ? "orange" : "green"} onClick={confirmToggleActive}>
+              {toggleModal?.currentStatus ? "Deactivate" : "Activate"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* Error Modal */}
       <Modal
