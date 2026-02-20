@@ -209,8 +209,10 @@ export async function middleware(request) {
 
         const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
 
-        // Token is valid, set cookie and redirect
-        const response = NextResponse.redirect(new URL(pathname, request.url));
+        console.log("[MIDDLEWARE] Query token verified successfully:", payload);
+
+        // Token is valid, set cookie and continue to the page (NOT redirect)
+        const response = NextResponse.next();
 
         // Set cookie with proper configuration for Edge Runtime
         const isProduction = process.env.NODE_ENV === "production";
@@ -231,15 +233,30 @@ export async function middleware(request) {
 
         response.cookies.set("token", queryToken, cookieOptions);
 
-        // Remove token from URL
+        // Add user info headers for protected pages
+        response.headers.set("x-user-id", payload.userId);
+        response.headers.set("x-user-username", payload.username);
+        response.headers.set("x-user-email", payload.email || "");
+        response.headers.set("Vary", "Cookie");
+
+        // Remove token from URL by redirecting to clean URL
         const cleanUrl = new URL(request.url);
         cleanUrl.searchParams.delete("token");
-        response.headers.set('Location', cleanUrl.pathname + cleanUrl.search);
+
+        // Only redirect if token was actually removed from URL
+        if (cleanUrl.search !== url.search) {
+          const redirectResponse = NextResponse.redirect(cleanUrl.toString());
+          // Copy the cookie settings to redirect response
+          redirectResponse.cookies.set("token", queryToken, cookieOptions);
+          return redirectResponse;
+        }
 
         return response;
       }
     } catch (error) {
       console.error("[MIDDLEWARE] Query token verification failed:", error);
+      // If token verification fails, redirect to login
+      return createRedirect(request, "/login", false, "Invalid query token");
     }
   }
 
