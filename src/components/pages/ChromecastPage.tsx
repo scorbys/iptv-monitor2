@@ -15,7 +15,7 @@ import {
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
-import { DateFormatter } from "../components/DateFormatter";
+import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
 
 interface Chromecast {

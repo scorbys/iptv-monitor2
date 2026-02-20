@@ -17,8 +17,8 @@ import {
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
-import { DateFormatter } from "../components/DateFormatter";
-import IPTVPreview from '../components/IPTVPreview';
+import { DateFormatter } from "../DateFormatter";
+import IPTVPreview from '../IPTVPreview';
 import {
   XAxis,
   YAxis,

@@ -26,7 +26,7 @@ import {
   Notification,
   fetchAllNotifications,
   cleanOldNotifications,
-} from "../app/notifications/notifUtils";
+} from "../../app/notifications/notifUtils";
 
 const ITEMS_PER_PAGE = 12;
 

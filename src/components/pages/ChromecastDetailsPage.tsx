@@ -17,7 +17,7 @@ import {
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
-import { DateFormatter } from "../components/DateFormatter";
+import { DateFormatter } from "../DateFormatter";
 import {
   XAxis,
   YAxis,

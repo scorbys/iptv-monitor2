@@ -2,7 +2,7 @@
 
 import Topbar from '@/components/Topbar'
 import Sidebar from '@/components/Sidebar'
-import MLDashboardPage from '@/pages/MLDashboardPage'
+import MLDashboardPage from '@/components/pages/MLDashboardPage'
 
 export default function MLDashboard() {
   return (
