@@ -732,7 +732,12 @@ function processChromecastNotifications(
     const isOnline = device.isOnline === true;
     const currentStatus = isOnline ? "online" : "offline";
 
-    if (!isOnline) {
+    // HANYA buat notifikasi jika device baru saja berubah status (online -> offline)
+    // JANGAN buat notifikasi jika device sudah offline sebelumnya
+    const statusChange = checkStatusChange(deviceId, currentStatus);
+
+    if (!isOnline && statusChange.previousStatus === "online") {
+      // Device baru saja mati: buat notifikasi
       const error = device.error || "Device not responding";
       const errorCategory = getErrorCategory(error, "offline", "chromecast");
 
@@ -748,6 +753,8 @@ function processChromecastNotifications(
             deviceName: device.deviceName,
             ipAddr: device.ipAddr,
             currentStatus: "offline",
+            previousStatus: "online",
+            isStatusChange: true,
             error: error,
             errorCategory: errorCategory,
             responseTime: device.responseTime || undefined,
@@ -757,7 +764,7 @@ function processChromecastNotifications(
       );
     }
 
-    const statusChange = checkStatusChange(deviceId, currentStatus);
+    // Device recovery notification (offline -> online)
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
@@ -796,7 +803,12 @@ function processTVNotifications(
     const isOnline = device.status === "online";
     const currentStatus = isOnline ? "online" : "offline";
 
-    if (!isOnline) {
+    // HANYA buat notifikasi jika device baru saja berubah status (online -> offline)
+    // JANGAN buat notifikasi jika device sudah offline sebelumnya
+    const statusChange = checkStatusChange(deviceId, currentStatus);
+
+    if (!isOnline && statusChange.previousStatus === "online") {
+      // Device baru saja mati: buat notifikasi
       const error = device.error || "TV not responding";
       const errorCategory = getErrorCategory(error, "offline", "tv");
 
@@ -813,6 +825,8 @@ function processTVNotifications(
             deviceName: `Room ${device.roomNo}`,
             ipAddr: device.ipAddress,
             currentStatus: "offline",
+            previousStatus: "online",
+            isStatusChange: true,
             error: error,
             errorCategory: errorCategory,
             responseTime: device.responseTime || undefined,
@@ -822,7 +836,7 @@ function processTVNotifications(
       );
     }
 
-    const statusChange = checkStatusChange(deviceId, currentStatus);
+    // Device recovery notification (offline -> online)
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
@@ -862,7 +876,12 @@ function processChannelNotifications(
     const isOnline = channel.status === "online";
     const currentStatus = isOnline ? "online" : "offline";
 
-    if (!isOnline) {
+    // HANYA buat notifikasi jika device baru saja berubah status (online -> offline)
+    // JANGAN buat notifikasi jika device sudah offline sebelumnya
+    const statusChange = checkStatusChange(deviceId, currentStatus);
+
+    if (!isOnline && statusChange.previousStatus === "online") {
+      // Device baru saja mati: buat notifikasi
       const error = channel.error || "Channel not available";
       const errorCategory = getErrorCategory(error, "offline", "channel");
 
@@ -878,6 +897,8 @@ function processChannelNotifications(
             deviceName: channel.channelName,
             ipAddr: channel.ipMulticast,
             currentStatus: "offline",
+            previousStatus: "online",
+            isStatusChange: true,
             error: error,
             errorCategory: errorCategory,
             responseTime: channel.responseTime || undefined,
@@ -887,7 +908,7 @@ function processChannelNotifications(
       );
     }
 
-    const statusChange = checkStatusChange(deviceId, currentStatus);
+    // Device recovery notification (offline -> online)
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&

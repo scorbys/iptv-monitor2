@@ -341,12 +341,12 @@ export default function NotifPage() {
       }
     };
     loadData();
-    // Auto-refresh every 15 minutes
+    // Auto-refresh every 30 minutes (matching backend status check interval)
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchNotifications();
       }
-    }, 900000);
+    }, 1800000); // 1800000 ms = 30 minutes
 
     return () => clearInterval(interval);
   }, [mounted, fetchNotifications, calculateStats]);
@@ -487,6 +487,10 @@ export default function NotifPage() {
         "FAQ Category",
         "Response Time",
         "Signal Level",
+        "Report Status",
+        "Priority",
+        "Assigned Staff",
+        "Handled By Staff",
       ];
 
       const csvData = filteredNotifications.map((notification) => [
@@ -504,6 +508,10 @@ export default function NotifPage() {
         getSpecificFAQCategory(notification) || "Uncategorized",
         notification.responseTime || "N/A",
         notification.signalLevel || "N/A",
+        (notification as any).reportStatus || "N/A",
+        (notification as any).priority || "N/A",
+        (notification as any).assignedStaff?.name || (notification as any).assignedStaff || "N/A",
+        (notification as any).handledByStaff?.name || (notification as any).handledByStaff || "N/A",
       ]);
 
       const csvContent = [headers, ...csvData]
@@ -1852,7 +1860,7 @@ export default function NotifPage() {
             )}
           </div>
           <div className="text-xs text-gray-500">
-            Auto-refresh every 15 minutes â€¢ Auto-cleanup after 7 days
+            Auto-refresh every 30 minutes • Auto-cleanup after 7 days
           </div>
         </div>
       </div>
