@@ -582,6 +582,52 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   const all: Notification[] = [];
   const errors: string[] = [];
 
+  // 1. Fetch from backend database notifications (NEW)
+  try {
+    const response = await authenticatedFetch('/api/notifications?limit=100');
+
+    if (response.ok) {
+      const json = await response.json();
+      if (json.success && Array.isArray(json.data)) {
+        // Transform backend notifications to frontend format
+        const backendNotifications = json.data.map((notif: any) => ({
+          id: notif.notificationId,
+          title: notif.title,
+          message: notif.message,
+          rawDate: notif.createdAt,
+          time: getRelativeTime(notif.createdAt),
+          date: formatDate(notif.createdAt),
+          type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
+          source: notif.source as "chromecast" | "tv" | "channel" | "system",
+          deviceName: notif.deviceName,
+          roomNo: notif.roomNo,
+          ipAddr: notif.ipAddr,
+          error: notif.error,
+          errorCategory: notif.errorCategory,
+          currentStatus: notif.currentStatus,
+          previousStatus: notif.previousStatus,
+          isStatusChange: notif.currentStatus === 'online',
+          reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
+          priority: notif.priority, // low, medium, high, critical
+          suggestedSolutions: notif.notes?.length > 0
+            ? notif.notes.map((n: any) => n.note)
+            : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
+          assignedStaff: notif.assignedStaff,
+          handledByStaff: notif.handledByStaff,
+          createdAt: notif.createdAt,
+          updatedAt: notif.updatedAt
+        }));
+
+        all.push(...backendNotifications);
+        debugLog(`Fetched ${backendNotifications.length} notifications from backend database`);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching backend notifications:', error);
+    errors.push('Failed to fetch backend notifications');
+  }
+
+  // 2. Fetch from device status endpoints (existing - for real-time status)
   const fetchSources: FetchSource[] = [
     {
       name: "chromecast",
@@ -647,8 +693,11 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     })
   );
 
+  // 3. Merge with cached notifications from localStorage
   const oldNotifications = getNotificationsFromStorage();
   const validOldNotifications = cleanOldNotifications(oldNotifications);
+
+  // Deduplicate by ID
   const newIds = new Set(all.map((n) => n.id));
   const uniqueOldNotifications = validOldNotifications.filter(
     (n) => !newIds.has(n.id)
