@@ -56,6 +56,19 @@ interface TVDetail {
   isPingable?: boolean;
 }
 
+interface AutoFixLog {
+  fixId: string;
+  timestamp: string;
+  mlCategory: string;
+  issue: string;
+  action: string;
+  description: string;
+  status: 'pending' | 'executing' | 'success' | 'failed';
+  confidence: number;
+  errorMessage?: string;
+  output?: any;
+}
+
 interface DeviceStatus {
   power: "working" | "error";
   lanIp: "working" | "error";
@@ -286,6 +299,10 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   const [networkHistory, setNetworkHistory] = useState<NetworkHistory[]>([]);
   const [activeTab, setActiveTab] = useState("24h");
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  // Auto-fix log state
+  const [autoFixLogs, setAutoFixLogs] = useState<AutoFixLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   const router = useRouter();
 
@@ -604,16 +621,121 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
+    // Just trigger the auto-fix - it's already automatic
+    await triggerAutoFix();
+  };
+
+  // Fetch Auto-Fix Logs
+  const fetchAutoFixLogs = async () => {
+    if (!tvs) return;
+
+    try {
+      setLoadingLogs(true);
+      const tvId = tvs.roomNo || tvs.id;
+      const encodedTvId = encodeURIComponent(tvId.toString());
+
+      // Call backend API directly (not through frontend route)
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix?history=true`;
+
+      const response = await fetch(apiUrl, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setAutoFixLogs(result.data.autoFixHistory || []);
+        }
+      } else {
+        apiLogger.warn('Failed to fetch auto-fix logs');
+      }
+    } catch (error) {
+      apiLogger.error('Error fetching auto-fix logs:', error);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  // Trigger Auto-Fix (Manual trigger only - not automatic)
+  const triggerAutoFix = async () => {
+    if (!tvs || checking) return;
+
     try {
       setChecking(true);
+      componentLogger.log(`[AutoFix] Starting automatic fix for Room ${tvs.roomNo}...`);
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await handleCheckTV();
+      const tvId = tvs.roomNo || tvs.id;
+      const encodedTvId = encodeURIComponent(tvId.toString());
 
-      alert(`Repair attempt completed for: ${issue.issue}`);
+      // Prepare issue description from TV status
+      const issueDescription = tvs.error || 'TV offline';
+      const category = !tvs.isOnline ? 'Kategori-2' : 'Unknown';
+
+      // Call backend API directly
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: `Room ${tvs.roomNo} ${issueDescription}`,
+          issue: issueDescription,
+          category: category,
+        }),
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (response.ok) {
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          componentLogger.log('[AutoFix] Automatic fix executed:', result.data);
+
+          // Show notification to user
+          if (result.data.autoFixExecuted) {
+            const { mlPrediction, executedFix, fixResult } = result.data;
+
+            alert(
+              `🔧 Auto-Fix Otomatis Berhasil!\n\n` +
+              `TV: Room ${tvs.roomNo}\n` +
+              `Issue: ${issueDescription}\n` +
+              `ML Category: ${mlPrediction.category}\n` +
+              `Confidence: ${(mlPrediction.confidence * 100).toFixed(1)}%\n` +
+              `Action: ${executedFix.description}\n` +
+              `Status: ${fixResult.success ? '✅ Berhasil' : '❌ Gagal'}\n\n` +
+              `TV akan di-refresh untuk update status.`
+            );
+          } else if (result.data.reason) {
+            componentLogger.log('[AutoFix] No auto-fix executed:', result.data.reason);
+          }
+
+          // Refresh TV status and logs
+          await handleCheckTV();
+          await fetchAutoFixLogs();
+        }
+      } else {
+        const errorResult = await response.json();
+        apiLogger.error('[AutoFix] API error:', errorResult.error);
+        alert(`Error: ${errorResult.error || 'Failed to execute auto-fix'}`);
+      }
     } catch (error) {
-      componentLogger.error("Repair failed:", error);
-      alert("Automated repair failed. Please try manual troubleshooting.");
+      apiLogger.error('[AutoFix] Error triggering auto-fix:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to execute auto-fix'}`);
     } finally {
       setChecking(false);
     }
@@ -695,6 +817,13 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
     const historyIdentifier = tvs.roomNo || tvs.id;
     fetchNetworkHistory(historyIdentifier.toString(), activeTab);
+  }, [tvs, mounted]);
+
+  // Fetch auto-fix logs when TV changes
+  useEffect(() => {
+    if (!mounted || !tvs) return;
+
+    fetchAutoFixLogs();
   }, [tvs, mounted]);
 
   const TrendIndicator = React.useCallback(({ trend }: { trend: string }) => {
@@ -2087,6 +2216,150 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     onClose={() => setShowPreview(false)}
                   />
                 )}
+              </div>
+            </div>
+
+            {/* Auto-Fix Log Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Auto-Fix Log
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Riwayat perbaikan otomatis dengan ML
+                  </p>
+                </div>
+                <button
+                  onClick={fetchAutoFixLogs}
+                  disabled={loadingLogs}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                >
+                  <ArrowPathIcon className={`w-3 h-3 mr-1.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+
+              {loadingLogs ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-sm text-gray-600">Loading logs...</span>
+                </div>
+              ) : autoFixLogs.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-sm text-gray-600">Belum ada riwayat auto-fix</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-fix akan otomatis berjalan saat TV mengalami issue
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {autoFixLogs.map((log) => (
+                    <div
+                      key={log.fixId}
+                      className={`p-4 rounded-lg border transition-all ${
+                        log.status === 'success'
+                          ? 'bg-green-50 border-green-200'
+                          : log.status === 'failed'
+                          ? 'bg-red-50 border-red-200'
+                          : log.status === 'executing'
+                          ? 'bg-yellow-50 border-yellow-200'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                                log.status === 'success'
+                                  ? 'bg-green-100 text-green-800'
+                                  : log.status === 'failed'
+                                  ? 'bg-red-100 text-red-800'
+                                  : log.status === 'executing'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {log.status === 'success'
+                                ? '✅ Berhasil'
+                                : log.status === 'failed'
+                                ? '❌ Gagal'
+                                : log.status === 'executing'
+                                ? '⏳ Sedang Berjalan'
+                                : '⏸ Pending'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              <DateFormatter date={log.timestamp} />
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {log.mlCategory}
+                          </p>
+                        </div>
+                        {log.confidence && (
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">Confidence</p>
+                            <p className="text-sm font-bold text-blue-600">
+                              {(log.confidence * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Issue & Action */}
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-700">Issue: </span>
+                          <span className="text-gray-600">{log.issue}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-700">Action: </span>
+                          <span className="text-gray-600">{log.action}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-700">Description: </span>
+                          <span className="text-gray-600">{log.description}</span>
+                        </div>
+
+                        {/* Error message if failed */}
+                        {log.errorMessage && (
+                          <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded text-xs text-red-700">
+                            <span className="font-medium">Error: </span>
+                            {log.errorMessage}
+                          </div>
+                        )}
+
+                        {/* Output if available */}
+                        {log.output && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                            <span className="font-medium">Output: </span>
+                            <span className="break-words">
+                              {typeof log.output === 'string'
+                                ? log.output
+                                : JSON.stringify(log.output, null, 2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Auto-Fix Info */}
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-xs text-blue-800">
+                    <p className="font-semibold mb-1">Auto-Fix Otomatis</p>
+                    <p>Sistem akan otomatis mendeteksi issue dan menjalankan perbaikan tanpa perlu intervensi manual.</p>
+                  </div>
+                </div>
               </div>
             </div>
 
