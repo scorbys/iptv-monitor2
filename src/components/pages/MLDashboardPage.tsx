@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { apiLogger } from "@/utils/debugLogger";
 
 // Dynamic imports with proper loading states
 const MLPredictionForm = dynamic(
@@ -115,7 +116,7 @@ export default function MLDashboardPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect to ML service');
-      console.error('Error fetching model info:', err);
+      apiLogger.error('Error fetching model info:', err);
     } finally {
       setLoading(false);
     }
@@ -152,7 +153,7 @@ export default function MLDashboardPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to make prediction');
-      console.error('Error predicting:', err);
+      apiLogger.error('Error predicting:', err);
     }
   };
 
@@ -208,7 +209,7 @@ export default function MLDashboardPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to train model';
       setError(errorMessage);
-      console.error('Error training:', err);
+      apiLogger.error('Error training:', err);
       throw new Error(errorMessage);
     }
   };
@@ -245,7 +246,7 @@ export default function MLDashboardPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete model');
-      console.error('Error deleting model:', err);
+      apiLogger.error('Error deleting model:', err);
     }
   };
 

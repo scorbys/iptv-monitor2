@@ -18,6 +18,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
   XAxis,
   YAxis,
@@ -344,7 +345,7 @@ export default function ChromecastDetailPage({
 
     const fetchNetworkMetrics = async () => {
       if (!device.idCast) {
-        console.warn("Chromecast ID not available for metrics");
+        componentLogger.warn("Chromecast ID not available for metrics");
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
@@ -398,7 +399,7 @@ export default function ChromecastDetailPage({
               };
             });
           } else {
-            console.warn("Invalid metrics data structure:", result);
+            apiLogger.warn("Invalid metrics data structure:", result);
 
             setNetworkMetrics((prevMetrics) => {
               if (prevMetrics) {
@@ -408,7 +409,7 @@ export default function ChromecastDetailPage({
             });
           }
         } else {
-          console.warn(
+          apiLogger.warn(
             `Metrics API returned ${response.status}, using generated data`
           );
 
@@ -420,7 +421,7 @@ export default function ChromecastDetailPage({
           });
         }
       } catch (error) {
-        console.warn("Error fetching network metrics:", error);
+        apiLogger.warn("Error fetching network metrics:", error);
 
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
@@ -448,7 +449,7 @@ export default function ChromecastDetailPage({
       const historyIdentifier = device.deviceName || device.idCast;
       await fetchNetworkHistory(historyIdentifier.toString(), newTab);
     } catch (error) {
-      console.error("Error changing tab:", error);
+      componentLogger.error("Error changing tab:", error);
 
       const fallbackData = generateHistoricalData(
         newTab,
@@ -462,7 +463,7 @@ export default function ChromecastDetailPage({
 
   // Error handling function
   const handleApiError = (error: unknown, context: string) => {
-    console.error(`Error in ${context}:`, error);
+    componentLogger.error(`Error in ${context}:`, error);
 
     if (error instanceof Error) {
       if (error.message.includes("401")) {
@@ -606,10 +607,10 @@ export default function ChromecastDetailPage({
           generateDeviceStatus(result.data);
         }
       } else {
-        console.warn("Check device failed:", response.status);
+        apiLogger.warn("Check device failed:", response.status);
       }
     } catch (error) {
-      console.error("Error checking device:", error);
+      apiLogger.error("Error checking device:", error);
     } finally {
       setChecking(false);
     }
@@ -674,10 +675,10 @@ export default function ChromecastDetailPage({
           setAutoFixLogs(result.data.autoFixHistory || []);
         }
       } else {
-        console.warn('Failed to fetch auto-fix logs');
+        apiLogger.warn('Failed to fetch auto-fix logs');
       }
     } catch (error) {
-      console.error('Error fetching auto-fix logs:', error);
+      apiLogger.error('Error fetching auto-fix logs:', error);
     } finally {
       setLoadingLogs(false);
     }
@@ -689,7 +690,7 @@ export default function ChromecastDetailPage({
 
     try {
       setChecking(true);
-      console.log(`[AutoFix] Starting automatic fix for ${device.deviceName}...`);
+      componentLogger.log(`[AutoFix] Starting automatic fix for ${device.deviceName}...`);
 
       // Use device.idCast (numeric ID) as primary identifier
       const deviceId = device.idCast || device.deviceName;
@@ -724,7 +725,7 @@ export default function ChromecastDetailPage({
         const result = await response.json();
 
         if (result.success && result.data) {
-          console.log('[AutoFix] Automatic fix executed:', result.data);
+          componentLogger.log('[AutoFix] Automatic fix executed:', result.data);
 
           // Show notification to user
           if (result.data.autoFixExecuted) {
@@ -741,7 +742,7 @@ export default function ChromecastDetailPage({
               `Device akan di-refresh untuk update status.`
             );
           } else if (result.data.reason) {
-            console.log('[AutoFix] No auto-fix executed:', result.data.reason);
+            componentLogger.log('[AutoFix] No auto-fix executed:', result.data.reason);
           }
 
           // Refresh device status and logs
@@ -750,11 +751,11 @@ export default function ChromecastDetailPage({
         }
       } else {
         const errorResult = await response.json();
-        console.error('[AutoFix] API error:', errorResult.error);
+        apiLogger.error('[AutoFix] API error:', errorResult.error);
         alert(`Error: ${errorResult.error || 'Failed to execute auto-fix'}`);
       }
     } catch (error) {
-      console.error('[AutoFix] Error triggering auto-fix:', error);
+      apiLogger.error('[AutoFix] Error triggering auto-fix:', error);
       alert(`Error: ${error instanceof Error ? error.message : 'Failed to execute auto-fix'}`);
     } finally {
       setChecking(false);
@@ -843,7 +844,7 @@ export default function ChromecastDetailPage({
     timeRange = "24h"
   ) => {
     if (!deviceIdentifier) {
-      console.warn("No chromecast identifier provided for history");
+      componentLogger.warn("No chromecast identifier provided for history");
       const fallbackData = generateHistoricalData(
         timeRange,
         Boolean(device?.isOnline)
@@ -879,7 +880,7 @@ export default function ChromecastDetailPage({
         if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
         } else {
-          console.warn("Invalid history data structure, using fallback");
+          apiLogger.warn("Invalid history data structure, using fallback");
           const fallbackData = generateHistoricalData(
             timeRange,
             Boolean(device?.isOnline)
@@ -887,7 +888,7 @@ export default function ChromecastDetailPage({
           setNetworkHistory(fallbackData);
         }
       } else {
-        console.warn(
+        apiLogger.warn(
           `Network history API returned ${response.status}, using fallback`
         );
         const fallbackData = generateHistoricalData(
@@ -897,7 +898,7 @@ export default function ChromecastDetailPage({
         setNetworkHistory(fallbackData);
       }
     } catch (error) {
-      console.warn("Network history fetch error:", error);
+      apiLogger.warn("Network history fetch error:", error);
       const fallbackData = generateHistoricalData(
         timeRange,
         Boolean(device?.isOnline)

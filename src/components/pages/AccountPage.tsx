@@ -15,6 +15,7 @@ import {
 } from "@tabler/icons-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { componentLogger } from "@/utils/debugLogger";
 
 interface User {
   id: string;
@@ -112,7 +113,7 @@ export default function AccountPage() {
           router.push("/login");
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        componentLogger.error("Error fetching user data:", error);
         router.push("/login");
       } finally {
         setLoading(false);
@@ -200,7 +201,7 @@ export default function AccountPage() {
         });
       }
     } catch (error) {
-      console.error("Error updating avatar:", error);
+      componentLogger.error("Error updating avatar:", error);
       setMessage({ type: "error", text: "Error updating avatar" });
     } finally {
       setSaving(false);
@@ -248,7 +249,7 @@ export default function AccountPage() {
         });
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      componentLogger.error("Error updating profile:", error);
       setMessage({ type: "error", text: "Error updating profile" });
     } finally {
       setSaving(false);
@@ -315,7 +316,7 @@ export default function AccountPage() {
         });
       }
     } catch (error) {
-      console.error("Error updating password:", error);
+      componentLogger.error("Error updating password:", error);
       setMessage({ type: "error", text: "Error updating password" });
     } finally {
       setSaving(false);

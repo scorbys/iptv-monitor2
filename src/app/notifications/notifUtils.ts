@@ -2,6 +2,8 @@
  * Get authentication token from cookies or localStorage
  * This function replicates the token retrieval logic from AuthContext
  */
+import { storageLogger } from "@/utils/debugLogger";
+
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
 
@@ -32,13 +34,13 @@ function getAuthToken(): string | null {
 
       // If token found in localStorage, sync to cookie for future requests
       if (token) {
+        storageLogger.log('Syncing token from localStorage to cookie');
         const isProduction = window.location.protocol === "https:";
         const secure = isProduction ? "secure;" : "";
         document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${secure}${isProduction ? " samesite=none" : "samesite=lax"}`;
-        console.log("[notifUtils] Token synced to cookie from localStorage");
       }
     } catch (e) {
-      console.warn("Failed to access localStorage:", e);
+      storageLogger.warn("Failed to access localStorage:", e);
     }
   }
 
@@ -48,16 +50,17 @@ function getAuthToken(): string | null {
       const urlParams = new URLSearchParams(window.location.search);
       const urlToken = urlParams.get("temp_token");
       if (urlToken) {
+        storageLogger.log('Token found in URL params');
         token = urlToken;
         // Clean URL params
         window.history.replaceState({}, "", window.location.pathname);
       }
     } catch (e) {
-      console.warn("Failed to parse URL params:", e);
+      storageLogger.warn("Failed to parse URL params:", e);
     }
   }
 
-  console.log("[notifUtils] Token found:", !!token);
+  storageLogger.log('Token found:', !!token);
   return token;
 }
 

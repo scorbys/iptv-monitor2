@@ -7,6 +7,7 @@ import { Button } from "@radix-ui/themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
+import { componentLogger } from "@/utils/debugLogger";
 
 import {
   Notification,
@@ -214,7 +215,7 @@ export default function Topbar() {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.user) {
-          console.log("[Topbar] User authenticated:", result.user.username);
+          componentLogger.log('User authenticated:', result.user.username);
 
           setUser({
             username: result.user.username,
@@ -224,7 +225,7 @@ export default function Topbar() {
             name: result.user.name, // Pastikan name dari Google ditampilkan
           });
         } else {
-          console.log("[Topbar] User not authenticated or invalid response");
+          componentLogger.warn('User not authenticated or invalid response');
           setUser({
             username: "Guest",
             email: "guest@example.com",
@@ -234,7 +235,7 @@ export default function Topbar() {
           });
         }
       } else {
-        console.log("[Topbar] Auth verification failed:", response.status);
+        componentLogger.warn('Auth verification failed:', response.status);
         setUser({
           username: "Guest",
           email: "guest@example.com",
@@ -244,7 +245,7 @@ export default function Topbar() {
         });
       }
     } catch (error) {
-      console.error("[Topbar] Auth check error:", error);
+      componentLogger.error('Auth check error:', error);
       setUser({
         username: "Guest",
         email: "guest@example.com",
@@ -277,7 +278,7 @@ export default function Topbar() {
       setNotifications(recent);
       setStats(calculateStats(recent));
     } catch (error) {
-      console.error("Failed to fetch notifications:", error);
+      componentLogger.error("Failed to fetch notifications:", error);
       setNotifications([]);
       setStats(null);
     } finally {

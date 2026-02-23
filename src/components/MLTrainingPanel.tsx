@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { componentLogger } from "@/utils/debugLogger";
 
 interface ModelInfo {
   is_trained: boolean;
@@ -76,7 +77,7 @@ export default function MLTrainingPanel({
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
     } catch (err) {
-      console.error('Training failed:', err);
+      componentLogger.error('Training failed:', err);
     } finally {
       clearInterval(progressInterval);
       setTraining(false);

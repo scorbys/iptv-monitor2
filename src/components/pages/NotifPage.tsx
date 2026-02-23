@@ -21,6 +21,7 @@ import {
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { componentLogger, storageLogger } from "@/utils/debugLogger";
 
 import {
   Notification,
@@ -313,7 +314,7 @@ export default function NotifPage() {
       setStats(calculateStats(cleaned));
       localStorage.setItem("notif-cache", JSON.stringify(cleaned));
     } catch (error) {
-      console.error("Failed to fetch notifications:", error);
+      componentLogger.error("Failed to fetch notifications:", error);
       setNotifications([]);
       setStats(null);
     }
@@ -334,7 +335,7 @@ export default function NotifPage() {
         }
         await fetchNotifications();
       } catch (error) {
-        console.error("Error loading notifications:", error);
+        componentLogger.error("Error loading notifications:", error);
       } finally {
         setLoading(false);
       }
@@ -367,7 +368,7 @@ export default function NotifPage() {
         setNotifications(cleaned);
         setStats(calculateStats(cleaned));
         localStorage.setItem("notif-cache", JSON.stringify(cleaned));
-        console.log(
+        storageLogger.log(
           `Manual cleanup: removed ${notifications.length - cleaned.length
           } old notifications`
         );
@@ -379,7 +380,7 @@ export default function NotifPage() {
         alert("No old notifications to clean up");
       }
     } catch (error) {
-      console.error("Manual cleanup failed:", error);
+      componentLogger.error("Manual cleanup failed:", error);
       alert("Cleanup failed. Please try again.");
     }
   }, [notifications, calculateStats]);
@@ -548,7 +549,7 @@ export default function NotifPage() {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error("Error exporting CSV:", error);
+      componentLogger.error("Error exporting CSV:", error);
       alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);

@@ -15,6 +15,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 
 interface TV {
   id: number;
@@ -107,11 +108,11 @@ export default function TvPage() {
       if (result.success && Array.isArray(result.data)) {
         setTvs(result.data);
       } else {
-        console.error("Invalid TVs data format:", result);
+        apiLogger.error("Invalid TVs data format:", result);
         setTvs([]);
       }
     } catch (error) {
-      console.error("Error fetching TVs:", error);
+      apiLogger.error("Error fetching TVs:", error);
       setTvs([]);
     }
   }, [mounted]);
@@ -144,11 +145,11 @@ export default function TvPage() {
       if (result.success && result.data) {
         setStats(result.data);
       } else {
-        console.error("Invalid stats data format:", result);
+        apiLogger.error("Invalid stats data format:", result);
         setStats(null);
       }
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      apiLogger.error("Error fetching stats:", error);
       setStats(null);
     }
   }, [mounted]);
@@ -249,7 +250,7 @@ export default function TvPage() {
         );
       }
     } catch (error: unknown) {
-      console.error("Error checking TV status:", error);
+      apiLogger.error("Error checking TV status:", error);
 
       // Update TV with error state
       setTvs((prev) =>
@@ -413,7 +414,7 @@ export default function TvPage() {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error("Error exporting CSV:", error);
+      componentLogger.error("Error exporting CSV:", error);
       alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);

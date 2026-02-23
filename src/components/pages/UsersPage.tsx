@@ -9,10 +9,12 @@ import {
   ShieldCheckIcon,
   UserIcon,
   TrashIcon,
+  PencilIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { DateFormatter } from "../DateFormatter";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 
 interface User {
   _id: string;
@@ -78,7 +80,7 @@ export default function UsersPage({ user }: UsersPageProps) {
       const data = await response.json();
       setUsers(data.users || []);
     } catch (err) {
-      console.error("Failed to fetch users:", err);
+      apiLogger.error("Failed to fetch users:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch users");
     } finally {
       setLoading(false);
@@ -102,7 +104,7 @@ export default function UsersPage({ user }: UsersPageProps) {
 
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        fetchUsers().catch(console.error);
+        fetchUsers().catch((err) => apiLogger.error("Auto-refresh error:", err));
       }
     }, 120000);
 
@@ -163,7 +165,7 @@ export default function UsersPage({ user }: UsersPageProps) {
       setDeleteModal(null);
       fetchUsers();
     } catch (err) {
-      console.error("Failed to delete user:", err);
+      apiLogger.error("Failed to delete user:", err);
       setModalError({
         title: "Error",
         message: err instanceof Error ? err.message : "Failed to delete user"
@@ -200,7 +202,7 @@ export default function UsersPage({ user }: UsersPageProps) {
       setRoleModal(null);
       fetchUsers();
     } catch (err) {
-      console.error("Failed to change role:", err);
+      apiLogger.error("Failed to change role:", err);
       setModalError({
         title: "Error",
         message: err instanceof Error ? err.message : "Failed to change role"
@@ -257,11 +259,6 @@ export default function UsersPage({ user }: UsersPageProps) {
         color: "bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-200",
         icon: UserIcon,
         label: "Guest"
-      },
-      user: {
-        color: "bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-green-200",
-        icon: UserIcon,
-        label: "User"
       },
     };
     return config[role as keyof typeof config] || {
@@ -525,7 +522,7 @@ export default function UsersPage({ user }: UsersPageProps) {
                                 className="inline-flex items-center justify-center p-2 text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                 title="Change role"
                               >
-                                <ArrowPathIcon className="w-4 h-4" />
+                                <PencilIcon className="w-4 h-4" />
                               </button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Portal>
@@ -533,13 +530,13 @@ export default function UsersPage({ user }: UsersPageProps) {
                                 <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 mb-1">
                                   Change Role To
                                 </div>
-                                {["admin", "guest", "user"].filter(r => r !== userData.role).map((role) => (
+                                {["admin", "guest"].filter(r => r !== userData.role).map((role) => (
                                   <DropdownMenu.Item
                                     key={role}
                                     className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                                     onClick={() => handleChangeRole(userData._id, role, userData.username)}
                                   >
-                                    {role === "admin" ? "Admin" : role === "guest" ? "Guest" : "User"}
+                                    {role === "admin" ? "Admin" : "Guest"}
                                   </DropdownMenu.Item>
                                 ))}
                               </DropdownMenu.Content>

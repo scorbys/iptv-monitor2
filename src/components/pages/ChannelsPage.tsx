@@ -15,6 +15,7 @@ import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 
 interface Channel {
   id: number;
@@ -113,11 +114,11 @@ export default function ChannelsPage() {
       if (result.success && Array.isArray(result.data)) {
         setChannels(result.data);
       } else {
-        console.error("Invalid channels data format:", result);
+        apiLogger.error("Invalid channels data format:", result);
         setChannels([]);
       }
     } catch (error) {
-      console.error("Error fetching channels:", error);
+      apiLogger.error("Error fetching channels:", error);
       setChannels([]);
     }
   }, [mounted]);
@@ -151,11 +152,11 @@ export default function ChannelsPage() {
       if (result.success && result.data) {
         setStats(result.data);
       } else {
-        console.error("Invalid stats data format:", result);
+        apiLogger.error("Invalid stats data format:", result);
         setStats(null);
       }
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      apiLogger.error("Error fetching stats:", error);
       setStats(null);
     }
   }, [mounted]);
@@ -169,7 +170,7 @@ export default function ChannelsPage() {
       try {
         await Promise.all([fetchChannels(), fetchStats()]);
       } catch (error) {
-        console.error("Error loading initial data:", error);
+        componentLogger.error("Error loading initial data:", error);
       } finally {
         setLoading(false);
       }
@@ -180,7 +181,7 @@ export default function ChannelsPage() {
     // Set up auto-refresh every 2 minutes
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        Promise.all([fetchChannels(), fetchStats()]).catch(console.error);
+        Promise.all([fetchChannels(), fetchStats()]).catch((err) => componentLogger.error("Auto-refresh error:", err));
       }
     }, 120000);
 
@@ -195,7 +196,7 @@ export default function ChannelsPage() {
     try {
       await Promise.all([fetchChannels(), fetchStats()]);
     } catch (error) {
-      console.error("Error refreshing data:", error);
+      componentLogger.error("Error refreshing data:", error);
 
       if (error instanceof Error && !error.message.includes("401")) {
         alert("Failed to refresh data. Please try again.");
@@ -260,7 +261,7 @@ export default function ChannelsPage() {
           );
         }
       } catch (error: unknown) {
-        console.error("Error checking channel status:", error);
+        apiLogger.error("Error checking channel status:", error);
         setChannels((prev) =>
           prev.map((ch) =>
             ch.id === channel.id
@@ -463,7 +464,7 @@ export default function ChannelsPage() {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error("Error exporting CSV:", error);
+      componentLogger.error("Error exporting CSV:", error);
       alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);

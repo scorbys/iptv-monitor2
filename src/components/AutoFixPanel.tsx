@@ -11,6 +11,7 @@ import {
   PlayIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
+import { componentLogger } from "@/utils/debugLogger";
 
 interface AutoFixLog {
   fixId: string;
@@ -81,7 +82,7 @@ export default function AutoFixPanel({ notificationId, onClose }: AutoFixPanelPr
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect to auto-fix service');
-      console.error('Error fetching auto-fix data:', err);
+      componentLogger.error('Error fetching auto-fix data:', err);
     } finally {
       setLoading(false);
     }
@@ -117,7 +118,7 @@ export default function AutoFixPanel({ notificationId, onClose }: AutoFixPanelPr
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to trigger auto-fix');
-      console.error('Error triggering auto-fix:', err);
+      componentLogger.error('Error triggering auto-fix:', err);
     } finally {
       setTriggering(false);
     }

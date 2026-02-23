@@ -19,6 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
 import IPTVPreview from '../IPTVPreview';
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
   XAxis,
   YAxis,
@@ -309,7 +310,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
     const fetchNetworkMetrics = async () => {
       if (!tvs.id) {
-        console.warn("Tv ID not available for metrics");
+        componentLogger.warn("Tv ID not available for metrics");
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
@@ -363,7 +364,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
               };
             });
           } else {
-            console.warn("Invalid metrics data structure:", result);
+            apiLogger.warn("Invalid metrics data structure:", result);
 
             setNetworkMetrics((prevMetrics) => {
               if (prevMetrics) {
@@ -373,7 +374,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
             });
           }
         } else {
-          console.warn(
+          apiLogger.warn(
             `Metrics API returned ${response.status}, using generated data`
           );
 
@@ -385,7 +386,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           });
         }
       } catch (error) {
-        console.warn("Error fetching network metrics:", error);
+        apiLogger.warn("Error fetching network metrics:", error);
 
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
@@ -413,7 +414,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       const historyIdentifier = tvs.roomNo || tvs.id;
       await fetchNetworkHistory(historyIdentifier.toString(), newTab);
     } catch (error) {
-      console.error("Error changing tab:", error);
+      componentLogger.error("Error changing tab:", error);
 
       const fallbackData = generateHistoricalData(
         newTab,
@@ -427,7 +428,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
   // Error handling function
   const handleApiError = (error: unknown, context: string) => {
-    console.error(`Error in ${context}:`, error);
+    componentLogger.error(`Error in ${context}:`, error);
 
     if (error instanceof Error) {
       if (error.message.includes("401")) {
@@ -567,10 +568,10 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           generateDeviceStatus(result.data);
         }
       } else {
-        console.warn("Check TV failed:", response.status);
+        apiLogger.warn("Check TV failed:", response.status);
       }
     } catch (error) {
-      console.error("Error checking TV:", error);
+      apiLogger.error("Error checking TV:", error);
     } finally {
       setChecking(false);
     }
@@ -611,7 +612,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       alert(`Repair attempt completed for: ${issue.issue}`);
     } catch (error) {
-      console.error("Repair failed:", error);
+      componentLogger.error("Repair failed:", error);
       alert("Automated repair failed. Please try manual troubleshooting.");
     } finally {
       setChecking(false);
@@ -624,7 +625,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     timeRange = "24h"
   ) => {
     if (!tvIdentifier) {
-      console.warn("No tv identifier provided for history");
+      componentLogger.warn("No tv identifier provided for history");
       const fallbackData = generateHistoricalData(
         timeRange,
         Boolean(tvs?.isOnline)
@@ -660,7 +661,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
         } else {
-          console.warn("Invalid history data structure, using fallback");
+          apiLogger.warn("Invalid history data structure, using fallback");
           const fallbackData = generateHistoricalData(
             timeRange,
             Boolean(tvs?.isOnline)
@@ -668,7 +669,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           setNetworkHistory(fallbackData);
         }
       } else {
-        console.warn(
+        apiLogger.warn(
           `Network history API returned ${response.status}, using fallback`
         );
         const fallbackData = generateHistoricalData(
@@ -678,7 +679,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         setNetworkHistory(fallbackData);
       }
     } catch (error) {
-      console.warn("Network history fetch error:", error);
+      apiLogger.warn("Network history fetch error:", error);
       const fallbackData = generateHistoricalData(
         timeRange,
         Boolean(tvs?.isOnline)

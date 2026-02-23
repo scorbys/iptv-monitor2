@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "./AuthContext";
+import { componentLogger, storageLogger } from "@/utils/debugLogger";
 
 interface Message {
   id: number;
@@ -113,7 +114,7 @@ const IPTVLiveChat = () => {
     if (authLoading) return; // Wait for auth to finish loading
     if (!user) {
       // User not logged in - skip auth check
-      console.log("[IPTVLiveChat] User not logged in, skipping auth check");
+      componentLogger.log("[IPTVLiveChat] User not logged in, skipping auth check");
       return;
     }
 
@@ -130,14 +131,14 @@ const IPTVLiveChat = () => {
               null
             );
           } catch (e) {
-            console.warn("[IPTVLiveChat] Could not access localStorage:", e);
+            storageLogger.warn("[IPTVLiveChat] Could not access localStorage:", e);
             return null;
           }
         };
 
         const token = getAuthToken();
 
-        console.log("[IPTVLiveChat] Checking auth with token:", {
+        componentLogger.log("[IPTVLiveChat] Checking auth with token:", {
           hasToken: !!token,
           tokenLength: token?.length
         });
@@ -159,15 +160,15 @@ const IPTVLiveChat = () => {
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.user) {
-            console.log("[IPTVLiveChat] User authenticated:", data.user.username);
+            componentLogger.log("[IPTVLiveChat] User authenticated:", data.user.username);
           } else {
-            console.log("[IPTVLiveChat] User not authenticated");
+            componentLogger.log("[IPTVLiveChat] User not authenticated");
           }
         } else {
-          console.log("[IPTVLiveChat] Auth check failed:", response.status);
+          componentLogger.log("[IPTVLiveChat] Auth check failed:", response.status);
         }
       } catch (error) {
-        console.error("[IPTVLiveChat] Auth check error:", error);
+        componentLogger.error("[IPTVLiveChat] Auth check error:", error);
       }
     };
 
@@ -269,7 +270,7 @@ const IPTVLiveChat = () => {
             null
           );
         } catch (e) {
-          console.warn("[IPTVLiveChat] Could not access localStorage:", e);
+          storageLogger.warn("[IPTVLiveChat] Could not access localStorage:", e);
           return null;
         }
       };
@@ -316,7 +317,7 @@ const IPTVLiveChat = () => {
 
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.error("Chat error:", error);
+      componentLogger.error("Chat error:", error);
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: "bot",

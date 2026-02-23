@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { Loader2 } from "lucide-react";
+import { componentLogger } from "@/utils/debugLogger";
 
 interface AuthGuardProps {
   children: React.ReactNode;

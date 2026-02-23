@@ -17,6 +17,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 
 interface Chromecast {
   idCast: number;
@@ -116,11 +117,11 @@ export default function ChromecastPage() {
       if (result.success && Array.isArray(result.data)) {
         setChromecasts(result.data);
       } else {
-        console.error("Invalid chromecast data format:", result);
+        apiLogger.error("Invalid chromecast data format:", result);
         setChromecasts([]);
       }
     } catch (error) {
-      console.error("Error fetching chromecast:", error);
+      apiLogger.error("Error fetching chromecast:", error);
       setChromecasts([]);
     }
   }, [mounted]);
@@ -152,11 +153,11 @@ export default function ChromecastPage() {
       if (result.success && result.data) {
         setStats(result.data);
       } else {
-        console.error("Invalid stats data format:", result);
+        apiLogger.error("Invalid stats data format:", result);
         setStats(null);
       }
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      apiLogger.error("Error fetching stats:", error);
       setStats(null);
     }
   }, [mounted]);
@@ -171,7 +172,7 @@ export default function ChromecastPage() {
         await fetchChromecasts();
         await fetchStats();
       } catch (error) {
-        console.error("Error loading initial data:", error);
+        componentLogger.error("Error loading initial data:", error);
       } finally {
         setLoading(false);
       }
@@ -205,7 +206,7 @@ export default function ChromecastPage() {
   // Check specific channel status
   const checkChromecastStatus = useCallback(async (deviceName: string) => {
     if (!deviceName || !deviceName.trim()) {
-      console.error("Device name is required for status check");
+      componentLogger.error("Device name is required for status check");
       return;
     }
 
@@ -233,7 +234,7 @@ export default function ChromecastPage() {
 
       if (response.status === 400) {
         const errorResult = await response.json();
-        console.error("Bad request:", errorResult);
+        apiLogger.error("Bad request:", errorResult);
 
         setChromecasts((prev) =>
           prev.map((device) =>
@@ -251,7 +252,7 @@ export default function ChromecastPage() {
 
       if (response.status === 404) {
         const errorResult = await response.json();
-        console.error("Device not found:", errorResult);
+        apiLogger.error("Device not found:", errorResult);
 
         setChromecasts((prev) =>
           prev.map((device) =>
@@ -295,7 +296,7 @@ export default function ChromecastPage() {
         );
       }
     } catch (error: unknown) {
-      console.error("Error checking device status:", error);
+      apiLogger.error("Error checking device status:", error);
 
       setChromecasts((prev) =>
         prev.map((device) =>
@@ -524,7 +525,7 @@ export default function ChromecastPage() {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error("Error exporting CSV:", error);
+      componentLogger.error("Error exporting CSV:", error);
       alert("Failed to export CSV. Please try again.");
     } finally {
       setExportLoading(false);

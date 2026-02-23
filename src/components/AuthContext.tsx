@@ -2,6 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { authLogger, apiLogger, storageLogger } from "@/utils/debugLogger";
 
 interface User {
   id: string;
@@ -74,24 +75,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         null;
 
       if (token) {
-        console.log("✅ [getAuthToken] Token found in localStorage");
+        authLogger.log('Token found in localStorage');
         return token;
       }
     } catch (e) {
-      console.warn("Could not access localStorage:", e);
+      authLogger.warn("Could not access localStorage:", e);
     }
 
     // SECOND: Check URL params (for OAuth callback)
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get("temp_token");
     if (urlToken) {
-      console.log("✅ [getAuthToken] Token found in URL params");
       try {
         const decodedToken = decodeURIComponent(urlToken);
+        authLogger.log('Token found in URL params');
         localStorage.setItem("authToken", decodedToken);
         return decodedToken;
       } catch (e) {
-        console.error("Failed to decode URL token:", e);
+        authLogger.error("Failed to decode URL token:", e);
       }
     }
 
@@ -113,22 +114,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         null;
 
       if (token) {
-        console.log("✅ [getAuthToken] Token found in cookies (non-httpOnly)");
         // Sync to localStorage for consistency
+        authLogger.log('Token found in cookies, syncing to localStorage');
         localStorage.setItem("authToken", token);
         return token;
       }
     } catch (e) {
-      console.warn("Could not access cookies:", e);
+      authLogger.warn("Could not access cookies:", e);
     }
 
-    console.log("❌ [getAuthToken] No token found in any storage");
+    authLogger.log('No token found in any storage');
     return null;
   }, []);
 
   const apiCall = React.useCallback(
     async (endpoint: string, data?: Record<string, unknown>, token?: string) => {
       try {
+        apiLogger.time(`API Request: ${endpoint}`);
+
         // Build full URL to backend if endpoint is relative
         let url = endpoint;
         if (endpoint.startsWith("/")) {
@@ -141,12 +144,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Get token if not provided
         const authToken = token || getAuthToken();
 
-        console.log("🔑 [apiCall] Request details:", {
+        apiLogger.log('Request details:', {
           endpoint,
           url,
           hasToken: !!authToken,
-          tokenLength: authToken?.length,
-          tokenPreview: authToken ? `${authToken.substring(0, 20)}...${authToken.substring(authToken.length - 20)}` : 'none'
+          method: data ? "POST" : "GET"
         });
 
         // Build headers with Authorization if token exists
@@ -159,13 +161,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           headers["Authorization"] = `Bearer ${authToken}`;
         }
 
-        console.log("📤 [apiCall] Request headers:", {
-          "Content-Type": headers["Content-Type"],
-          "Accept": headers["Accept"],
-          "Authorization": headers["Authorization"] ? `Bearer ${authToken?.substring(0, 20)}...` : 'none',
-          "credentials": "include"
-        });
-
         const response = await fetch(url, {
           method: data ? "POST" : "GET",
           headers,
@@ -173,11 +168,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           credentials: "include",
         });
 
-        console.log("📥 [apiCall] Response:", {
+        apiLogger.log('Response:', {
           status: response.status,
-          statusText: response.statusText,
           ok: response.ok
         });
+
+        apiLogger.timeEnd(`API Request: ${endpoint}`);
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
@@ -202,7 +198,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         const result = await response.json();
-        console.log("📦 [apiCall] Response data:", result);
         return result;
       } catch (error) {
         throw error;
@@ -213,6 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = React.useCallback(async () => {
     try {
+      authLogger.group('Auth Check Started');
       setLoading(true);
 
       // FIRST: Check if we have temp_token in URL (just redirected from Google OAuth)
@@ -220,15 +216,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const tempToken = urlParams.get("temp_token");
       const googleLoginSuccess = urlParams.get("google_login");
 
-      console.log("🔍 [checkAuth] URL Parameters check:", {
-        currentUrl: window.location.href,
+      authLogger.log('URL Parameters check:', {
         hasTempToken: !!tempToken,
-        googleLoginSuccess,
-        allParams: Object.fromEntries(urlParams)
+        googleLoginSuccess
       });
 
       if (tempToken && googleLoginSuccess === "success") {
-        console.log("✅ Found temp_token in URL, extracting and storing...");
+        authLogger.log('Processing temp_token from URL');
 
         try {
           const decodedToken = decodeURIComponent(tempToken);
@@ -256,16 +250,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Save user to localStorage
             try {
               localStorage.setItem('user', JSON.stringify(userData));
-              console.log("✅ User saved to localStorage (temp_token):", userData);
+              storageLogger.log('User saved to localStorage (temp_token)');
             } catch (e) {
-              console.warn("Could not save user to localStorage:", e);
+              storageLogger.warn("Could not save user to localStorage:", e);
             }
 
-            console.log("✅ User authenticated via temp_token");
+            authLogger.log('User authenticated via temp_token');
+            authLogger.groupEnd();
             return;
           }
         } catch (error) {
-          console.error("Failed to verify temp_token:", error);
+          authLogger.error("Failed to verify temp_token:", error);
         }
       }
 
@@ -273,11 +268,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = getAuthToken();
 
       if (!token) {
-        console.log("No token found, user not authenticated");
+        authLogger.log('No token found, user not authenticated');
         if (user !== null) setUser(null);
         setLoading(false);
+        authLogger.groupEnd();
         return;
       }
+
+      authLogger.log('Token found, verifying with backend...');
 
       // Helper function for dynamic cookie domain
       const getCookieDomain = () => {
@@ -312,16 +310,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Save user to localStorage
             try {
               localStorage.setItem('user', JSON.stringify(userData));
-              console.log("✅ User saved to localStorage (verify):", userData);
             } catch (e) {
-              console.warn("Could not save user to localStorage:", e);
+              storageLogger.warn("Could not save user to localStorage:", e);
             }
 
             // MOBILE OPTIMIZATION: Sync token ke cookie jika hanya ada di localStorage
             if (!document.cookie.includes("token=") && token) {
-              console.log(
-                "Syncing token from localStorage to cookie (mobile optimization)"
-              );
               const isProduction = window.location.protocol === "https:";
               const domain = getCookieDomain();
               const secure = isProduction ? "secure;" : "";
@@ -352,7 +346,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
+      authLogger.error("Auth check failed:", error);
       if (user !== null) setUser(null);
 
       if (
@@ -376,7 +370,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           localStorage.removeItem("authToken");
         } catch (e) {
-          console.warn("Could not clear localStorage:", e);
+          storageLogger.warn("Could not clear localStorage:", e);
         }
       }
     } finally {
@@ -387,14 +381,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login function
   const login = async (email: string, password: string) => {
     try {
+      authLogger.group('Login Attempt');
       setLoading(true);
+
+      authLogger.log('Sending login request for:', email);
 
       const result = await apiCall("/api/auth/login", {
         identifier: email,
         password: password,
       });
-
-      console.log("🔑 [Login] API result:", result);
 
       if (result.success && result.user) {
         const userData = {
@@ -404,20 +399,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: result.user.role || 'guest',  // Tambahkan role
         };
 
-        console.log("✅ [Login] Setting user state:", userData);
+        authLogger.log('Login successful, setting user state:', userData.username);
         setUser(userData);
 
         // CRITICAL FIX: Save user to localStorage for persistence
         try {
           localStorage.setItem('user', JSON.stringify(userData));
-          console.log("✅ [Login] User saved to localStorage:", userData);
+          storageLogger.log('User saved to localStorage');
         } catch (e) {
-          console.warn("Could not save user to localStorage:", e);
+          storageLogger.warn("Could not save user to localStorage:", e);
         }
 
         // CRITICAL FIX: Save token to localStorage and cookie after successful login
         if (result.token) {
-          console.log("🔑 [Login] Saving token to storage...");
+          authLogger.log('Saving token to storage...');
 
           // Helper function for dynamic cookie domain
           const getCookieDomain = () => {
@@ -443,17 +438,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
-          console.log("✅ [Login] Token saved successfully");
+          authLogger.log('Token saved successfully');
+          authLogger.groupEnd();
         } else {
-          console.warn("⚠️ [Login] No token in response, user may not be fully authenticated");
+          authLogger.warn("⚠️ No token in response, user may not be fully authenticated");
         }
 
         return { success: true };
       } else {
-        console.error("❌ [Login] Login failed:", result);
+        authLogger.error('Login failed:', result);
+        authLogger.groupEnd();
         return { success: false, error: result.error || "Login failed" };
       }
     } catch (error) {
+      authLogger.error('Login error:', error);
+      authLogger.groupEnd();
       const errorMessage =
         error instanceof Error ? error.message : "Network error occurred";
       return { success: false, error: errorMessage };
@@ -485,7 +484,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Use full URL to backend for Google OAuth
       const googleAuthUrl = `${backendUrl}/api/auth/google?state=${state}`;
 
-      console.log("Initiating Google OAuth login:", {
+      authLogger.log("Initiating Google OAuth login:", {
         backendUrl,
         redirectPath,
         state,
@@ -494,20 +493,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Tambahkan error handling
       if (!backendUrl) {
-        console.error("Backend URL not configured");
+        authLogger.error("Backend URL not configured");
         throw new Error("Authentication service not available");
       }
 
       // MOBILE OPTIMIZATION: Use window.location.replace for mobile for better UX
       if (isMobile) {
-        console.log("Using mobile-optimized redirect");
+        authLogger.log("Using mobile-optimized redirect");
         window.location.replace(googleAuthUrl);
       } else {
         window.location.href = googleAuthUrl;
       }
     } catch (error) {
       // Tampilkan error ke user
-      console.error("Google login initiation error:", error);
+      authLogger.error("Google login initiation error:", error);
       alert("Failed to initiate Google login. Please try again.");
     }
   };
@@ -546,14 +545,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Save user to localStorage
         try {
           localStorage.setItem('user', JSON.stringify(userData));
-          console.log("✅ User saved to localStorage (register):", userData);
+          authLogger.log("✅ User saved to localStorage (register):", userData);
         } catch (e) {
-          console.warn("Could not save user to localStorage:", e);
+          storageLogger.warn("Could not save user to localStorage:", e);
         }
 
         // CRITICAL FIX: Save token to localStorage and cookie after successful registration
         if (result.token) {
-          console.log("🔑 [Register] Saving token to storage...");
+          authLogger.log("🔑 [Register] Saving token to storage...");
 
           // Helper function for dynamic cookie domain
           const getCookieDomain = () => {
@@ -579,9 +578,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
-          console.log("✅ [Register] Token saved successfully");
+          authLogger.log("✅ [Register] Token saved successfully");
         } else {
-          console.warn("⚠️ [Register] No token in response, user may not be fully authenticated");
+          authLogger.warn("⚠️ [Register] No token in response, user may not be fully authenticated");
         }
 
         return { success: true };
@@ -599,7 +598,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = async () => {
-    console.log("🚪 [Logout] Starting logout process...");
+    authLogger.log("🚪 [Logout] Starting logout process...");
 
     // Clear user state immediately
     if (user !== null) setUser(null);
@@ -607,10 +606,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Call backend logout API with POST method (fire and forget)
       apiCall("/api/auth/logout", {}).catch(err => {
-        console.warn("Backend logout failed:", err);
+        apiLogger.warn("Backend logout failed:", err);
       });
     } catch (error) {
-      console.warn("Backend logout error:", error);
+      apiLogger.warn("Backend logout error:", error);
     }
 
     // Helper function for dynamic cookie domain
@@ -660,10 +659,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.clear();
       sessionStorage.clear();
     } catch (e) {
-      console.warn("Could not clear storage:", e);
+      storageLogger.warn("Could not clear storage:", e);
     }
 
-    console.log("✅ [Logout] Cleanup complete, redirecting to /login...");
+    authLogger.log("✅ [Logout] Cleanup complete, redirecting to /login...");
 
     // Single redirect at the end
     window.location.replace("/login");
@@ -675,7 +674,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const googleLoginSuccess = urlParams.get("google_login");
     const tempToken = urlParams.get("temp_token");
 
-    console.log("🔍 [OAuth] Checking URL params:", {
+    authLogger.log("🔍 [OAuth] Checking URL params:", {
       googleLoginSuccess,
       hasTempToken: !!tempToken,
       oauthHandled: oauthHandledRef.current,
@@ -683,7 +682,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     if ((googleLoginSuccess === "success" || tempToken) && !oauthHandledRef.current) {
-      console.log("✅ [OAuth] Google OAuth callback detected!");
+      authLogger.log("✅ [OAuth] Google OAuth callback detected!");
 
       // Mark as handled to prevent re-processing
       oauthHandledRef.current = true;
@@ -705,7 +704,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (tempToken) {
         try {
           const decodedToken = decodeURIComponent(tempToken);
-          console.log("🔑 [OAuth] Storing temp_token to localStorage...");
+          authLogger.log("🔑 [OAuth] Storing temp_token to localStorage...");
 
           // Store in localStorage
           localStorage.setItem("authToken", decodedToken);
@@ -717,9 +716,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
-          console.log("✅ [OAuth] Token stored successfully in localStorage and cookie");
+          authLogger.log("✅ [OAuth] Token stored successfully in localStorage and cookie");
         } catch (e) {
-          console.error("❌ [OAuth] Failed to decode temp_token:", e);
+          authLogger.error("❌ [OAuth] Failed to decode temp_token:", e);
         }
       }
 
@@ -730,12 +729,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       url.searchParams.delete("temp_token");
       window.history.replaceState({}, "", url.toString());
 
-      console.log("🔄 [OAuth] URL cleaned, triggering auth check...");
+      authLogger.log("🔄 [OAuth] URL cleaned, triggering auth check...");
 
       // Trigger auth check after a short delay to ensure cookie is set
       const authCheckDelay = isMobile ? 2000 : 1000;
       setTimeout(() => {
-        console.log("🔄 [OAuth] Calling checkAuth()...");
+        authLogger.log("🔄 [OAuth] Calling checkAuth()...");
         checkAuth();
       }, authCheckDelay);
     }
@@ -748,11 +747,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const hasOAuthParams = urlParams.get("google_login") || urlParams.get("temp_token");
 
     if (!hasCheckedRef.current && !hasOAuthParams) {
-      console.log("🔄 [checkAuth] No OAuth params, running initial auth check...");
+      authLogger.log("🔄 [checkAuth] No OAuth params, running initial auth check...");
       hasCheckedRef.current = true;
       checkAuth();
     } else if (hasOAuthParams) {
-      console.log("⏸️ [checkAuth] OAuth params detected, skipping initial check (OAuth handler will take care)");
+      authLogger.log("⏸️ [checkAuth] OAuth params detected, skipping initial check (OAuth handler will take care)");
     }
   }, [checkAuth]);
 
@@ -785,7 +784,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             try {
               localStorage.removeItem("authToken");
             } catch (e) {
-              console.warn("Could not clear localStorage:", e);
+              storageLogger.warn("Could not clear localStorage:", e);
             }
           }
         } catch (error) {

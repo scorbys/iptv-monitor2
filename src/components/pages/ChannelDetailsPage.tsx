@@ -19,6 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
 import Image from "next/image";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
   XAxis,
   YAxis,
@@ -336,7 +337,7 @@ export default function ChannelDetailsPage({
 
     const fetchNetworkMetrics = async () => {
       if (!channel.id) {
-        console.warn("Channel ID not available for metrics");
+        componentLogger.warn("Channel ID not available for metrics");
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
@@ -390,7 +391,7 @@ export default function ChannelDetailsPage({
               };
             });
           } else {
-            console.warn("Invalid metrics data structure:", result);
+            apiLogger.warn("Invalid metrics data structure:", result);
 
             setNetworkMetrics((prevMetrics) => {
               if (prevMetrics) {
@@ -400,7 +401,7 @@ export default function ChannelDetailsPage({
             });
           }
         } else {
-          console.warn(
+          apiLogger.warn(
             `Metrics API returned ${response.status}, using generated data`
           );
 
@@ -412,7 +413,7 @@ export default function ChannelDetailsPage({
           });
         }
       } catch (error) {
-        console.warn("Error fetching network metrics:", error);
+        apiLogger.warn("Error fetching network metrics:", error);
 
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
@@ -441,7 +442,7 @@ export default function ChannelDetailsPage({
         channel.slug || channel.channelNumber || channel.id;
       await fetchNetworkHistory(historyIdentifier.toString(), newTab);
     } catch (error) {
-      console.error("Error changing tab:", error);
+      componentLogger.error("Error changing tab:", error);
 
       const fallbackData = generateHistoricalData(
         newTab,
@@ -455,7 +456,7 @@ export default function ChannelDetailsPage({
 
   // Error handling function
   const handleApiError = (error: unknown, context: string) => {
-    console.error(`Error in ${context}:`, error);
+    componentLogger.error(`Error in ${context}:`, error);
 
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred";
@@ -612,10 +613,10 @@ export default function ChannelDetailsPage({
           generateDeviceStatus(result.data);
         }
       } else {
-        console.warn("Check channel failed:", response.status);
+        apiLogger.warn("Check channel failed:", response.status);
       }
     } catch (error) {
-      console.error("Error checking channel:", error);
+      apiLogger.error("Error checking channel:", error);
     } finally {
       setChecking(false);
     }
@@ -655,7 +656,7 @@ export default function ChannelDetailsPage({
 
       alert(`Repair attempt completed for: ${issue.issue}`);
     } catch (error) {
-      console.error("Repair failed:", error);
+      componentLogger.error("Repair failed:", error);
       alert("Automated repair failed. Please try manual troubleshooting.");
     } finally {
       setChecking(false);
@@ -743,7 +744,7 @@ export default function ChannelDetailsPage({
     timeRange = "24h"
   ) => {
     if (!channelIdentifier) {
-      console.warn("No channel identifier provided for history");
+      componentLogger.warn("No channel identifier provided for history");
       const fallbackData = generateHistoricalData(
         timeRange,
         channel?.status === "online"
@@ -779,7 +780,7 @@ export default function ChannelDetailsPage({
         if (result.success && result.data && Array.isArray(result.data)) {
           setNetworkHistory(result.data);
         } else {
-          console.warn("Invalid history data structure, using fallback");
+          apiLogger.warn("Invalid history data structure, using fallback");
           const fallbackData = generateHistoricalData(
             timeRange,
             channel?.status === "online"
@@ -787,7 +788,7 @@ export default function ChannelDetailsPage({
           setNetworkHistory(fallbackData);
         }
       } else {
-        console.warn(
+        apiLogger.warn(
           `Network history API returned ${response.status}, using fallback`
         );
         const fallbackData = generateHistoricalData(
@@ -797,7 +798,7 @@ export default function ChannelDetailsPage({
         setNetworkHistory(fallbackData);
       }
     } catch (error) {
-      console.warn("Network history fetch error:", error);
+      apiLogger.warn("Network history fetch error:", error);
       const fallbackData = generateHistoricalData(
         timeRange,
         channel?.status === "online"

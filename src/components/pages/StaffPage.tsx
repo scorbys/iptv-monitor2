@@ -15,9 +15,11 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   UserIcon,
+  PencilIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import { DateFormatter } from "../DateFormatter";
 
 interface Staff {
@@ -87,7 +89,7 @@ export default function StaffPage({ user }: StaffPageProps) {
       const data = await response.json();
       setStaff(data.staff || []);
     } catch (err) {
-      console.error("Failed to fetch staff:", err);
+      apiLogger.error("Failed to fetch staff:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch staff");
     } finally {
       setLoading(false);
@@ -122,7 +124,7 @@ export default function StaffPage({ user }: StaffPageProps) {
 
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        fetchStaff().catch(console.error);
+        fetchStaff().catch((err) => apiLogger.error("Auto-refresh error:", err));
       }
     }, 120000); // 2 minutes
 
@@ -152,7 +154,7 @@ export default function StaffPage({ user }: StaffPageProps) {
       setDeleteModal(null);
       fetchStaff();
     } catch (err) {
-      console.error("Failed to delete staff:", err);
+      apiLogger.error("Failed to delete staff:", err);
       setModalError({
         title: "Error",
         message: err instanceof Error ? err.message : "Failed to delete staff"
@@ -185,7 +187,7 @@ export default function StaffPage({ user }: StaffPageProps) {
       setToggleModal(null);
       fetchStaff();
     } catch (err) {
-      console.error("Failed to toggle staff status:", err);
+      apiLogger.error("Failed to toggle staff status:", err);
       setModalError({
         title: "Error",
         message: err instanceof Error ? err.message : "Failed to update staff"
@@ -227,7 +229,7 @@ export default function StaffPage({ user }: StaffPageProps) {
       setCreateStaffForm({ name: "", email: "", phone: "", department: "", position: "" });
       fetchStaff();
     } catch (err) {
-      console.error("Failed to create staff:", err);
+      apiLogger.error("Failed to create staff:", err);
       setModalError({
         title: "Error",
         message: err instanceof Error ? err.message : "Failed to create staff"
@@ -573,7 +575,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                               }`}
                               title={member.isActive ? "Deactivate" : "Activate"}
                             >
-                              <ArrowPathIcon className="w-4 h-4" />
+                              <PencilIcon className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setDeleteModal({ staffId: member._id, name: member.name })}
@@ -684,7 +686,7 @@ export default function StaffPage({ user }: StaffPageProps) {
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className={`p-2 rounded-lg ${toggleModal.currentStatus ? "bg-orange-100" : "bg-green-100"}`}>
-                <ArrowPathIcon className={`w-6 h-6 ${toggleModal.currentStatus ? "text-orange-600" : "text-green-600"}`} />
+                <PencilIcon className={`w-6 h-6 ${toggleModal.currentStatus ? "text-orange-600" : "text-green-600"}`} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">
                 {toggleModal.currentStatus ? "Deactivate" : "Activate"} Staff

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { componentLogger } from "@/utils/debugLogger";
 
 interface MLPredictionFormProps {
   onPredict: (text: string) => void;
@@ -21,7 +22,7 @@ export default function MLPredictionForm({ onPredict, disabled }: MLPredictionFo
       await onPredict(text);
       setText('');
     } catch (err) {
-      console.error('Prediction failed:', err);
+      componentLogger.error('Prediction failed:', err);
     } finally {
       setLoading(false);
     }

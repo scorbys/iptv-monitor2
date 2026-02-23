@@ -20,6 +20,7 @@ import {
   ComputerDesktopIcon,
   BellIcon,
 } from "@heroicons/react/24/outline";
+import { componentLogger, apiLogger } from "@/utils/debugLogger";
 
 // Type definitions
 interface TrafficDataPoint {
@@ -134,14 +135,14 @@ export default function NetworkTrafficDashboard() {
             return;
           }
         } else {
-          console.warn('API returned non-JSON response, using mock data');
+          apiLogger.warn('API returned non-JSON response, using mock data');
         }
       }
 
       // Enhanced fallback with realistic data
-      console.warn('API not available or returned error, using enhanced mock data');
+      apiLogger.warn('API not available or returned error, using enhanced mock data');
     } catch (err) {
-      console.warn('API error, using enhanced mock data:', err);
+      apiLogger.error('API error, using enhanced mock data:', err);
     }
 
     // Enhanced fallback data

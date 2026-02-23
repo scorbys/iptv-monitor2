@@ -18,6 +18,8 @@ const ROUTE_CONFIG = {
     "/channel",
     "/hospitality",
     "/chromecast",
+    "/users",
+    "/staff",
   ],
 
   // Auth routes (login/register pages)
@@ -32,6 +34,7 @@ const ROUTE_CONFIG = {
     "/api/hospitality/tvs",
     "/api/chromecast",
     "/api/config",
+    "/api/users",
   ],
 
   // Public API routes (bypass auth, still proxy to Railway)
@@ -99,6 +102,7 @@ async function verifyAuthToken(token) {
         id: payload.userId,
         username: payload.username,
         email: payload.email,
+        role: payload.role || 'guest',
       },
     };
   } catch (error) {
@@ -344,12 +348,36 @@ export async function middleware(request) {
       );
     }
 
+    // Check for admin-only routes
+    const adminOnlyRoutes = ["/users", "/staff"];
+    const isAdminOnlyRoute = adminOnlyRoutes.some(route =>
+      pathname === route || pathname.startsWith(route + "/")
+    );
+
+    if (isAdminOnlyRoute) {
+      const userRole = authResult.user?.role || 'guest';
+      if (userRole !== 'admin') {
+        console.log("[MIDDLEWARE] Non-admin user attempting to access admin route:", {
+          pathname,
+          userRole,
+          userId: authResult.user?.id
+        });
+        return createRedirect(
+          request,
+          "/dashboard",
+          false,
+          "Non-admin user attempting to access admin route"
+        );
+      }
+    }
+
     // Add user info headers for protected pages
     const response = NextResponse.next();
     if (authResult.user) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email);
+      response.headers.set("x-user-role", authResult.user.role || 'guest');
     }
     response.headers.set("Vary", "Cookie");
     return response;
@@ -379,6 +407,7 @@ export async function middleware(request) {
       response.headers.set("x-user-id", authResult.user.id);
       response.headers.set("x-user-username", authResult.user.username);
       response.headers.set("x-user-email", authResult.user.email);
+      response.headers.set("x-user-role", authResult.user.role || 'guest');
     }
     response.headers.set("Vary", "Cookie");
     return response;

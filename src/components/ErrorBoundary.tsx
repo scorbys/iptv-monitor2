@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { componentLogger } from "@/utils/debugLogger";
 
 interface Props {
   children: React.ReactNode;
@@ -21,7 +22,7 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Chat Error:", error, errorInfo);
+    componentLogger.error("Chat Error:", error, errorInfo);
   }
 
   render() {

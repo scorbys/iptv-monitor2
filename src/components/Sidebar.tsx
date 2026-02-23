@@ -76,13 +76,13 @@ function NavbarLink({
 
 const mockdata = [
   // Main Navigation (Admin & Guest - Ordered)
-  { name: "Dashboard", href: "/dashboard", icon: IconHome2, roles: ["admin", "guest", "user"], section: "main" },
+  { name: "Dashboard", href: "/dashboard", icon: IconHome2, roles: ["admin", "guest"], section: "main" },
   { name: "Channel", href: "/channels", icon: IconBroadcast, roles: ["admin"], section: "main" },
   { name: "Chromecast", href: "/chromecast", icon: IconCast, roles: ["admin"], section: "main" },
   { name: "Hospitality", href: "/hospitality", icon: IconDeviceTv, roles: ["admin"], section: "main" },
   { name: "ML Dashboard", href: "/ml-dashboard", icon: IconBrain, roles: ["admin"], section: "main" },
-  { name: "Notifications", href: "/notifications", icon: IconInfoHexagon, roles: ["admin", "guest", "user"], section: "main" },
-  { name: "Help", href: "/help", icon: IconMichelinBibGourmand, roles: ["admin", "guest", "user"], section: "main" },
+  { name: "Notifications", href: "/notifications", icon: IconInfoHexagon, roles: ["admin", "guest"], section: "main" },
+  { name: "Help", href: "/help", icon: IconMichelinBibGourmand, roles: ["admin", "guest"], section: "main" },
 
   // User & Staff Management (Admin Only - Divider sebelum ini)
   { name: "Users", href: "/users", icon: IconUserCog, roles: ["admin"], section: "management" },
