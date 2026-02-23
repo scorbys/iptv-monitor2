@@ -437,7 +437,10 @@ export default function MLDashboardPage() {
             )}
 
             {/* Results */}
-            <MLResults predictions={predictions} />
+            <MLResults
+              predictions={predictions}
+              onClear={() => setPredictions([])}
+            />
           </div>
         </div>
       </div>

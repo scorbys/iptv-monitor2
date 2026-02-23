@@ -15,9 +15,10 @@ interface PredictionResult {
 
 interface MLResultsProps {
   predictions: PredictionResult[];
+  onClear?: () => void;
 }
 
-export default function MLResults({ predictions }: MLResultsProps) {
+export default function MLResults({ predictions, onClear }: MLResultsProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   if (predictions.length === 0) {
@@ -154,12 +155,12 @@ export default function MLResults({ predictions }: MLResultsProps) {
       </div>
 
       {/* Clear All Button */}
-      {predictions.length > 0 && (
+      {predictions.length > 0 && onClear && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <button
             onClick={() => {
               if (confirm('Clear all prediction results?')) {
-                predictions.length = 0;
+                onClear();
               }
             }}
             className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
