@@ -605,36 +605,39 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
       const json = await response.json();
       if (json.success && Array.isArray(json.data)) {
         // Transform backend notifications to frontend format
-        const backendNotifications = json.data.map((notif: any) => ({
-          id: notif.notificationId,
-          title: notif.title,
-          message: notif.message,
-          rawDate: notif.createdAt,
-          time: getRelativeTime(notif.createdAt),
-          date: formatDate(notif.createdAt),
-          type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
-          source: notif.source as "chromecast" | "tv" | "channel" | "system",
-          deviceName: notif.deviceName,
-          roomNo: notif.roomNo,
-          ipAddr: notif.ipAddr,
-          error: notif.error,
-          errorCategory: notif.errorCategory,
-          currentStatus: notif.currentStatus,
-          previousStatus: notif.previousStatus,
-          isStatusChange: notif.currentStatus === 'online',
-          reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
-          priority: notif.priority, // low, medium, high, critical
-          suggestedSolutions: notif.notes?.length > 0
-            ? notif.notes.map((n: any) => n.note)
-            : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
-          assignedStaff: notif.assignedStaff,
-          handledByStaff: notif.handledByStaff,
-          createdAt: notif.createdAt,
-          updatedAt: notif.updatedAt
-        }));
+        // Filter out startup notifications to avoid counting them
+        const backendNotifications = json.data
+          .filter((notif: any) => !notif.isStartup) // Exclude startup notifications
+          .map((notif: any) => ({
+            id: notif.notificationId,
+            title: notif.title,
+            message: notif.message,
+            rawDate: notif.createdAt,
+            time: getRelativeTime(notif.createdAt),
+            date: formatDate(notif.createdAt),
+            type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
+            source: notif.source as "chromecast" | "tv" | "channel" | "system",
+            deviceName: notif.deviceName,
+            roomNo: notif.roomNo,
+            ipAddr: notif.ipAddr,
+            error: notif.error,
+            errorCategory: notif.errorCategory,
+            currentStatus: notif.currentStatus,
+            previousStatus: notif.previousStatus,
+            isStatusChange: notif.currentStatus === 'online',
+            reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
+            priority: notif.priority, // low, medium, high, critical
+            suggestedSolutions: notif.notes?.length > 0
+              ? notif.notes.map((n: any) => n.note)
+              : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
+            assignedStaff: notif.assignedStaff,
+            handledByStaff: notif.handledByStaff,
+            createdAt: notif.createdAt,
+            updatedAt: notif.updatedAt
+          }));
 
         all.push(...backendNotifications);
-        debugLog(`Fetched ${backendNotifications.length} notifications from backend database`);
+        debugLog(`Fetched ${backendNotifications.length} notifications from backend database (startup notifications excluded)`);
       }
     }
   } catch (error) {
