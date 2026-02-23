@@ -81,11 +81,26 @@ async function authenticatedFetch(url: string, options?: RequestInit): Promise<R
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
     credentials: "include", // Include cookies for cross-origin requests
   });
+
+  // Auto-redirect to login on 401/403
+  if (response.status === 401 || response.status === 403) {
+    console.warn('[authenticatedFetch] Authentication failed - redirecting to login');
+    // Clear token from cookies and localStorage
+    document.cookie = 'token=; path=/; max-age=0';
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
+    // Redirect to login
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  }
+
+  return response;
 }
 
 export interface Notification {

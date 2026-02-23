@@ -177,7 +177,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
+            apiLogger.warn('Authentication failed - redirecting to login');
+            // Clear user state
             if (user !== null) setUser(null);
+            // Clear token from cookies and localStorage
+            document.cookie = 'token=; path=/; max-age=0';
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('token');
+            // Redirect to login
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+            }
             throw new Error("Authentication failed");
           }
 
