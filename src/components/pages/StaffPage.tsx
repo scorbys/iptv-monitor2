@@ -29,9 +29,10 @@ interface Staff {
   email: string;
   phone: string;
   department: string;
-  role: string;
+  position: string;
   isActive: boolean;
   avatar: string | null;
+  employeeId?: string; // Employee ID like "STF-MM0UZ82S-6KDK"
   stats: {
     totalAssigned: number;
     totalResolved: number;
@@ -61,8 +62,11 @@ export default function StaffPage({ user }: StaffPageProps) {
   const [deleteModal, setDeleteModal] = useState<{ staffId: string; name: string } | null>(null);
   const [toggleModal, setToggleModal] = useState<{ staffId: string; name: string; currentStatus: boolean } | null>(null);
   const [createModal, setCreateModal] = useState(false);
+  const [editModal, setEditModal] = useState(false);
   const [createStaffForm, setCreateStaffForm] = useState({ name: "", email: "", phone: "", department: "", position: "" });
+  const [editStaffForm, setEditStaffForm] = useState({ id: "", name: "", email: "", phone: "", department: "", position: "" });
   const [createLoading, setCreateLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
 
   const departments = ["All", "IT Support", "Engineering"];
   const statuses = ["All", "Active", "Inactive"];
@@ -109,14 +113,15 @@ export default function StaffPage({ user }: StaffPageProps) {
         setToggleModal(null);
         setModalError(null);
         setCreateModal(false);
+        setEditModal(false);
       }
     };
 
-    if (deleteModal || toggleModal || modalError || createModal) {
+    if (deleteModal || toggleModal || modalError || createModal || editModal) {
       document.addEventListener('keydown', handleEscape);
       return () => document.removeEventListener('keydown', handleEscape);
     }
-  }, [deleteModal, toggleModal, modalError, createModal]);
+  }, [deleteModal, toggleModal, modalError, createModal, editModal]);
 
   // Auto-refresh every 2 minutes
   useEffect(() => {
@@ -237,6 +242,68 @@ export default function StaffPage({ user }: StaffPageProps) {
     } finally {
       setCreateLoading(false);
     }
+  };
+
+  // Edit staff
+  const handleEditStaff = async () => {
+    if (!editStaffForm.name || !editStaffForm.email) {
+      setModalError({
+        title: "Validation Error",
+        message: "Name and email are required"
+      });
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+
+      const response = await fetch(`${apiUrl}/api/staff/${editStaffForm.id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: editStaffForm.name,
+          email: editStaffForm.email,
+          phone: editStaffForm.phone,
+          department: editStaffForm.department,
+          position: editStaffForm.position,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      setEditModal(false);
+      setEditStaffForm({ id: "", name: "", email: "", phone: "", department: "", position: "" });
+      fetchStaff();
+    } catch (err) {
+      apiLogger.error("Failed to edit staff:", err);
+      setModalError({
+        title: "Error",
+        message: err instanceof Error ? err.message : "Failed to edit staff"
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Open edit modal with staff data
+  const openEditModal = (member: Staff) => {
+    setEditStaffForm({
+      id: member._id,
+      name: member.name,
+      email: member.email,
+      phone: member.phone,
+      department: member.department,
+      position: member.position,
+    });
+    setEditModal(true);
   };
 
   // Filter staff
@@ -496,7 +563,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                                 {member.name}
                               </p>
                               <p className="text-xs text-gray-500 truncate">
-                                ID: {member._id.slice(-6)}
+                                ID: {member.employeeId || member._id.slice(-6)}
                               </p>
                             </div>
                           </div>
@@ -523,7 +590,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                         </td>
                         <td className="px-4 sm:px-6 py-4">
                           <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                            {member.role}
+                            {member.position}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4">
@@ -567,6 +634,13 @@ export default function StaffPage({ user }: StaffPageProps) {
                         <td className="px-4 sm:px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={() => openEditModal(member)}
+                              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all duration-200"
+                              title="Edit"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => setToggleModal({ staffId: member._id, name: member.name, currentStatus: member.isActive })}
                               className={`p-2 rounded-lg transition-all duration-200 ${
                                 member.isActive
@@ -575,7 +649,11 @@ export default function StaffPage({ user }: StaffPageProps) {
                               }`}
                               title={member.isActive ? "Deactivate" : "Activate"}
                             >
-                              <PencilIcon className="w-4 h-4" />
+                              {member.isActive ? (
+                                <XMarkIcon className="w-4 h-4" />
+                              ) : (
+                                <CheckIcon className="w-4 h-4" />
+                              )}
                             </button>
                             <button
                               onClick={() => setDeleteModal({ staffId: member._id, name: member.name })}
@@ -884,6 +962,154 @@ export default function StaffPage({ user }: StaffPageProps) {
                   <>
                     <PlusIcon className="w-4 h-4" />
                     Create Staff
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Staff Modal */}
+      {editModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setEditModal(false)}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <PencilIcon className="w-6 h-6 text-indigo-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Edit Staff</h3>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Enter full name"
+                    value={editStaffForm.name}
+                    onChange={(e) => setEditStaffForm({ ...editStaffForm, name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    placeholder="staff@example.com"
+                    value={editStaffForm.email}
+                    onChange={(e) => setEditStaffForm({ ...editStaffForm, email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+                <div className="relative">
+                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="+1234567890"
+                    value={editStaffForm.phone}
+                    onChange={(e) => setEditStaffForm({ ...editStaffForm, phone: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 text-sm text-left">
+                      <span className={editStaffForm.department ? "text-gray-900" : "text-gray-500"}>
+                        {editStaffForm.department || "Select department"}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
+                      {["IT Support", "Engineering"].map((dept) => (
+                        <DropdownMenu.Item
+                          key={dept}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                          onClick={() => setEditStaffForm({ ...editStaffForm, department: dept })}
+                        >
+                          {dept}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Position</label>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 text-sm text-left">
+                      <span className={editStaffForm.position ? "text-gray-900" : "text-gray-500"}>
+                        {editStaffForm.position || "Select position"}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
+                      {["Admin", "Supervisor", "Technician"].map((pos) => (
+                        <DropdownMenu.Item
+                          key={pos}
+                          className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                          onClick={() => setEditStaffForm({ ...editStaffForm, position: pos })}
+                        >
+                          {pos}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setEditModal(false);
+                  setEditStaffForm({ id: "", name: "", email: "", phone: "", department: "", position: "" });
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditStaff}
+                disabled={editLoading}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200"
+              >
+                {editLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <PencilIcon className="w-4 h-4" />
+                    Save Changes
                   </>
                 )}
               </button>

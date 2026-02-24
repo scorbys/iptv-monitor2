@@ -198,6 +198,54 @@ const faqData = [
     priority: "Low",
     slug: "channel-not-found",
   },
+  {
+    id: 12,
+    category: "Kategori-12",
+    device: "Chromecast",
+    issue: "Network Connection Failed",
+    solutions: [
+      "Check WiFi connection strength",
+      "Restart Chromecast device",
+      "Verify router settings",
+      "Check for IP conflicts",
+    ],
+    hasImage: false,
+    actionType: "System",
+    priority: "High",
+    slug: "network-connection-failed",
+  },
+  {
+    id: 13,
+    category: "Kategori-13",
+    device: "IPTV",
+    issue: "System Initialization Error",
+    solutions: [
+      "Restart IPTV set-top box",
+      "Check system firmware version",
+      "Reinitialize system settings",
+      "Contact technical support if persists",
+    ],
+    hasImage: false,
+    actionType: "On Site",
+    priority: "Medium",
+    slug: "system-initialization-error",
+  },
+  {
+    id: 14,
+    category: "Kategori-14",
+    device: "Chromecast",
+    issue: "No Device Found Chromecast: Logined",
+    solutions: [
+      "Verify user authentication status",
+      "Check device registration",
+      "Re-login to Google account",
+      "Clear cast cache and retry",
+    ],
+    hasImage: false,
+    actionType: "System",
+    priority: "High",
+    slug: "no-device-found-chromecast-logined",
+  },
 ];
 
 export default function NotifPage() {
@@ -673,6 +721,14 @@ export default function NotifPage() {
     []
   );
 
+  // Helper function to normalize category names
+  const normalizeCategoryName = (category: string): string => {
+    // Normalize both 'Katagori' and 'Kategori' to 'Kategori' for consistency
+    return category
+      .replace(/katagori-/gi, 'Kategori-')
+      .replace(/kategori-/gi, 'Kategori-');
+  };
+
   const getSpecificFAQCategory = (
     notification: Notification
   ): string | null => {
@@ -684,6 +740,12 @@ export default function NotifPage() {
       notification.deviceName?.toLowerCase() || "",
       notification.errorCategory?.toLowerCase() || "",
     ].join(" ");
+
+    // Normalize ML predicted categories to match FAQ naming convention
+    // This handles both 'Katagori-X' (ML output) and 'Kategori-X' (FAQ)
+    const normalizedNotifText = notifText
+      .replace(/katagori-/gi, 'kategori-')
+      .replace(/kategori-/gi, 'kategori-');
 
     // Enhanced keyword mapping for better categorization
     const categoryMappings = {
@@ -752,6 +814,21 @@ export default function NotifPage() {
         device: "channel",
         priority: 1,
       },
+      "Kategori-12": {
+        keywords: ["network connection", "connection failed", "wifi", "router", "network"],
+        device: "chromecast",
+        priority: 2,
+      },
+      "Kategori-13": {
+        keywords: ["initialization", "system error", "firmware", "boot"],
+        device: "iptv",
+        priority: 3,
+      },
+      "Kategori-14": {
+        keywords: ["logined", "logged in", "authentication", "no device found", "registered"],
+        device: "chromecast",
+        priority: 2,
+      },
     };
 
     // Device type matching
@@ -778,7 +855,7 @@ export default function NotifPage() {
 
         // Keyword matching with weighted scoring
         const keywordMatches = config.keywords.filter((keyword) =>
-          notifText.includes(keyword.toLowerCase())
+          normalizedNotifText.includes(keyword.toLowerCase())
         );
 
         score += keywordMatches.length * 5;
@@ -788,7 +865,7 @@ export default function NotifPage() {
 
         // Exact phrase matching bonus
         const hasExactMatch = config.keywords.some((keyword) =>
-          notifText.includes(keyword.toLowerCase())
+          normalizedNotifText.includes(keyword.toLowerCase())
         );
         if (hasExactMatch) score += 3;
 
@@ -1270,6 +1347,18 @@ export default function NotifPage() {
                             </code>
                           </div>
                         )}
+
+                        {/* Assigned Staff */}
+                        {(notification as any).assignedStaff && (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <span className="text-xs text-gray-400 min-w-[35px]">
+                              Staff:
+                            </span>
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 font-medium truncate max-w-[120px]">
+                              {(notification as any).assignedStaff.name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
 
@@ -1542,6 +1631,14 @@ export default function NotifPage() {
                     <code className="text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">
                       {notification.ipAddr}
                     </code>
+                  </div>
+                )}
+                {(notification as any).assignedStaff && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Assigned Staff:</span>
+                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs border border-blue-200 font-medium max-w-[120px] truncate">
+                      {(notification as any).assignedStaff.name}
+                    </span>
                   </div>
                 )}
                 {notification.errorCategory && (

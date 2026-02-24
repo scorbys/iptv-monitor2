@@ -68,6 +68,8 @@ interface AutoFixLog {
   confidence: number;
   errorMessage?: string;
   output?: any;
+  staffName?: string;
+  successRate?: number;
 }
 
 interface DeviceStatus {
@@ -2437,7 +2439,7 @@ export default function ChromecastDetailPage({
                       {/* Header */}
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span
                               className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                                 log.status === 'success'
@@ -2460,19 +2462,39 @@ export default function ChromecastDetailPage({
                             <span className="text-xs text-gray-500">
                               <DateFormatter date={log.timestamp} />
                             </span>
+                            {log.staffName && (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
+                                <span>👤</span>
+                                <span>{log.staffName}</span>
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm font-semibold text-gray-900">
                             {log.mlCategory}
                           </p>
                         </div>
-                        {log.confidence && (
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500">Confidence</p>
-                            <p className="text-sm font-bold text-blue-600">
-                              {(log.confidence * 100).toFixed(1)}%
-                            </p>
-                          </div>
-                        )}
+                        <div className="flex gap-4">
+                          {log.confidence && (
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">Confidence</p>
+                              <p className="text-sm font-bold text-blue-600">
+                                {(log.confidence * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                          )}
+                          {log.successRate !== undefined && log.successRate !== null && (
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">Success Rate</p>
+                              <p className={`text-sm font-bold ${
+                                log.successRate >= 80 ? 'text-green-600' :
+                                log.successRate >= 50 ? 'text-yellow-600' :
+                                'text-red-600'
+                              }`}>
+                                {log.successRate.toFixed(1)}%
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Issue & Action */}
