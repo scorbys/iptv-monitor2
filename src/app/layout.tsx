@@ -16,15 +16,11 @@ export const metadata: Metadata = {
   title: "IPTV Monitoring",
   description: "Dashboard to monitor IPTV services",
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
     apple: "/icon.png",
   },
   manifest: "/manifest.json",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
 };
 
 export default function RootLayout({
@@ -34,6 +30,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+      </head>
       <body className={inter.className}>
         <SpeedInsights />
         <Analytics />
