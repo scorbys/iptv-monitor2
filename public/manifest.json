@@ -1,0 +1,17 @@
+{
+  "name": "IPTV Monitoring",
+  "short_name": "IPTV",
+  "description": "Dashboard to monitor IPTV services",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "240x240",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
