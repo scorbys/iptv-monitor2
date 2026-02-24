@@ -35,7 +35,7 @@ const IPTVLiveChat = () => {
     {
       id: 1,
       type: "bot",
-      text: "Halo! Saya asisten virtual IPTV Monitoring. Saya dapat membantu Anda dengan masalah Chromecast, IPTV, dan Channel. Ada yang bisa saya bantu?",
+      text: "🎉 **Selamat Datang di IPTV Monitoring System!**\n\nSaya asisten virtual yang siap membantu Anda dengan:\n\n📺 **Monitoring**: Channel, Chromecast, Hospitality TV\n📊 **Dashboard**: Statistik & performa sistem\n🤖 **AI/ML**: Prediksi & Auto-Fix\n👥 **Management**: Staff & Users\n\nSilakan tanya apa saja! Contoh:\n• \"Bagaimana cara monitoring channel?\"\n• \"TV offline bagaimana fix?\"\n• \"Apa itu Auto-Fit?\"\n\nSaya siap membantu! 😊",
       timestamp: new Date(),
     },
   ]);
@@ -349,6 +349,47 @@ const IPTVLiveChat = () => {
     });
   };
 
+  // Simple markdown parser for chat messages
+  const formatMessage = (text: string) => {
+    if (!text) return '';
+
+    // Split by lines and process each line
+    return text.split('\n').map((line, lineIdx) => {
+      let formattedLine = line;
+
+      // Bold **text**
+      formattedLine = formattedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+      // Italic *text*
+      formattedLine = formattedLine.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+      // Code `text`
+      formattedLine = formattedLine.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-xs">$1</code>');
+
+      // Bullet points
+      if (formattedLine.trim().startsWith('•')) {
+        return `<p class="ml-2">• ${formattedLine.trim().substring(1).trim()}</p>`;
+      }
+
+      // Numbered lists
+      if (/^\d+\./.test(formattedLine.trim())) {
+        return `<p class="ml-2">${formattedLine.trim()}</p>`;
+      }
+
+      // Headers with emoji
+      if (formattedLine.includes('**') && formattedLine.includes(':')) {
+        return `<p class="font-semibold text-sm mt-2 mb-1">${formattedLine}</p>`;
+      }
+
+      // Regular paragraph
+      if (formattedLine.trim() === '') {
+        return '<br />';
+      }
+
+      return `<p>${formattedLine}</p>`;
+    }).join('');
+  };
+
   const toggleDetails = (messageId: number) => {
     setExpandedMessageId(expandedMessageId === messageId ? null : messageId);
   };
@@ -430,9 +471,10 @@ const IPTVLiveChat = () => {
                       <span className="text-[10px] md:text-xs font-semibold">Error</span>
                     </div>
                   )}
-                  <p className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed">
-                    {message.text}
-                  </p>
+                  <div
+                    className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: formatMessage(message.text) }}
+                  />
 
                   {/* Detailed Steps (Expandable) */}
                   {message.detailedInfo && (
