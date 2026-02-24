@@ -35,6 +35,13 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     const checkAuthWithDelay = setTimeout(() => {
       if (!loading && !hasRedirected) {
         if (requireAuth && !user) {
+          // CRITICAL FIX: Check if we're already on login page to prevent infinite loop
+          const currentPath = window.location.pathname;
+          if (currentPath === '/login' || currentPath === '/register') {
+            console.log('AuthGuard: Already on login page, skipping redirect to prevent infinite loop');
+            return;
+          }
+
           // User is not authenticated but auth is required
           setHasRedirected(true);
           router.replace(redirectTo || "/login");

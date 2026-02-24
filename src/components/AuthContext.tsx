@@ -178,6 +178,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
             apiLogger.warn('Authentication failed - redirecting to login');
+
+            // CRITICAL FIX: Check if we're already on login page to prevent infinite loop
+            const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+            if (currentPath === '/login' || currentPath === '/register') {
+              apiLogger.warn('Already on login page, skipping redirect to prevent infinite loop');
+              // Just clear state without redirecting
+              if (user !== null) setUser(null);
+              document.cookie = 'token=; path=/; max-age=0';
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('token');
+              throw new Error("Authentication failed");
+            }
+
             // Clear user state
             if (user !== null) setUser(null);
             // Clear token from cookies and localStorage
@@ -220,6 +233,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       authLogger.group('Auth Check Started');
       setLoading(true);
+
+      // CRITICAL FIX: Check if we're on login page - if so, don't verify token
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (currentPath === '/login' || currentPath === '/register') {
+        authLogger.log('On login/register page, skipping auth verification to prevent infinite loop');
+        if (user !== null) setUser(null);
+        setLoading(false);
+        authLogger.groupEnd();
+        return;
+      }
 
       // FIRST: Check if we have temp_token in URL (just redirected from Google OAuth)
       const urlParams = new URLSearchParams(window.location.search);
@@ -386,7 +409,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [apiCall, user, getAuthToken, isMobile]);
+  }, [apiCall, getAuthToken, isMobile]); // REMOVED 'user' from dependencies to prevent infinite loop
 
   // Login function
   const login = async (email: string, password: string) => {
