@@ -179,6 +179,19 @@ interface TimeSeriesData {
   successRate: number;
 }
 
+interface StaffPerformance {
+  _id: string;
+  name: string;
+  department: string;
+  position: string;
+  stats: {
+    totalAssigned: number;
+    totalResolved: number;
+    avgResolutionTime: number;
+    successRate: number;
+  };
+}
+
 export default function MLDashboardPage() {
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,11 +203,13 @@ export default function MLDashboardPage() {
   const [loadingCharts, setLoadingCharts] = useState(false);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [staffPerformance, setStaffPerformance] = useState<StaffPerformance[]>([]);
 
   // Advanced filters
   const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0);
   const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'analytics'>('overview');
 
   // Fetch model info on mount
   useEffect(() => {
@@ -202,6 +217,7 @@ export default function MLDashboardPage() {
     fetchAutoFixStats();
     fetchRecentAutoFixes();
     fetchTimeSeriesData();
+    fetchStaffPerformance();
   }, [dateRange]);
 
   // Update current time
@@ -227,31 +243,32 @@ export default function MLDashboardPage() {
     try {
       setLoadingCharts(true);
       const days = parseInt(dateRange);
-      const promises: Promise<AutoFixStatsResponse>[] = [];
 
-      for (let i = 0; i < days; i++) {
-        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-        promises.push(
-          fetch(`/api/auto-fix/stats?period=1&startDate=${date}`).then(res => res.json())
-        );
+      // Fetch timeseries data directly from backend API
+      const response = await fetch(`/api/auto-fix/stats?period=${days}&timeseries=true`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const results = await Promise.all(promises);
-      const timeSeries: TimeSeriesData[] = results.map((result, index) => {
-        const date = format(subDays(new Date(), days - 1 - index), 'MMM dd');
-        const data = result.data || { byStatus: { success: 0, failed: 0 } };
-        return {
-          date,
-          success: data.byStatus.success || 0,
-          failed: data.byStatus.failed || 0,
-          total: (data.byStatus.success || 0) + (data.byStatus.failed || 0),
-          successRate: data.total ? ((data.byStatus.success || 0) / data.total * 100) : 0,
-        };
-      });
+      const data = await response.json();
 
-      setTimeSeriesData(timeSeries.reverse());
+      if (data.success && data.data.timeseries) {
+        const timeSeries: TimeSeriesData[] = data.data.timeseries.map((item: any) => ({
+          date: item.displayDate,
+          success: item.success,
+          failed: item.failed,
+          total: item.total,
+          successRate: item.successRate
+        }));
+
+        setTimeSeriesData(timeSeries);
+      } else {
+        setTimeSeriesData([]);
+      }
     } catch (err) {
       console.error('Error fetching time series data:', err);
+      setTimeSeriesData([]);
     } finally {
       setLoadingCharts(false);
     }
@@ -325,6 +342,37 @@ export default function MLDashboardPage() {
       apiLogger.error('Error fetching model info:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStaffPerformance = async () => {
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/staff', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.staff) {
+        // Sort staff by performance (success rate and total resolved)
+        const sortedStaff = data.staff.sort((a: StaffPerformance, b: StaffPerformance) => {
+          if (b.stats.successRate !== a.stats.successRate) {
+            return b.stats.successRate - a.stats.successRate;
+          }
+          return b.stats.totalResolved - a.stats.totalResolved;
+        });
+        setStaffPerformance(sortedStaff);
+      }
+    } catch (err) {
+      console.error('Error fetching staff performance:', err);
     }
   };
 
@@ -523,6 +571,7 @@ export default function MLDashboardPage() {
       fetchAutoFixStats(),
       fetchRecentAutoFixes(),
       fetchTimeSeriesData(),
+      fetchStaffPerformance(),
     ]);
   };
 
@@ -616,56 +665,6 @@ export default function MLDashboardPage() {
         borderColor: '#ffffff',
       },
     ],
-  };
-
-  // StatCard component with blue theme
-  const StatCard = ({
-    title,
-    value,
-    unit,
-    icon: Icon,
-    trend,
-  }: {
-    title: string;
-    value: number | string;
-    unit: string;
-    icon: React.ComponentType<{ className?: string }>;
-    trend?: number;
-  }) => {
-    return (
-      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 hover:shadow-md transition-shadow duration-200">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-blue-700 mb-1">{title}</p>
-            <p className="text-2xl font-bold text-blue-900">
-              {typeof value === "number" ? value.toFixed(0) : value}
-              <span className="text-sm font-normal text-blue-700 ml-1">
-                {unit}
-              </span>
-            </p>
-          </div>
-          <div className="p-3 bg-white rounded-lg shadow-sm">
-            <Icon className="w-6 h-6 text-blue-600" />
-          </div>
-        </div>
-        {typeof trend === "number" && (
-          <div className="flex items-center mt-3">
-            {trend > 0 ? (
-              <ArrowUpIcon className="w-4 h-4 text-green-600 mr-1" />
-            ) : (
-              <ArrowDownIcon className="w-4 h-4 text-red-600 mr-1" />
-            )}
-            <span
-              className={`text-sm font-medium ${trend > 0 ? "text-green-600" : "text-red-600"
-                }`}
-            >
-              {Math.abs(trend).toFixed(1)}%
-            </span>
-            <span className="text-xs text-blue-600 ml-1">vs last period</span>
-          </div>
-        )}
-      </div>
-    );
   };
 
   if (loading) {
@@ -786,8 +785,9 @@ export default function MLDashboardPage() {
 
       {/* Controls Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          {/* Date Range & Auto Refresh */}
+          <div className="flex flex-wrap items-center gap-4">
             <div className="text-sm text-gray-600">
               Showing data for last <span className="font-semibold text-gray-900">{dateRange} days</span>
             </div>
@@ -821,41 +821,272 @@ export default function MLDashboardPage() {
         </div>
       </div>
 
-      {/* Main Dashboard Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Left Column - ML Components */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* ML Prediction & Training */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <MLPredictionForm onPredict={handlePredict} />
-            <MLTrainingPanel
-              onTrain={handleTrain}
-              onDeleteModel={handleDeleteModel}
-              onRefresh={fetchModelInfo}
-              modelInfo={modelInfo}
-            />
-          </div>
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === 'overview'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <ChartBarIcon className="w-5 h-5" />
+            <span>Overview</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('staff')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === 'staff'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <ShieldCheckIcon className="w-5 h-5" />
+            <span>Staff Performance</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === 'analytics'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <SignalIcon className="w-5 h-5" />
+            <span>Analytics</span>
+          </button>
+        </div>
+      </div>
 
-          {/* ML Results */}
-          {predictions.length > 0 && (
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Predictions</h3>
-              <MLResults predictions={predictions} />
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Quick Stats Grid */}
+          {autoFixStats && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-300 transform hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Total Attempts</p>
+                    <p className="text-3xl font-bold text-blue-600">{autoFixStats.total}</p>
+                    <p className="text-xs text-gray-400 mt-1">Auto-fix executions</p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-sm">
+                      <ChartBarIcon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-300 transform hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Success Rate</p>
+                    <p className="text-3xl font-bold text-green-600">{autoFixStats.successRate}</p>
+                    <p className="text-xs text-gray-400 mt-1">Overall success</p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-sm">
+                      <CheckCircleIcon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-yellow-300 transform hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending</p>
+                    <p className="text-3xl font-bold text-yellow-600">{autoFixStats.byStatus.pending}</p>
+                    <p className="text-xs text-gray-400 mt-1">Awaiting action</p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-sm">
+                      <ClockIcon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-red-300 transform hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Failed</p>
+                    <p className="text-3xl font-bold text-red-600">{autoFixStats.byStatus.failed}</p>
+                    <p className="text-xs text-gray-400 mt-1">Failed attempts</p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-sm">
+                      <ExclamationTriangleIcon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* ML Components */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - ML Forms */}
+            <div className="space-y-6">
+              <MLPredictionForm onPredict={handlePredict} />
+              {predictions.length > 0 && (
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Predictions</h3>
+                  <MLResults predictions={predictions} />
+                </div>
+              )}
+            </div>
+
+            {/* Right Column - ML Training */}
+            <div>
+              <MLTrainingPanel
+                onTrain={handleTrain}
+                onDeleteModel={handleDeleteModel}
+                onRefresh={fetchModelInfo}
+                modelInfo={modelInfo}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'staff' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Staff Performance List */}
+          {staffPerformance.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Staff Performance</h2>
+              </div>
+              <div className="space-y-3 max-h-[700px] overflow-y-auto pr-2">
+                {staffPerformance.map((staff, index) => (
+                  <div
+                    key={staff._id}
+                    className="p-5 rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:shadow-lg hover:border-blue-300"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        {/* Rank Badge */}
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md ${
+                            index === 0
+                              ? 'bg-gradient-to-br from-yellow-400 to-yellow-600'
+                              : index === 1
+                              ? 'bg-gradient-to-br from-gray-400 to-gray-600'
+                              : index === 2
+                              ? 'bg-gradient-to-br from-orange-400 to-orange-600'
+                              : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                          }`}
+                        >
+                          {index + 1}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-gray-900">{staff.name}</h4>
+                          <p className="text-sm text-gray-500">{staff.position} • {staff.department}</p>
+                        </div>
+                      </div>
+                      {/* Success Rate Badge */}
+                      <div
+                        className={`px-4 py-2 rounded-full text-sm font-bold ${
+                          staff.stats.successRate >= 80
+                            ? 'bg-green-100 text-green-700'
+                            : staff.stats.successRate >= 50
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {staff.stats.successRate.toFixed(1)}% Success
+                      </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-4 ml-16">
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <BellIcon className="w-4 h-4 text-blue-500" />
+                          <p className="text-xs font-semibold text-gray-600 uppercase">Assigned</p>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900">{staff.stats.totalAssigned}</p>
+                      </div>
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                          <p className="text-xs font-semibold text-gray-600 uppercase">Resolved</p>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900">{staff.stats.totalResolved}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Activity */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h3>
+            <div className="space-y-3 max-h-[700px] overflow-y-auto pr-2">
+              {recentAutoFixes.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <BellIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg">No recent auto-fix activity</p>
+                </div>
+              ) : (
+                recentAutoFixes.slice(0, 20).map((fix) => (
+                  <div key={fix.fixId} className="p-4 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500">
+                        {new Date(fix.createdAt).toLocaleString()}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        fix.status === 'success' ? 'bg-green-100 text-green-700' :
+                        fix.status === 'failed' ? 'bg-red-100 text-red-700' :
+                        fix.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {fix.status}
+                      </span>
+                    </div>
+                    <div className="text-base font-semibold text-gray-900 mb-2">{fix.category}</div>
+                    <div className="text-sm text-gray-600 mb-3">{fix.description}</div>
+                    {fix.notification && (
+                      <div className="flex items-center gap-3 text-sm text-gray-500 bg-white p-2 rounded-lg">
+                        <ComputerDesktopIcon className="w-4 h-4" />
+                        <span className="font-medium">{fix.notification.deviceName}</span>
+                        {fix.notification.roomNo && (
+                          <>
+                            <span>•</span>
+                            <span>Room {fix.notification.roomNo}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Success Rate Trend */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Success Rate Trend</h3>
-                <ArrowUpIcon className="w-5 h-5 text-green-500" />
+                <h3 className="text-xl font-bold text-gray-900">Success Rate Trend</h3>
+                <ArrowUpIcon className="w-6 h-6 text-green-500" />
               </div>
-              <div className="h-64">
+              <div className="h-80">
                 {loadingCharts ? (
                   <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                   </div>
                 ) : (
                   Chart && timeSeriesData.length > 0 && (
@@ -868,13 +1099,13 @@ export default function MLDashboardPage() {
             {/* Volume by Status */}
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Volume by Status</h3>
-                <ChartBarIcon className="w-5 h-5 text-blue-500" />
+                <h3 className="text-xl font-bold text-gray-900">Volume by Status</h3>
+                <ChartBarIcon className="w-6 h-6 text-blue-500" />
               </div>
-              <div className="h-64">
+              <div className="h-80">
                 {loadingCharts ? (
                   <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                   </div>
                 ) : (
                   Chart && timeSeriesData.length > 0 && (
@@ -885,251 +1116,140 @@ export default function MLDashboardPage() {
             </div>
           </div>
 
-          {/* Category Distribution */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Category Distribution</h3>
-              <SignalIcon className="w-5 h-5 text-purple-500" />
-            </div>
-            <div className="h-64">
-              {loadingAutoFix ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : (
-                Chart && autoFixStats?.byCategory && autoFixStats.byCategory.length > 0 && (
-                  <Chart type="doughnut" data={doughnutChartData} options={chartOptions} />
-                )
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Stats & Recent Activity */}
-        <div className="space-y-6">
-          {/* Auto-Fix Stats Cards */}
-          {autoFixStats && (
-            <>
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">Auto-Fix Performance</h2>
-                  <button
-                    onClick={fetchAutoFixStats}
-                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <ArrowPathIcon className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <StatCard
-                    title="Total Attempts"
-                    value={autoFixStats.total}
-                    unit=""
-                    icon={ChartBarIcon}
-                  />
-
-                  <StatCard
-                    title="Success Rate"
-                    value={autoFixStats.successRate}
-                    unit=""
-                    icon={CheckCircleIcon}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
-                      <p className="text-yellow-700 text-sm font-medium">Pending</p>
-                      <p className="text-2xl font-bold text-gray-900">{autoFixStats.byStatus.pending}</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 border border-red-200">
-                      <p className="text-red-700 text-sm font-medium">Failed</p>
-                      <p className="text-2xl font-bold text-gray-900">{autoFixStats.byStatus.failed}</p>
-                    </div>
+          {/* Category Distribution & Top Issues */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Category Distribution */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Category Distribution</h3>
+                <SignalIcon className="w-6 h-6 text-purple-500" />
+              </div>
+              <div className="h-80">
+                {loadingAutoFix ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                   </div>
-                </div>
+                ) : (
+                  Chart && autoFixStats?.byCategory && autoFixStats.byCategory.length > 0 && (
+                    <Chart type="doughnut" data={doughnutChartData} options={chartOptions} />
+                  )
+                )}
               </div>
+            </div>
 
-              {/* Top Issue Categories */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Top Issue Categories</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {autoFixStats.byCategory.map((category, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                          index === 0 ? 'bg-red-500' :
-                          index === 1 ? 'bg-orange-500' :
-                          index === 2 ? 'bg-yellow-500' :
-                          index === 3 ? 'bg-blue-500' :
-                          index === 4 ? 'bg-purple-500' :
-                          'bg-gray-500'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">{category._id}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-gray-900">{category.count}</div>
-                        <div className="text-xs text-gray-500">{category.success} successful</div>
-                      </div>
-                    </div>
-                  ))}
-                  {autoFixStats.byCategory.length === 0 && (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      No issue categories available
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Top Devices/Channels with Issues */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Top Devices with Issues</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {(() => {
-                    // Group by device
-                    const deviceIssues: Record<string, number> = {};
-                    recentAutoFixes.forEach((fix) => {
-                      const device = fix.notification?.deviceName || 'Unknown';
-                      deviceIssues[device] = (deviceIssues[device] || 0) + 1;
-                    });
-
-                    // Sort all devices by issue count (no filter)
-                    const sortedDevices = Object.entries(deviceIssues)
-                      .sort(([, a], [, b]) => b - a);
-
-                    return sortedDevices.length === 0 ? (
-                      <div className="text-center py-4 text-gray-500 text-sm">
-                        No device data available
-                      </div>
-                    ) : (
-                      sortedDevices.map(([device, count], index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                              index === 0 ? 'bg-red-500' :
-                              index === 1 ? 'bg-orange-500' :
-                              index === 2 ? 'bg-yellow-500' :
-                              index === 3 ? 'bg-blue-500' :
-                              index === 4 ? 'bg-purple-500' :
-                              'bg-gray-500'
-                            }`}>
-                              {index + 1}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <ComputerDesktopIcon className="w-4 h-4 text-gray-500" />
-                              <span className="text-sm font-medium text-gray-900 truncate max-w-[150px]" title={device}>
-                                {device.length > 20 ? device.substring(0, 20) + '...' : device}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-red-600">{count}</div>
-                            <div className="text-xs text-gray-500">issues</div>
-                          </div>
-                        </div>
-                      ))
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Top Rooms with Issues */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Top Rooms with Issues</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {(() => {
-                    // Group by room
-                    const roomIssues: Record<string, number> = {};
-                    recentAutoFixes.forEach((fix) => {
-                      const room = fix.notification?.roomNo || 'Unknown';
-                      roomIssues[room] = (roomIssues[room] || 0) + 1;
-                    });
-
-                    // Sort all rooms by issue count (no filter)
-                    const sortedRooms = Object.entries(roomIssues)
-                      .sort(([, a], [, b]) => b - a);
-
-                    return sortedRooms.length === 0 ? (
-                      <div className="text-center py-4 text-gray-500 text-sm">
-                        No room data available
-                      </div>
-                    ) : (
-                      sortedRooms.map(([room, count], index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                              index === 0 ? 'bg-red-500' :
-                              index === 1 ? 'bg-orange-500' :
-                              index === 2 ? 'bg-yellow-500' :
-                              index === 3 ? 'bg-blue-500' :
-                              index === 4 ? 'bg-purple-500' :
-                              'bg-gray-500'
-                            }`}>
-                              {index + 1}
-                            </div>
-                            <span className="text-sm font-medium text-gray-900">{room}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-red-600">{count}</div>
-                            <div className="text-xs text-gray-500">issues</div>
-                          </div>
-                        </div>
-                      ))
-                    );
-                  })()}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Recent Auto-Fix Activity */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h3>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {recentAutoFixes.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <BellIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm">No recent auto-fix activity</p>
-                </div>
-              ) : (
-                recentAutoFixes.slice(0, 10).map((fix) => (
-                  <div key={fix.fixId} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-500">
-                        {new Date(fix.createdAt).toLocaleString()}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        fix.status === 'success' ? 'bg-green-100 text-green-700' :
-                        fix.status === 'failed' ? 'bg-red-100 text-red-700' :
-                        fix.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
+            {/* Top Issue Categories */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Top Issue Categories</h3>
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                {autoFixStats?.byCategory.map((category, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                        index === 0 ? 'bg-red-500' :
+                        index === 1 ? 'bg-orange-500' :
+                        index === 2 ? 'bg-yellow-500' :
+                        index === 3 ? 'bg-blue-500' :
+                        index === 4 ? 'bg-purple-500' :
+                        'bg-gray-500'
                       }`}>
-                        {fix.status}
-                      </span>
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 mb-1">{fix.category}</div>
-                    <div className="text-xs text-gray-600 mb-2">{fix.description}</div>
-                    {fix.notification && (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <ComputerDesktopIcon className="w-3 h-3" />
-                        <span>{fix.notification.deviceName}</span>
-                        {fix.notification.roomNo && (
-                          <>
-                            <span>•</span>
-                            <span>{fix.notification.roomNo}</span>
-                          </>
-                        )}
+                        {index + 1}
                       </div>
-                    )}
+                      <span className="text-sm font-semibold text-gray-900">{category._id}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-bold text-gray-900">{category.count}</div>
+                      <div className="text-xs text-gray-500">{category.success} successful</div>
+                    </div>
                   </div>
-                ))
-              )}
+                ))}
+                {autoFixStats?.byCategory.length === 0 && (
+                  <div className="text-center py-8 text-gray-500 text-sm">
+                    No issue categories available
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Top Devices & Rooms */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Devices */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Top Devices with Issues</h3>
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                {(() => {
+                  const deviceIssues: Record<string, number> = {};
+                  recentAutoFixes.forEach((fix) => {
+                    const device = fix.notification?.deviceName || 'Unknown';
+                    deviceIssues[device] = (deviceIssues[device] || 0) + 1;
+                  });
+                  const sortedDevices = Object.entries(deviceIssues).sort(([, a], [, b]) => b - a);
+
+                  return sortedDevices.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">No device data available</div>
+                  ) : (
+                    sortedDevices.slice(0, 10).map(([device, count], index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                            index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ComputerDesktopIcon className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-900 truncate max-w-[180px]" title={device}>
+                              {device.length > 25 ? device.substring(0, 25) + '...' : device}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
+                          {count}
+                        </div>
+                      </div>
+                    ))
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Top Rooms */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Top Rooms with Issues</h3>
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                {(() => {
+                  const roomIssues: Record<string, number> = {};
+                  recentAutoFixes.forEach((fix) => {
+                    const room = fix.notification?.roomNo || 'Unknown';
+                    roomIssues[room] = (roomIssues[room] || 0) + 1;
+                  });
+                  const sortedRooms = Object.entries(roomIssues).sort(([, a], [, b]) => b - a);
+
+                  return sortedRooms.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">No room data available</div>
+                  ) : (
+                    sortedRooms.slice(0, 10).map(([room, count], index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                            index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900">Room {room}</span>
+                        </div>
+                        <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
+                          {count}
+                        </div>
+                      </div>
+                    ))
+                  );
+                })()}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Footer Info */}
       <div className="mt-6">

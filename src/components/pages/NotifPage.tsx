@@ -900,154 +900,128 @@ export default function NotifPage() {
     <div className="p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
           {/* Total Notifications Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 backdrop-blur-sm group">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
+            <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium mb-1">
-                  Total Notifications
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Total
                 </p>
-                <p className="text-2xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
+                <p className="text-3xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
                   {stats.totalNotifications}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">All notifications</p>
               </div>
-              <div className="flex-shrink-0 ml-2">
-                <div className="p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                  <BellIcon className="w-5 h-5 text-blue-600" />
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                  <BellIcon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Active Issues Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-red-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
+            <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium mb-1">
-                  Active Issues
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Active
                 </p>
-                <p className="text-2xl font-bold text-red-600 group-hover:text-red-700 transition-colors">
+                <p className="text-3xl font-bold text-red-600 group-hover:text-red-700 transition-colors">
                   {stats.activeIssues}
                 </p>
+                {stats.activeIssues > 0 && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                    Needs attention
+                  </p>
+                )}
               </div>
-              <div className="flex-shrink-0 ml-2">
-                <div className="p-2 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-                  <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
-            {stats.activeIssues > 0 && (
-              <div className="mt-2 pt-2 border-t border-red-100">
-                <div className="flex items-center text-xs text-red-600">
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse mr-1" />
-                  Requires attention
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Recoveries Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
+            <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium mb-1">
-                  Recoveries
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Resolved
                 </p>
-                <p className="text-2xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
+                <p className="text-3xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
                   {stats.recentRecoveries}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">Recovered</p>
               </div>
-              <div className="flex-shrink-0 ml-2">
-                <div className="p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                  <CheckCircleIcon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
-            {stats.recentRecoveries > 0 && (
-              <div className="mt-2 pt-2 border-t border-green-100">
-                <div className="flex items-center text-xs text-green-600">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1" />
-                  Recently resolved
-                </div>
-              </div>
-            )}
           </div>
 
           {/* 24h Alerts Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-orange-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
+            <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium mb-1">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   24h Alerts
                 </p>
-                <p className="text-2xl font-bold text-orange-600 group-hover:text-orange-700 transition-colors">
+                <p className="text-3xl font-bold text-orange-600 group-hover:text-orange-700 transition-colors">
                   {stats.last24HourAlerts}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">Last 24 hours</p>
               </div>
-              <div className="flex-shrink-0 ml-2">
-                <div className="p-2 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-                  <ClockIcon className="w-5 h-5 text-orange-600" />
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                  <ClockIcon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Average Response Time Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-purple-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
+            <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium mb-1">
-                  Avg Response
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Response
                 </p>
-                <p className="text-2xl font-bold text-purple-600 group-hover:text-purple-700 transition-colors">
-                  {stats.avgResponseTime}ms
+                <p className="text-3xl font-bold text-purple-600 group-hover:text-purple-700 transition-colors">
+                  {stats.avgResponseTime}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">Avg (ms)</p>
               </div>
-              <div className="flex-shrink-0 ml-2">
-                <div className="p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-                  <SignalIcon className="w-5 h-5 text-purple-600" />
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                  <SignalIcon className="w-6 h-6 text-white" />
                 </div>
               </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-purple-100">
-              <span
-                className={`px-2 py-1 rounded text-xs font-medium ${stats.avgResponseTime < 100
-                  ? "bg-green-100 text-green-700"
-                  : stats.avgResponseTime < 300
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-red-100 text-red-700"
-                  }`}
-              >
-                {stats.avgResponseTime < 100
-                  ? "Excellent"
-                  : stats.avgResponseTime < 300
-                    ? "Good"
-                    : "Slow"}
-              </span>
             </div>
           </div>
 
           {/* Top Issue Category Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm group">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-gray-500 font-medium mb-1">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-indigo-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Top Issue
                 </p>
                 <p className="text-lg font-bold text-indigo-600 group-hover:text-indigo-700 transition-colors truncate">
                   {stats.topErrorCategory}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">Most common</p>
               </div>
-              <div className="flex-shrink-0 ml-2">
-                <div className="p-2 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg">
-                  <WrenchScrewdriverIcon className="w-5 h-5 text-indigo-600" />
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                  <WrenchScrewdriverIcon className="w-6 h-6 text-white" />
                 </div>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-indigo-100">
-              <div className="text-xs text-indigo-600 font-medium">
-                Most common error
               </div>
             </div>
           </div>

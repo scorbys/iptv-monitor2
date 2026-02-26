@@ -75,6 +75,7 @@ export default function StaffPage({ user }: StaffPageProps) {
   const fetchStaff = useCallback(async () => {
     try {
       setError(null);
+      setLoading(true); // Show loading state
 
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
@@ -92,11 +93,14 @@ export default function StaffPage({ user }: StaffPageProps) {
 
       const data = await response.json();
       setStaff(data.staff || []);
+
+      // Reset to page 1 after refresh
+      setCurrentPage(1);
     } catch (err) {
       apiLogger.error("Failed to fetch staff:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch staff");
     } finally {
-      setLoading(false);
+      setLoading(false); // Hide loading state
     }
   }, []);
 
@@ -384,10 +388,11 @@ export default function StaffPage({ user }: StaffPageProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={fetchStaff}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md"
+            disabled={loading}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ArrowPathIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Refresh</span>
+            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{loading ? 'Loading...' : 'Refresh'}</span>
           </button>
           <button
             onClick={() => setCreateModal(true)}

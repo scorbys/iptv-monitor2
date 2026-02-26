@@ -598,48 +598,82 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   const errors: string[] = [];
 
   // 1. Fetch from backend database notifications (NEW)
+  // Use pagination to fetch ALL notifications, not just 100
   try {
-    const response = await authenticatedFetch('/api/notifications?limit=100');
+    let hasMore = true;
+    let skip = 0;
+    const limit = 100; // Fetch in batches of 100
+    let totalFetched = 0;
+    let totalAvailable = 0;
 
-    if (response.ok) {
-      const json = await response.json();
-      if (json.success && Array.isArray(json.data)) {
-        // Transform backend notifications to frontend format
-        // Filter out startup notifications to avoid counting them
-        const backendNotifications = json.data
-          .filter((notif: any) => !notif.isStartup) // Exclude startup notifications
-          .map((notif: any) => ({
-            id: notif.notificationId,
-            title: notif.title,
-            message: notif.message,
-            rawDate: notif.createdAt,
-            time: getRelativeTime(notif.createdAt),
-            date: formatDate(notif.createdAt),
-            type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
-            source: notif.source as "chromecast" | "tv" | "channel" | "system",
-            deviceName: notif.deviceName,
-            roomNo: notif.roomNo,
-            ipAddr: notif.ipAddr,
-            error: notif.error,
-            errorCategory: notif.errorCategory,
-            currentStatus: notif.currentStatus,
-            previousStatus: notif.previousStatus,
-            isStatusChange: notif.currentStatus === 'online',
-            reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
-            priority: notif.priority, // low, medium, high, critical
-            suggestedSolutions: notif.notes?.length > 0
-              ? notif.notes.map((n: any) => n.note)
-              : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
-            assignedStaff: notif.assignedStaff,
-            handledByStaff: notif.handledByStaff,
-            createdAt: notif.createdAt,
-            updatedAt: notif.updatedAt
-          }));
+    while (hasMore) {
+      const response = await authenticatedFetch(`/api/notifications?limit=${limit}&skip=${skip}`);
 
-        all.push(...backendNotifications);
-        debugLog(`Fetched ${backendNotifications.length} notifications from backend database (startup notifications excluded)`);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.success && Array.isArray(json.data)) {
+          // Get total from pagination info
+          if (json.pagination && json.pagination.total !== undefined) {
+            totalAvailable = json.pagination.total;
+            hasMore = json.pagination.hasMore;
+          } else {
+            // If no pagination info, stop after this batch
+            hasMore = false;
+          }
+
+          // Transform backend notifications to frontend format
+          // Filter out startup notifications to avoid counting them
+          const backendNotifications = json.data
+            .filter((notif: any) => !notif.isStartup) // Exclude startup notifications
+            .map((notif: any) => ({
+              id: notif.notificationId,
+              title: notif.title,
+              message: notif.message,
+              rawDate: notif.createdAt,
+              time: getRelativeTime(notif.createdAt),
+              date: formatDate(notif.createdAt),
+              type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
+              source: notif.source as "chromecast" | "tv" | "channel" | "system",
+              deviceName: notif.deviceName,
+              roomNo: notif.roomNo,
+              ipAddr: notif.ipAddr,
+              error: notif.error,
+              errorCategory: notif.errorCategory,
+              currentStatus: notif.currentStatus,
+              previousStatus: notif.previousStatus,
+              isStatusChange: notif.currentStatus === 'online',
+              reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
+              priority: notif.priority, // low, medium, high, critical
+              suggestedSolutions: notif.notes?.length > 0
+                ? notif.notes.map((n: any) => n.note)
+                : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
+              assignedStaff: notif.assignedStaff,
+              handledByStaff: notif.handledByStaff,
+              createdAt: notif.createdAt,
+              updatedAt: notif.updatedAt
+            }));
+
+          all.push(...backendNotifications);
+          totalFetched += json.data.length;
+
+          // Continue pagination if there are more notifications
+          skip += limit;
+
+          // Safety check: if we got less than limit, we're done
+          if (json.data.length < limit) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      } else {
+        console.error('Error fetching backend notifications batch:', response.status);
+        errors.push(`Failed to fetch backend notifications batch at skip=${skip}`);
+        hasMore = false;
       }
     }
+
+    debugLog(`Fetched ${totalFetched} notifications from backend database (total available: ${totalAvailable}, startup notifications excluded)`);
   } catch (error) {
     console.error('Error fetching backend notifications:', error);
     errors.push('Failed to fetch backend notifications');
