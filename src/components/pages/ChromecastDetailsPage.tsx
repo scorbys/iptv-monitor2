@@ -15,6 +15,8 @@ import {
   DocumentTextIcon,
   PowerIcon,
   GlobeAltIcon,
+  ArrowDownTrayIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
@@ -323,6 +325,9 @@ export default function ChromecastDetailPage({
   // Auto-fix log state
   const [autoFixLogs, setAutoFixLogs] = useState<AutoFixLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<AutoFixLog | null>(null);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [pollingActive, setPollingActive] = useState(false);
 
   const router = useRouter();
 
@@ -925,6 +930,33 @@ export default function ChromecastDetailPage({
     fetchAutoFixLogs();
   }, [device, mounted]);
 
+  // Real-time polling for active logs (executing/pending)
+  useEffect(() => {
+    if (!mounted || !device) return;
+
+    // Check if there are any active logs
+    const hasActiveLogs = autoFixLogs.some(
+      log => log.status === 'executing' || log.status === 'pending'
+    );
+
+    if (!hasActiveLogs) {
+      setPollingActive(false);
+      return;
+    }
+
+    setPollingActive(true);
+
+    // Poll every 10 seconds
+    const interval = setInterval(() => {
+      fetchAutoFixLogs();
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      setPollingActive(false);
+    };
+  }, [autoFixLogs, device, mounted]);
+
   // Auto-fix trigger when device goes offline (DISABLED - Manual Only)
   // useEffect(() => {
   //   if (!mounted || !device) return;
@@ -1167,6 +1199,149 @@ export default function ChromecastDetailPage({
   };
 
   MetricCard.displayName = "MetricCard";
+
+  // Calculate auto-fix log statistics
+  const autoFixStats = useMemo(() => {
+    const total = autoFixLogs.length;
+    const success = autoFixLogs.filter(log => log.status === 'success').length;
+    const failed = autoFixLogs.filter(log => log.status === 'failed').length;
+    const pending = autoFixLogs.filter(log => log.status === 'pending').length;
+    const executing = autoFixLogs.filter(log => log.status === 'executing').length;
+
+    const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : '0.0';
+
+    const avgConfidence = autoFixLogs.length > 0
+      ? (autoFixLogs.reduce((sum, log) => sum + (log.confidence || 0), 0) / autoFixLogs.length * 100).toFixed(1)
+      : '0.0';
+
+    return {
+      total,
+      success,
+      failed,
+      pending,
+      executing,
+      successRate,
+      avgConfidence
+    };
+  }, [autoFixLogs]);
+
+  // Export auto-fix logs to CSV
+  const exportAutoFixLogsToCSV = useCallback(() => {
+    if (autoFixLogs.length === 0) {
+      alert('Tidak ada data untuk diexport');
+      return;
+    }
+
+    const headers = [
+      'Timestamp',
+      'Category',
+      'Issue',
+      'Action',
+      'Status',
+      'Confidence (%)',
+      'Staff Name',
+      'Success Rate (%)',
+      'Description',
+      'Error Message'
+    ];
+
+    const rows = autoFixLogs.map(log => [
+      log.timestamp,
+      log.mlCategory,
+      `"${log.issue.replace(/"/g, '""')}"`,
+      `"${log.action.replace(/"/g, '""')}"`,
+      log.status,
+      (log.confidence * 100).toFixed(1),
+      log.staffName || 'N/A',
+      log.successRate?.toFixed(1) || 'N/A',
+      `"${log.description.replace(/"/g, '""')}"`,
+      log.errorMessage ? `"${log.errorMessage.replace(/"/g, '""')}"` : ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `auto-fix-logs-${device?.deviceName}-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [autoFixLogs, device]);
+
+  // Handle retry for failed auto-fix
+  const handleRetryAutoFix = async (log: AutoFixLog) => {
+    if (!device || checking) return;
+
+    try {
+      setChecking(true);
+
+      const deviceId = device.idCast || device.deviceName;
+      const encodedDeviceId = encodeURIComponent(deviceId.toString());
+
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/chromecast/${encodedDeviceId}/auto-fix`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: `${device.deviceName} ${log.issue}`,
+          issue: log.issue,
+          category: log.mlCategory,
+        }),
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (response.ok) {
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          alert(
+            `🔄 Auto-Fix Retry Berhasil!\n\n` +
+            `Device: ${device.deviceName}\n` +
+            `Issue: ${log.issue}\n` +
+            `Status: ${result.data.success ? '✅ Berhasil' : '❌ Masih Gagal'}\n\n` +
+            `Log akan di-refresh.`
+          );
+
+          await fetchAutoFixLogs();
+        }
+      } else {
+        const errorResult = await response.json();
+        alert(`Error: ${errorResult.error || 'Failed to retry auto-fix'}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to retry auto-fix'}`);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Open log detail modal
+  const openLogModal = (log: AutoFixLog) => {
+    setSelectedLog(log);
+    setShowLogModal(true);
+  };
+
+  // Close log detail modal
+  const closeLogModal = () => {
+    setShowLogModal(false);
+    setSelectedLog(null);
+  };
 
   // Custom Tooltip untuk chart
   const CustomTooltip: React.FC<CustomTooltipProps> = ({
@@ -2398,15 +2573,60 @@ export default function ChromecastDetailPage({
                     Riwayat perbaikan otomatis dengan ML
                   </p>
                 </div>
-                <button
-                  onClick={fetchAutoFixLogs}
-                  disabled={loadingLogs}
-                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                >
-                  <ArrowPathIcon className={`w-3 h-3 mr-1.5 ${loadingLogs ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                  {autoFixLogs.length > 0 && (
+                    <button
+                      onClick={exportAutoFixLogsToCSV}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+                    >
+                      <ArrowDownTrayIcon className="w-3 h-3 mr-1.5" />
+                      Export CSV
+                    </button>
+                  )}
+                  <button
+                    onClick={fetchAutoFixLogs}
+                    disabled={loadingLogs}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                  >
+                    <ArrowPathIcon className={`w-3 h-3 mr-1.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
               </div>
+
+              {/* Summary Statistics */}
+              {autoFixLogs.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Total Logs</p>
+                    <p className="text-lg font-bold text-gray-900">{autoFixStats.total}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Success Rate</p>
+                    <p className={`text-lg font-bold ${parseFloat(autoFixStats.successRate) >= 80 ? 'text-green-600' : parseFloat(autoFixStats.successRate) >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {autoFixStats.successRate}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Avg Confidence</p>
+                    <p className="text-lg font-bold text-blue-600">{autoFixStats.avgConfidence}%</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Active</p>
+                    <p className="text-lg font-bold text-orange-600">{autoFixStats.pending + autoFixStats.executing}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Real-time polling indicator */}
+              {pollingActive && (
+                <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-yellow-600 border-t-transparent"></div>
+                  <span className="text-xs text-yellow-800 font-medium">
+                    Real-time updates active - Auto-refreshing every 10 seconds...
+                  </span>
+                </div>
+              )}
 
               {loadingLogs ? (
                 <div className="flex items-center justify-center py-8">
@@ -2473,7 +2693,7 @@ export default function ChromecastDetailPage({
                             {log.mlCategory}
                           </p>
                         </div>
-                        <div className="flex gap-4">
+                        <div className="flex gap-2 items-center">
                           {log.confidence && (
                             <div className="text-right">
                               <p className="text-xs text-gray-500">Confidence</p>
@@ -2494,6 +2714,13 @@ export default function ChromecastDetailPage({
                               </p>
                             </div>
                           )}
+                          <button
+                            onClick={() => openLogModal(log)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -2514,9 +2741,23 @@ export default function ChromecastDetailPage({
 
                         {/* Error message if failed */}
                         {log.errorMessage && (
-                          <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded text-xs text-red-700">
-                            <span className="font-medium">Error: </span>
-                            {log.errorMessage}
+                          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-red-800 mb-1">Error Details</p>
+                                <p className="text-xs text-red-700 break-words">{log.errorMessage}</p>
+                              </div>
+                              <button
+                                onClick={() => handleRetryAutoFix(log)}
+                                disabled={checking}
+                                className="ml-2 px-2 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50 transition-colors flex-shrink-0"
+                              >
+                                <ArrowPathIcon className={`w-3 h-3 ${checking ? 'animate-spin' : ''}`} />
+                              </button>
+                            </div>
+                            <p className="text-xs text-red-600 mt-2">
+                              💡 Click retry button to attempt auto-fix again
+                            </p>
                           </div>
                         )}
 
@@ -2550,6 +2791,140 @@ export default function ChromecastDetailPage({
                 </div>
               </div>
             </div>
+
+            {/* Log Detail Modal */}
+            {showLogModal && selectedLog && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+                <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                  {/* Modal Header */}
+                  <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                              selectedLog.status === 'success'
+                                ? 'bg-green-100 text-green-800'
+                                : selectedLog.status === 'failed'
+                                ? 'bg-red-100 text-red-800'
+                                : selectedLog.status === 'executing'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {selectedLog.status.toUpperCase()}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            <DateFormatter date={selectedLog.timestamp} />
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">{selectedLog.mlCategory}</h3>
+                      </div>
+                      <button
+                        onClick={closeLogModal}
+                        className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                      >
+                        <XMarkIcon className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {/* Issue */}
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700">Issue</label>
+                      <p className="text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded-lg">{selectedLog.issue}</p>
+                    </div>
+
+                    {/* Action */}
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700">Action Taken</label>
+                      <p className="text-sm text-gray-900 mt-1 bg-blue-50 p-3 rounded-lg">{selectedLog.action}</p>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700">Description</label>
+                      <p className="text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded-lg">{selectedLog.description}</p>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-3 gap-4">
+                      {selectedLog.confidence && (
+                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-1">Confidence</p>
+                          <p className="text-lg font-bold text-blue-600">{(selectedLog.confidence * 100).toFixed(1)}%</p>
+                        </div>
+                      )}
+                      {selectedLog.successRate !== undefined && selectedLog.successRate !== null && (
+                        <div className="text-center p-3 bg-green-50 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-1">Success Rate</p>
+                          <p className={`text-lg font-bold ${
+                            selectedLog.successRate >= 80 ? 'text-green-600' :
+                            selectedLog.successRate >= 50 ? 'text-yellow-600' :
+                            'text-red-600'
+                          }`}>
+                            {selectedLog.successRate.toFixed(1)}%
+                          </p>
+                        </div>
+                      )}
+                      {selectedLog.staffName && (
+                        <div className="text-center p-3 bg-purple-50 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-1">Staff</p>
+                          <p className="text-sm font-bold text-purple-600">{selectedLog.staffName}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Error Message */}
+                    {selectedLog.errorMessage && (
+                      <div>
+                        <label className="text-sm font-semibold text-red-700">Error Message</label>
+                        <div className="mt-1 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-800 break-words">{selectedLog.errorMessage}</p>
+                          <button
+                            onClick={() => {
+                              closeLogModal();
+                              handleRetryAutoFix(selectedLog);
+                            }}
+                            disabled={checking}
+                            className="mt-3 w-full px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                          >
+                            <ArrowPathIcon className={`w-4 h-4 inline mr-2 ${checking ? 'animate-spin' : ''}`} />
+                            Retry Auto-Fix
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Output */}
+                    {selectedLog.output && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-700">Output / Response</label>
+                        <pre className="mt-1 p-3 bg-gray-900 text-green-400 rounded-lg text-xs overflow-x-auto">
+                          {typeof selectedLog.output === 'string'
+                            ? selectedLog.output
+                            : JSON.stringify(selectedLog.output, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="p-4 border-t border-gray-200 bg-gray-50">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={closeLogModal}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -416,6 +416,12 @@ export default function NetworkTrafficDashboard() {
     setIsClient(true);
   }, []);
 
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Custom Tooltip for stats charts
   const StatsTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {

@@ -305,6 +305,9 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   // Auto-fix log state
   const [autoFixLogs, setAutoFixLogs] = useState<AutoFixLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<AutoFixLog | null>(null);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [pollingActive, setPollingActive] = useState(false);
 
   const router = useRouter();
 
@@ -666,6 +669,81 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
   };
 
+  // Export to CSV function
+  const exportToCSV = () => {
+    if (autoFixLogs.length === 0) return;
+
+    const headers = ['Timestamp', 'Category', 'Issue', 'Action', 'Status', 'Confidence', 'Success Rate', 'Staff'];
+    const csvContent = [
+      headers.join(','),
+      ...autoFixLogs.map(log => [
+        `"${log.timestamp}"`,
+        `"${log.mlCategory}"`,
+        `"${log.issue}"`,
+        `"${log.action}"`,
+        log.status,
+        log.confidence ? `${(log.confidence * 100).toFixed(1)}%` : 'N/A',
+        log.successRate !== undefined ? `${log.successRate.toFixed(1)}%` : 'N/A',
+        log.staffName || 'N/A'
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tv-${tvs?.roomNo}-autofix-logs-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Handle retry auto-fix
+  const handleRetryAutoFix = async (log: AutoFixLog) => {
+    if (!tvs || checking) return;
+
+    try {
+      setChecking(true);
+      componentLogger.log(`[AutoFix] Retrying fix for Room ${tvs.roomNo}...`);
+
+      const tvId = tvs.roomNo || tvs.id;
+      const encodedTvId = encodeURIComponent(tvId.toString());
+
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: `Room ${tvs.roomNo} ${log.issue}`,
+          issue: log.issue,
+          category: log.mlCategory,
+        }),
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          await fetchAutoFixLogs();
+          await handleCheckTV();
+        }
+      }
+    } catch (error) {
+      apiLogger.error('[AutoFix] Error retrying fix:', error);
+    } finally {
+      setChecking(false);
+    }
+  };
+
   // Trigger Auto-Fix (Manual trigger only - not automatic)
   const triggerAutoFix = async () => {
     if (!tvs || checking) return;
@@ -827,6 +905,26 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
     fetchAutoFixLogs();
   }, [tvs, mounted]);
+
+  // Real-time polling for active/executing/pending logs
+  useEffect(() => {
+    if (!mounted || !tvs) return;
+    const hasActiveLogs = autoFixLogs.some(
+      log => log.status === 'executing' || log.status === 'pending'
+    );
+    if (!hasActiveLogs) {
+      setPollingActive(false);
+      return;
+    }
+    setPollingActive(true);
+    const interval = setInterval(() => {
+      fetchAutoFixLogs();
+    }, 10000);
+    return () => {
+      clearInterval(interval);
+      setPollingActive(false);
+    };
+  }, [autoFixLogs, tvs, mounted]);
 
   const TrendIndicator = React.useCallback(({ trend }: { trend: string }) => {
     if (trend === "up") {
@@ -2225,22 +2323,73 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Auto-Fix Log
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Auto-Fix Log
+                    </h2>
+                    {pollingActive && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        Live
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 mt-1">
                     Riwayat perbaikan otomatis dengan ML
                   </p>
                 </div>
-                <button
-                  onClick={fetchAutoFixLogs}
-                  disabled={loadingLogs}
-                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                >
-                  <ArrowPathIcon className={`w-3 h-3 mr-1.5 ${loadingLogs ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={exportToCSV}
+                    disabled={autoFixLogs.length === 0}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Export to CSV"
+                  >
+                    <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export
+                  </button>
+                  <button
+                    onClick={fetchAutoFixLogs}
+                    disabled={loadingLogs}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                  >
+                    <ArrowPathIcon className={`w-3 h-3 mr-1.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
               </div>
+
+              {/* Summary Statistics */}
+              {autoFixLogs.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <div className="text-center">
+                    <p className="text-lg sm:text-xl font-bold text-gray-900">{autoFixLogs.length}</p>
+                    <p className="text-xs text-gray-600">Total Logs</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg sm:text-xl font-bold text-green-600">
+                      {autoFixLogs.filter(l => l.status === 'success').length}
+                    </p>
+                    <p className="text-xs text-gray-600">Success</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg sm:text-xl font-bold text-blue-600">
+                      {autoFixLogs.length > 0
+                        ? (autoFixLogs.reduce((sum, log) => sum + (log.confidence || 0), 0) / autoFixLogs.length * 100).toFixed(0)
+                        : 0}%
+                    </p>
+                    <p className="text-xs text-gray-600">Avg Confidence</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg sm:text-xl font-bold text-yellow-600">
+                      {autoFixLogs.filter(l => l.status === 'executing' || l.status === 'pending').length}
+                    </p>
+                    <p className="text-xs text-gray-600">Active</p>
+                  </div>
+                </div>
+              )}
 
               {loadingLogs ? (
                 <div className="flex items-center justify-center py-8">
@@ -2354,17 +2503,30 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                           </div>
                         )}
 
-                        {/* Output if available */}
-                        {log.output && (
-                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                            <span className="font-medium">Output: </span>
-                            <span className="break-words">
-                              {typeof log.output === 'string'
-                                ? log.output
-                                : JSON.stringify(log.output, null, 2)}
-                            </span>
-                          </div>
-                        )}
+                        {/* Action buttons */}
+                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                          <button
+                            onClick={() => {
+                              setSelectedLog(log);
+                              setShowLogModal(true);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            <DocumentTextIcon className="w-3 h-3 mr-1" />
+                            View Details
+                          </button>
+
+                          {log.status === 'failed' && (
+                            <button
+                              onClick={() => handleRetryAutoFix(log)}
+                              disabled={checking}
+                              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
+                            >
+                              <ArrowPathIcon className={`w-3 h-3 mr-1 ${checking ? 'animate-spin' : ''}`} />
+                              Retry Fix
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2467,6 +2629,140 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Log Details Modal */}
+      {showLogModal && selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Auto-Fix Log Details</h3>
+                <p className="text-sm text-gray-500">{selectedLog.mlCategory}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowLogModal(false);
+                  setSelectedLog(null);
+                }}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="space-y-4">
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedLog.status === 'success'
+                        ? 'bg-green-100 text-green-800'
+                        : selectedLog.status === 'failed'
+                        ? 'bg-red-100 text-red-800'
+                        : selectedLog.status === 'executing'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {selectedLog.status === 'success'
+                      ? '✅ Success'
+                      : selectedLog.status === 'failed'
+                      ? '❌ Failed'
+                      : selectedLog.status === 'executing'
+                      ? '⏳ Executing'
+                      : '⏸ Pending'}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    <DateFormatter date={selectedLog.timestamp} />
+                  </span>
+                </div>
+
+                {/* Metrics */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                  {selectedLog.confidence && (
+                    <div>
+                      <p className="text-xs text-gray-500">Confidence</p>
+                      <p className="text-lg font-bold text-blue-600">
+                        {(selectedLog.confidence * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  )}
+                  {selectedLog.successRate !== undefined && selectedLog.successRate !== null && (
+                    <div>
+                      <p className="text-xs text-gray-500">Success Rate</p>
+                      <p className={`text-lg font-bold ${
+                        selectedLog.successRate >= 80 ? 'text-green-600' :
+                        selectedLog.successRate >= 50 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {selectedLog.successRate.toFixed(1)}%
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Details */}
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Issue</p>
+                    <p className="text-sm text-gray-900 mt-1">{selectedLog.issue}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Action</p>
+                    <p className="text-sm text-gray-900 mt-1">{selectedLog.action}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Description</p>
+                    <p className="text-sm text-gray-900 mt-1">{selectedLog.description}</p>
+                  </div>
+                  {selectedLog.staffName && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Executed By</p>
+                      <p className="text-sm text-gray-900 mt-1">{selectedLog.staffName}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Error Message */}
+                {selectedLog.errorMessage && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm font-medium text-red-900 mb-1">Error Message</p>
+                    <p className="text-sm text-red-700">{selectedLog.errorMessage}</p>
+                  </div>
+                )}
+
+                {/* Output */}
+                {selectedLog.output && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm font-medium text-blue-900 mb-2">Output</p>
+                    <pre className="text-xs text-blue-700 overflow-x-auto whitespace-pre-wrap">
+                      {typeof selectedLog.output === 'string'
+                        ? selectedLog.output
+                        : JSON.stringify(selectedLog.output, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowLogModal(false);
+                  setSelectedLog(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

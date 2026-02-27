@@ -199,6 +199,9 @@ export default function MLDashboardPage() {
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [autoFixStats, setAutoFixStats] = useState<AutoFixStats | null>(null);
   const [recentAutoFixes, setRecentAutoFixes] = useState<AutoFixLog[]>([]);
+  const [allAutoFixes, setAllAutoFixes] = useState<AutoFixLog[]>([]); // For export
+  const [topDevices, setTopDevices] = useState<Array<{ device: string; count: number }>>([]);
+  const [topRooms, setTopRooms] = useState<Array<{ room: string; count: number }>>([]);
   const [loadingAutoFix, setLoadingAutoFix] = useState(true);
   const [loadingCharts, setLoadingCharts] = useState(false);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
@@ -218,6 +221,7 @@ export default function MLDashboardPage() {
     fetchRecentAutoFixes();
     fetchTimeSeriesData();
     fetchStaffPerformance();
+    fetchTopDevicesAndRooms();
   }, [dateRange]);
 
   // Update current time
@@ -243,9 +247,15 @@ export default function MLDashboardPage() {
     try {
       setLoadingCharts(true);
       const days = parseInt(dateRange);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
 
       // Fetch timeseries data directly from backend API
-      const response = await fetch(`/api/auto-fix/stats?period=${days}&timeseries=true`);
+      const response = await fetch(`/api/auto-fix/stats?period=${days}&timeseries=true`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -277,7 +287,13 @@ export default function MLDashboardPage() {
   const fetchAutoFixStats = async () => {
     try {
       setLoadingAutoFix(true);
-      const response = await fetch(`/api/auto-fix/stats?period=${dateRange}`);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/auto-fix/stats?period=${dateRange}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -297,7 +313,13 @@ export default function MLDashboardPage() {
 
   const fetchRecentAutoFixes = async () => {
     try {
-      const response = await fetch('/api/auto-fix/history?limit=50&skip=0');
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/auto-fix/history?limit=50&skip=0', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -310,6 +332,40 @@ export default function MLDashboardPage() {
       }
     } catch (err) {
       console.error('Error fetching recent auto-fixes:', err);
+    }
+  };
+
+  const fetchAllAutoFixesForExport = async () => {
+    try {
+      // Fetch all auto-fixes with pagination to get complete data
+      let allFixes: AutoFixLog[] = [];
+      let skip = 0;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await fetch(`/api/auto-fix/history?limit=${limit}&skip=${skip}`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.data.length > 0) {
+          allFixes = [...allFixes, ...data.data];
+          skip += limit;
+          hasMore = data.pagination?.hasMore || data.data.length === limit;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setAllAutoFixes(allFixes);
+      return allFixes;
+    } catch (err) {
+      console.error('Error fetching all auto-fixes:', err);
+      return [];
     }
   };
 
@@ -373,6 +429,48 @@ export default function MLDashboardPage() {
       }
     } catch (err) {
       console.error('Error fetching staff performance:', err);
+    }
+  };
+
+  const fetchTopDevicesAndRooms = async () => {
+    try {
+      const days = parseInt(dateRange);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+
+      console.log('Fetching analytics data...');
+
+      const response = await fetch(`/api/notifications/stats?analytics=true&period=${days}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      console.log('Analytics API response:', data);
+
+      if (data.success) {
+        console.log('Top devices:', data.data.topDevices);
+        console.log('Top rooms:', data.data.topRooms);
+        setTopDevices(data.data.topDevices || []);
+        setTopRooms(data.data.topRooms || []);
+      } else {
+        console.error('API returned success=false:', data.error);
+        setTopDevices([]);
+        setTopRooms([]);
+      }
+    } catch (err) {
+      console.error('Error fetching top devices and rooms:', err);
+      // Fallback to empty arrays
+      setTopDevices([]);
+      setTopRooms([]);
     }
   };
 
@@ -507,22 +605,56 @@ export default function MLDashboardPage() {
     try {
       setIsExporting(true);
 
-      if (!recentAutoFixes || recentAutoFixes.length === 0) {
+      // Fetch all auto-fixes for export
+      const allFixes = await fetchAllAutoFixesForExport();
+
+      if (!allFixes || allFixes.length === 0) {
         alert('No data to export');
         return;
       }
 
+      console.log(`Exporting ${allFixes.length} records...`);
+
+      // Fetch chromecast devices to enrich room numbers
+      const chromecastRoomMap: Record<string, string> = {};
+      try {
+        const chromecastResponse = await fetch('/api/chromecast?limit=1000');
+        if (chromecastResponse.ok) {
+          const chromecastData = await chromecastResponse.json();
+          if (chromecastData.success && chromecastData.data) {
+            chromecastData.data.forEach((cc: any) => {
+              if (cc.deviceName && cc.roomNr) {
+                chromecastRoomMap[cc.deviceName] = cc.roomNr;
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch chromecast data for room enrichment:', err);
+      }
+
       const headers = ['Date', 'Category', 'Action', 'Status', 'Device', 'Room', 'Confidence', 'Description'];
-      const csvData = recentAutoFixes.map((fix) => [
-        new Date(fix.createdAt).toLocaleString(),
-        fix.category,
-        fix.action,
-        fix.status,
-        fix.notification?.deviceName || 'N/A',
-        fix.notification?.roomNo || 'N/A',
-        `${(fix.confidence * 100).toFixed(1)}%`,
-        fix.description,
-      ]);
+      const csvData = allFixes.map((fix) => {
+        // Enrich roomNo from chromecast collection if notification roomNo is N/A
+        let roomNo = fix.notification?.roomNo || 'N/A';
+        const deviceName = fix.notification?.deviceName || 'N/A';
+
+        // If roomNo is N/A or missing, try to get it from chromecast collection
+        if ((!roomNo || roomNo === 'N/A') && deviceName && chromecastRoomMap[deviceName]) {
+          roomNo = chromecastRoomMap[deviceName];
+        }
+
+        return [
+          new Date(fix.createdAt).toLocaleString(),
+          fix.category,
+          fix.action,
+          fix.status,
+          deviceName,
+          roomNo,
+          `${(fix.confidence * 100).toFixed(1)}%`,
+          fix.description,
+        ];
+      });
 
       const csvContent = [
         headers.join(','),
@@ -811,7 +943,7 @@ export default function MLDashboardPage() {
 
             <button
               onClick={exportToCSV}
-              disabled={isExporting || recentAutoFixes.length === 0}
+              disabled={isExporting}
               className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${isExporting ? "animate-pulse" : ""}`}
             >
               <DocumentArrowDownIcon className="w-4 h-4" />
@@ -989,17 +1121,22 @@ export default function MLDashboardPage() {
                           <p className="text-sm text-gray-500">{staff.position} • {staff.department}</p>
                         </div>
                       </div>
-                      {/* Success Rate Badge */}
+                      {/* Success Rate Badge - Calculate correctly */}
                       <div
                         className={`px-4 py-2 rounded-full text-sm font-bold ${
-                          staff.stats.successRate >= 80
-                            ? 'bg-green-100 text-green-700'
-                            : staff.stats.successRate >= 50
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
+                          staff.stats.totalAssigned > 0
+                            ? ((staff.stats.totalResolved / staff.stats.totalAssigned) * 100) >= 80
+                              ? 'bg-green-100 text-green-700'
+                              : ((staff.stats.totalResolved / staff.stats.totalAssigned) * 100) >= 50
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {staff.stats.successRate.toFixed(1)}% Success
+                        {staff.stats.totalAssigned > 0
+                          ? `${((staff.stats.totalResolved / staff.stats.totalAssigned) * 100).toFixed(1)}% Success`
+                          : '0% Success'
+                        }
                       </div>
                     </div>
 
@@ -1177,39 +1314,30 @@ export default function MLDashboardPage() {
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Top Devices with Issues</h3>
               <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                {(() => {
-                  const deviceIssues: Record<string, number> = {};
-                  recentAutoFixes.forEach((fix) => {
-                    const device = fix.notification?.deviceName || 'Unknown';
-                    deviceIssues[device] = (deviceIssues[device] || 0) + 1;
-                  });
-                  const sortedDevices = Object.entries(deviceIssues).sort(([, a], [, b]) => b - a);
-
-                  return sortedDevices.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 text-sm">No device data available</div>
-                  ) : (
-                    sortedDevices.slice(0, 10).map(([device, count], index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                            index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
-                          }`}>
-                            {index + 1}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ComputerDesktopIcon className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-900 truncate max-w-[180px]" title={device}>
-                              {device.length > 25 ? device.substring(0, 25) + '...' : device}
-                            </span>
-                          </div>
+                {topDevices.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">No device data available</div>
+                ) : (
+                  topDevices.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                          index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
+                        }`}>
+                          {index + 1}
                         </div>
-                        <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
-                          {count}
+                        <div className="flex items-center gap-2">
+                          <ComputerDesktopIcon className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-900 truncate max-w-[180px]" title={item.device}>
+                            {item.device.length > 25 ? item.device.substring(0, 25) + '...' : item.device}
+                          </span>
                         </div>
                       </div>
-                    ))
-                  );
-                })()}
+                      <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
+                        {item.count}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -1217,34 +1345,25 @@ export default function MLDashboardPage() {
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Top Rooms with Issues</h3>
               <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                {(() => {
-                  const roomIssues: Record<string, number> = {};
-                  recentAutoFixes.forEach((fix) => {
-                    const room = fix.notification?.roomNo || 'Unknown';
-                    roomIssues[room] = (roomIssues[room] || 0) + 1;
-                  });
-                  const sortedRooms = Object.entries(roomIssues).sort(([, a], [, b]) => b - a);
-
-                  return sortedRooms.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 text-sm">No room data available</div>
-                  ) : (
-                    sortedRooms.slice(0, 10).map(([room, count], index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                            index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
-                          }`}>
-                            {index + 1}
-                          </div>
-                          <span className="text-sm font-semibold text-gray-900">Room {room}</span>
+                {topRooms.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">No room data available</div>
+                ) : (
+                  topRooms.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                          index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
+                        }`}>
+                          {index + 1}
                         </div>
-                        <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
-                          {count}
-                        </div>
+                        <span className="text-sm font-semibold text-gray-900">Room {item.room}</span>
                       </div>
-                    ))
-                  );
-                })()}
+                      <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
+                        {item.count}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
