@@ -68,6 +68,12 @@ export default function StaffPage({ user }: StaffPageProps) {
   const [createLoading, setCreateLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
 
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'name' | 'department' | 'position';
+    direction: 'asc' | 'desc';
+  } | null>(null);
+
   const departments = ["All", "IT Support", "Engineering"];
   const statuses = ["All", "Active", "Inactive"];
 
@@ -310,9 +316,9 @@ export default function StaffPage({ user }: StaffPageProps) {
     setEditModal(true);
   };
 
-  // Filter staff
+  // Filter and sort staff
   const filteredStaff = useMemo(() => {
-    return staff.filter((member) => {
+    let filtered = staff.filter((member) => {
       const matchesSearch =
         searchQuery === "" ||
         member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -326,7 +332,25 @@ export default function StaffPage({ user }: StaffPageProps) {
 
       return matchesSearch && matchesDepartment && matchesStatus;
     });
-  }, [staff, searchQuery, departmentFilter, statusFilter]);
+
+    // Apply sorting
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [staff, searchQuery, departmentFilter, statusFilter, sortConfig]);
 
   // Pagination
   const totalPages = Math.ceil(filteredStaff.length / ITEMS_PER_PAGE);
@@ -337,6 +361,26 @@ export default function StaffPage({ user }: StaffPageProps) {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, departmentFilter, statusFilter]);
+
+  // Handle column sorting
+  const handleSort = (key: 'name' | 'department' | 'position') => {
+    let direction: 'asc' | 'desc' = 'asc';
+
+    if (sortConfig && sortConfig.key === key) {
+      direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+    }
+
+    setSortConfig({ key, direction });
+  };
+
+  // Get sort icon
+  const getSortIcon = (columnKey: 'name' | 'department' | 'position') => {
+    if (!sortConfig || sortConfig.key !== columnKey) {
+      return null;
+    }
+
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
 
   // Get department badge config
   const getDepartmentConfig = (department: string) => {
@@ -496,17 +540,35 @@ export default function StaffPage({ user }: StaffPageProps) {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Staff Member
+                  <th
+                    className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Staff Member
+                      <span className="text-blue-600">{getSortIcon('name')}</span>
+                    </div>
                   </th>
                   <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Contact
                   </th>
-                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Department
+                  <th
+                    className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                    onClick={() => handleSort('department')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Department
+                      <span className="text-blue-600">{getSortIcon('department')}</span>
+                    </div>
                   </th>
-                  <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Role
+                  <th
+                    className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                    onClick={() => handleSort('position')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Role
+                      <span className="text-blue-600">{getSortIcon('position')}</span>
+                    </div>
                   </th>
                   <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Status
@@ -625,13 +687,17 @@ export default function StaffPage({ user }: StaffPageProps) {
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Success:</span>
                               <span className={`text-xs font-semibold ${
-                                member.stats.successRate >= 80
-                                  ? "text-green-600"
-                                  : member.stats.successRate >= 50
-                                  ? "text-yellow-600"
-                                  : "text-red-600"
+                                member.stats.totalAssigned > 0
+                                  ? (member.stats.totalResolved / member.stats.totalAssigned * 100) >= 80
+                                    ? "text-green-600"
+                                    : (member.stats.totalResolved / member.stats.totalAssigned * 100) >= 50
+                                    ? "text-yellow-600"
+                                    : "text-red-600"
+                                  : "text-gray-600"
                               }`}>
-                                {member.stats.successRate.toFixed(0)}%
+                                {member.stats.totalAssigned > 0
+                                  ? ((member.stats.totalResolved / member.stats.totalAssigned) * 100).toFixed(0)
+                                  : 0}%
                               </span>
                             </div>
                           </div>
