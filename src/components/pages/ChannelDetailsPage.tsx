@@ -29,6 +29,16 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import {
+  getLabelColorClass,
+  getLabelBadgeStyle,
+  formatMetricValue,
+  getMetricIcon,
+  getStatusBadgeClass,
+  type MetricLabel,
+  type ChannelMetrics,
+  type LabeledMetrics
+} from "@/utils/metricCalculator";
 
 interface FAQ {
   id: number;
@@ -93,6 +103,8 @@ interface NetworkMetrics {
   hops: number;
   signalStrength: number;
   bitrate: number;
+  error: number;
+  recoveryTime: number;
 }
 
 interface NetworkHistory {
@@ -106,6 +118,8 @@ interface NetworkHistory {
   hops: number;
   signalStrength: number;
   bitrate: number;
+  error: number;
+  recoveryTime: number;
 }
 
 interface ChannelDetailPageProps {
@@ -228,19 +242,29 @@ const faqData: FAQ[] = [
   },
 ];
 
-// Generate random network data for channels
+// Generate random network data for channels (fallback when API unavailable)
+// NOTE: Backend now provides labeledMetrics and errorCategory, use those when available
 const generateRandomNetworkData = (): NetworkMetrics => {
+  // Generate random metrics for fallback only
+  const packetLoss = Math.random() < 0.3 ? 0 : parseFloat((Math.random() * 12).toFixed(2));
+  const latency = Math.floor(Math.random() * 450) + 20;
+  const jitter = Math.floor(Math.random() * 180) + 10;
+  const error = Math.random() < 0.4 ? 0 : parseFloat((Math.random() * 22).toFixed(2));
+  const recoveryTime = Math.random() < 0.5 ? 0 : parseFloat((Math.random() * 35 + 5).toFixed(1));
+
   return {
     sent: (Math.random() * 12 + 5).toFixed(2),
     received: (Math.random() * 10 + 3).toFixed(2),
-    latency: Math.floor(Math.random() * 25) + 5,
-    jitter: Math.floor(Math.random() * 8) + 1,
+    latency: latency,
+    jitter: jitter,
     ttl: Math.floor(Math.random() * 10) + 55,
-    packetLoss: parseFloat((Math.random() * 0.8).toFixed(2)),
+    packetLoss: packetLoss,
     bandwidth: Math.floor(Math.random() * 100) + 50,
     hops: Math.floor(Math.random() * 12) + 8,
     signalStrength: Math.floor(Math.random() * 30) + 70, // 70-100%
     bitrate: Math.floor(Math.random() * 5000) + 3000, // 3000-8000 kbps
+    error: error,
+    recoveryTime: recoveryTime,
   };
 };
 
@@ -284,17 +308,26 @@ const generateHistoricalData = (
             time.getMinutes()
           ).padStart(2, "0")}`;
 
+    // Generate random metrics for historical data fallback
+    const packetLoss = isOnline ? (Math.random() < 0.3 ? 0 : parseFloat((Math.random() * 12).toFixed(2))) : 0;
+    const latency = isOnline ? Math.floor(Math.random() * 450) + 20 : 0;
+    const jitter = isOnline ? Math.floor(Math.random() * 180) + 10 : 0;
+    const error = isOnline ? (Math.random() < 0.4 ? 0 : parseFloat((Math.random() * 22).toFixed(2))) : 0;
+    const recoveryTime = isOnline ? (Math.random() < 0.5 ? 0 : parseFloat((Math.random() * 35 + 5).toFixed(1))) : 0;
+
     data.push({
       time: timeStr,
-      latency: isOnline ? Math.floor(Math.random() * 20) + 5 : 0,
+      latency: latency,
       bandwidth: isOnline ? Math.floor(Math.random() * 80) + 40 : 0,
-      jitter: isOnline ? Math.floor(Math.random() * 8) + 1 : 0,
-      packetLoss: isOnline ? parseFloat((Math.random() * 0.6).toFixed(2)) : 0,
+      jitter: jitter,
+      packetLoss: packetLoss,
       sent: isOnline ? parseFloat((Math.random() * 6 + 2).toFixed(2)) : 0,
       received: isOnline ? parseFloat((Math.random() * 5 + 1).toFixed(2)) : 0,
       hops: isOnline ? Math.floor(Math.random() * 10) + 6 : 0,
       signalStrength: isOnline ? Math.floor(Math.random() * 25) + 75 : 0,
       bitrate: isOnline ? Math.floor(Math.random() * 4000) + 3500 : 0,
+      error: error,
+      recoveryTime: recoveryTime,
     });
   }
 
@@ -360,11 +393,12 @@ export default function ChannelDetailsPage({
     const fetchNetworkMetrics = async () => {
       if (!channel.id) {
         componentLogger.warn("Channel ID not available for metrics");
+        const randomData = generateRandomNetworkData();
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
           }
-          return generateRandomNetworkData();
+          return randomData;
         });
         return;
       }
@@ -394,32 +428,37 @@ export default function ChannelDetailsPage({
           const result = await response.json();
 
           if (result.success && result.data) {
-            setNetworkMetrics((prevMetrics) => {
-              if (prevMetrics) {
-                setPreviousMetrics(prevMetrics);
-              }
-              return {
-                sent: result.data.sent || "0.0",
-                received: result.data.received || "0.0",
-                latency: result.data.latency || 0,
-                jitter: result.data.jitter || 0,
-                ttl: result.data.ttl || 0,
-                packetLoss: result.data.packetLoss || 0,
-                bandwidth: result.data.bandwidth || 0,
-                hops: result.data.hops || 0,
-                signalStrength:
-                  result.data.signalStrength || channel.signalLevel || 0,
-                bitrate: result.data.bitrate || 0,
-              };
-            });
-          } else {
-            apiLogger.warn("Invalid metrics data structure:", result);
+            const newMetrics: NetworkMetrics = {
+              sent: result.data.sent || "0.0",
+              received: result.data.received || "0.0",
+              latency: result.data.latency || 0,
+              jitter: result.data.jitter || 0,
+              ttl: result.data.ttl || 0,
+              packetLoss: result.data.packetLoss || 0,
+              bandwidth: result.data.bandwidth || 0,
+              hops: result.data.hops || 0,
+              signalStrength:
+                result.data.signalStrength || channel.signalLevel || 0,
+              bitrate: result.data.bitrate || 0,
+              error: result.data.error || 0,
+              recoveryTime: result.data.recoveryTime || 0,
+            };
 
             setNetworkMetrics((prevMetrics) => {
               if (prevMetrics) {
                 setPreviousMetrics(prevMetrics);
               }
-              return generateRandomNetworkData();
+              return newMetrics;
+            });
+          } else {
+            apiLogger.warn("Invalid metrics data structure:", result);
+
+            const randomData = generateRandomNetworkData();
+            setNetworkMetrics((prevMetrics) => {
+              if (prevMetrics) {
+                setPreviousMetrics(prevMetrics);
+              }
+              return randomData;
             });
           }
         } else {
@@ -427,21 +466,23 @@ export default function ChannelDetailsPage({
             `Metrics API returned ${response.status}, using generated data`
           );
 
+          const randomData = generateRandomNetworkData();
           setNetworkMetrics((prevMetrics) => {
             if (prevMetrics) {
               setPreviousMetrics(prevMetrics);
             }
-            return generateRandomNetworkData();
+            return randomData;
           });
         }
       } catch (error) {
         apiLogger.warn("Error fetching network metrics:", error);
 
+        const randomData = generateRandomNetworkData();
         setNetworkMetrics((prevMetrics) => {
           if (prevMetrics) {
             setPreviousMetrics(prevMetrics);
           }
-          return generateRandomNetworkData();
+          return randomData;
         });
       }
     };
@@ -739,8 +780,14 @@ export default function ChannelDetailsPage({
     link.download = `channel-${channel?.channelNumber}-autofix-logs-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+
+    // Safely remove the link element
+    setTimeout(() => {
+      if (link.parentNode === document.body) {
+        document.body.removeChild(link);
+      }
+      URL.revokeObjectURL(url);
+    }, 100);
   };
 
   // Handle retry auto-fix
@@ -1141,7 +1188,9 @@ export default function ChannelDetailsPage({
       | "data_sent"
       | "data_received"
       | "packetLoss"
-      | "signalStrength";
+      | "signalStrength"
+      | "error"
+      | "recoveryTime";
       unit: string;
       label: string;
       isOnline?: boolean;
@@ -1149,13 +1198,14 @@ export default function ChannelDetailsPage({
       // Jika channel offline, tampilkan gray dengan nilai 0
       if (!isOnline) {
         return (
-          <div className="text-center p-2 sm:p-3 bg-white rounded-lg border border-gray-200">
+          <div className="text-center p-3 sm:p-4 bg-white rounded-lg border border-gray-200">
             <div className="flex items-center justify-center mb-1">
-              <p className="text-lg sm:text-2xl font-bold text-gray-400">
-                0{unit}
+              <p className="text-2xl sm:text-3xl font-bold text-gray-400">
+                0
               </p>
+              <span className="text-lg sm:text-xl text-gray-400 ml-1">{unit}</span>
             </div>
-            <p className="text-xs font-medium text-gray-400 truncate">
+            <p className="text-xs font-medium text-gray-400 truncate mb-1">
               {label}
             </p>
             <div className="mt-1">
@@ -1172,7 +1222,7 @@ export default function ChannelDetailsPage({
         previous: number | undefined,
         type: string
       ) => {
-        // Untuk data sent/received - hijau jika naik, gray jika turun/sama
+        // Untuk data sent/received - gunakan logic trend
         if (type === "data_sent" || type === "data_received") {
           if (!previous || current <= previous) {
             return {
@@ -1189,8 +1239,53 @@ export default function ChannelDetailsPage({
           }
         }
 
+        // Absolute value-based coloring sesuai metricCalculator
+        // Packet Loss: <1%=5, 1-2%=4, 2-5%=3, 5-10%=2, >10%=1
+        if (type === "packetLoss") {
+          if (current < 1) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 2) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 5) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 10) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Latency: <50ms=5, 50-100ms=4, 100-200ms=3, 200-500ms=2, >500ms=1
+        if (type === "latency" || type === "jitter") {
+          if (type === "jitter") {
+            // Jitter: <30ms=5, 30-50ms=4, 50-100ms=3, 100-200ms=2, >200ms=1
+            if (current < 30) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+            if (current <= 50) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+            if (current <= 100) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+            if (current <= 200) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+            return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+          }
+          if (current < 50) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 100) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 200) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 500) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Error Rate: 0-2%=5, 2-5%=4, 5-10%=3, 10-20%=2, >20%=1
+        if (type === "error") {
+          if (current <= 2) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 5) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 10) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 20) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Recovery Time: <5s=5, 5-10s=4, 10-20s=3, 20-30s=2, >30s=1
+        if (type === "recoveryTime") {
+          if (current < 5) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 10) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 20) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 30) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Default untuk tipe lain - gunakan logic trend
         if (!previous) {
-          // Nilai stabil/normal - hijau
           return {
             bgColor: "bg-green-50 border-green-200",
             textColor: "text-green-700",
@@ -1202,7 +1297,6 @@ export default function ChannelDetailsPage({
         const threshold = getThreshold(type, current);
 
         if (diff < threshold) {
-          // Stabil - hijau
           return {
             bgColor: "bg-green-50 border-green-200",
             textColor: "text-green-700",
@@ -1210,44 +1304,13 @@ export default function ChannelDetailsPage({
           };
         }
 
-        // Untuk latency dan packet loss, nilai tinggi = buruk
-        if (type === "latency" || type === "packetLoss") {
-          if (current > previous) {
-            // Memburuk - merah
-            return {
-              bgColor: "bg-red-50 border-red-200",
-              textColor: "text-red-700",
-              badgeColor: "bg-red-100 text-red-700",
-            };
-          } else {
-            // Membaik - kuning/warning (karena ada perubahan signifikan)
-            return {
-              bgColor: "bg-yellow-50 border-yellow-200",
-              textColor: "text-yellow-700",
-              badgeColor: "bg-yellow-100 text-yellow-700",
-            };
-          }
-        }
-
-        // Untuk bandwidth, bitrate, signal strength, dll - nilai tinggi = baik
-        if (current < previous) {
-          // Menurun - kuning ke merah tergantung seberapa buruk
-          const degradationPercent = ((previous - current) / previous) * 100;
-          if (degradationPercent > 25) {
-            return {
-              bgColor: "bg-red-50 border-red-200",
-              textColor: "text-red-700",
-              badgeColor: "bg-red-100 text-red-700",
-            };
-          } else {
-            return {
-              bgColor: "bg-yellow-50 border-yellow-200",
-              textColor: "text-yellow-700",
-              badgeColor: "bg-yellow-100 text-yellow-700",
-            };
-          }
+        if (current > previous) {
+          return {
+            bgColor: "bg-yellow-50 border-yellow-200",
+            textColor: "text-yellow-700",
+            badgeColor: "bg-yellow-100 text-yellow-700",
+          };
         } else {
-          // Meningkat - hijau
           return {
             bgColor: "bg-green-50 border-green-200",
             textColor: "text-green-700",
@@ -1281,19 +1344,19 @@ export default function ChannelDetailsPage({
 
       return (
         <div
-          className={`text-center p-2 sm:p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
+          className={`text-center p-3 sm:p-4 ${statusColors.bgColor} border rounded-lg transition-all duration-300 hover:shadow-md`}
         >
           <div className="flex items-center justify-center mb-1">
             <p
-              className={`text-lg sm:text-2xl font-bold ${statusColors.textColor} truncate`}
+              className={`text-2xl sm:text-3xl font-bold ${statusColors.textColor} truncate`}
             >
               {value}
-              {unit}
             </p>
+            <span className={`text-base sm:text-lg ${statusColors.textColor} ml-1`}>{unit}</span>
             {previousValue && <TrendIndicator trend={trend.direction} />}
           </div>
           <p
-            className={`text-xs font-medium ${statusColors.textColor} mb-1 sm:mb-2 truncate`}
+            className={`text-xs font-medium ${statusColors.textColor} truncate`}
           >
             {label}
           </p>
@@ -2239,96 +2302,60 @@ export default function ChannelDetailsPage({
                 </div>
               </div>
 
-              {/* Stats Row */}
+              {/* Network Performance Metrics - 5 Key Metrics with Better Layout */}
               {networkMetrics && (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pt-4 border-t border-gray-200">
-                  <MetricCard
-                    value={networkMetrics.jitter || 0}
-                    previousValue={previousMetrics?.jitter}
-                    type="latency"
-                    unit="ms"
-                    label="Jitter"
-                    isOnline={channel.status === "online"}
-                  />
+                <>
+                  {/* First Row - 3 Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-gray-200">
+                    <MetricCard
+                      value={networkMetrics.packetLoss || 0}
+                      previousValue={previousMetrics?.packetLoss}
+                      type="packetLoss"
+                      unit="%"
+                      label="Packet Loss"
+                      isOnline={channel.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.ttl || 0}
-                    previousValue={previousMetrics?.ttl}
-                    type="bandwidth"
-                    unit=""
-                    label="TTL"
-                    isOnline={channel.status === "online"}
-                  />
+                    <MetricCard
+                      value={networkMetrics?.latency || channel?.responseTime || 0}
+                      previousValue={previousMetrics?.latency}
+                      type="latency"
+                      unit="ms"
+                      label="Latency"
+                      isOnline={channel.status === "online"}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.packetLoss || 0}
-                    previousValue={previousMetrics?.packetLoss}
-                    type="packetLoss"
-                    unit="%"
-                    label="Packet Loss"
-                    isOnline={channel.status === "online"}
-                  />
+                    <MetricCard
+                      value={networkMetrics.jitter || 0}
+                      previousValue={previousMetrics?.jitter}
+                      type="latency"
+                      unit="ms"
+                      label="Jitter"
+                      isOnline={channel.status === "online"}
+                    />
+                  </div>
 
-                  <MetricCard
-                    value={parseFloat(networkMetrics?.sent || "0")}
-                    previousValue={
-                      previousMetrics?.sent
-                        ? parseFloat(previousMetrics.sent)
-                        : undefined
-                    }
-                    type="data_sent"
-                    unit="GB"
-                    label="Data Sent"
-                    isOnline={channel.status === "online"}
-                  />
-                </div>
-              )}
+                  {/* Second Row - 2 Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                    <MetricCard
+                      value={networkMetrics.error || 0}
+                      previousValue={previousMetrics?.error}
+                      type="error"
+                      unit="%"
+                      label="Error Rate"
+                      isOnline={channel.status === "online"}
+                    />
 
-              {/* Additional Network Metrics */}
-              {networkMetrics && (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-2 sm:mt-4 pt-4 border-t border-gray-100">
-                  <MetricCard
-                    value={networkMetrics?.hops || 0}
-                    previousValue={previousMetrics?.hops}
-                    type="latency"
-                    unit=""
-                    label="Hops"
-                    isOnline={channel.status === "online"}
-                  />
-
-                  <MetricCard
-                    value={networkMetrics.bandwidth || 0}
-                    previousValue={previousMetrics?.bandwidth}
-                    type="bandwidth"
-                    unit="Mbps"
-                    label="Bandwidth"
-                    isOnline={channel.status === "online"}
-                  />
-
-                  <MetricCard
-                    value={
-                      networkMetrics?.latency || channel?.responseTime || 0
-                    }
-                    previousValue={previousMetrics?.latency}
-                    type="latency"
-                    unit="ms"
-                    label="Latency"
-                    isOnline={channel.status === "online"}
-                  />
-
-                  <MetricCard
-                    value={parseFloat(networkMetrics?.received || "0")}
-                    previousValue={
-                      previousMetrics?.received
-                        ? parseFloat(previousMetrics.received)
-                        : undefined
-                    }
-                    type="data_received"
-                    unit="GB"
-                    label="Data Received"
-                    isOnline={channel.status === "online"}
-                  />
-                </div>
+                    <MetricCard
+                      value={networkMetrics.recoveryTime || 0}
+                      previousValue={previousMetrics?.recoveryTime}
+                      type="recoveryTime"
+                      unit="s"
+                      label="Recovery Time"
+                      isOnline={channel.status === "online"}
+                    />
+                  </div>
+                </>
               )}
             </div>
 

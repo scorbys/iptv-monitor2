@@ -74,7 +74,7 @@ export default function StaffPage({ user }: StaffPageProps) {
     direction: 'asc' | 'desc';
   } | null>(null);
 
-  const departments = ["All", "IT Support", "Engineering"];
+  const departments = ["All", "Finance", "Engineering", "Front Office", "Vendor", "Other"];
   const statuses = ["All", "Active", "Inactive"];
 
   // Fetch staff from backend
@@ -385,7 +385,7 @@ export default function StaffPage({ user }: StaffPageProps) {
   // Get department badge config
   const getDepartmentConfig = (department: string) => {
     const config: Record<string, { icon: any; color: string; bg: string; text: string }> = {
-      "IT Support": {
+      "Finance": {
         icon: BuildingOfficeIcon,
         color: "bg-blue-100 text-blue-700 border-blue-200",
         bg: "bg-blue-50",
@@ -397,6 +397,24 @@ export default function StaffPage({ user }: StaffPageProps) {
         bg: "bg-indigo-50",
         text: "text-indigo-700"
       },
+      "Front Office": {
+        icon: UserIcon,
+        color: "bg-green-100 text-green-700 border-green-200",
+        bg: "bg-green-50",
+        text: "text-green-700"
+      },
+      "Vendor": {
+        icon: BuildingOfficeIcon,
+        color: "bg-purple-100 text-purple-700 border-purple-200",
+        bg: "bg-purple-50",
+        text: "text-purple-700"
+      },
+      "Other": {
+        icon: UserIcon,
+        color: "bg-gray-100 text-gray-700 border-gray-200",
+        bg: "bg-gray-50",
+        text: "text-gray-700"
+      }
     };
     return config[department] || {
       icon: UserIcon,
@@ -682,7 +700,11 @@ export default function StaffPage({ user }: StaffPageProps) {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Resolved:</span>
-                              <span className="text-xs font-semibold text-gray-900">{member.stats.totalResolved}</span>
+                              <span className="text-xs font-semibold text-gray-900">
+                                {typeof member.stats.totalResolved === 'number'
+                                  ? member.stats.totalResolved.toFixed(1)
+                                  : member.stats.totalResolved}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Success:</span>
@@ -947,7 +969,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                   <input
                     type="text"
                     placeholder="+1234567890"
-                    value={createStaffForm.phone}
+                    value={createStaffForm.phone || ''}
                     onChange={(e) => setCreateStaffForm({ ...createStaffForm, phone: e.target.value })}
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
                   />
@@ -967,7 +989,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
-                      {["IT Support", "Engineering"].map((dept) => (
+                      {["Finance", "Engineering", "Front Office", "Vendor", "Other"].map((dept) => (
                         <DropdownMenu.Item
                           key={dept}
                           className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
@@ -994,7 +1016,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
-                      {["Admin", "Supervisor", "Technician"].map((pos) => (
+                      {["Admin", "IT Staff", "Technician", "Staff", "Vendor Staff"].map((pos) => (
                         <DropdownMenu.Item
                           key={pos}
                           className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
@@ -1095,7 +1117,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                   <input
                     type="text"
                     placeholder="+1234567890"
-                    value={editStaffForm.phone}
+                    value={editStaffForm.phone || ''}
                     onChange={(e) => setEditStaffForm({ ...editStaffForm, phone: e.target.value })}
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 text-sm"
                   />
@@ -1115,7 +1137,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
-                      {["IT Support", "Engineering"].map((dept) => (
+                      {["Finance", "Engineering", "Front Office", "Vendor", "Other"].map((dept) => (
                         <DropdownMenu.Item
                           key={dept}
                           className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
@@ -1142,7 +1164,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content className="w-full bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50">
-                      {["Admin", "Supervisor", "Technician"].map((pos) => (
+                      {["Admin", "IT Staff", "Technician", "Staff", "Vendor Staff"].map((pos) => (
                         <DropdownMenu.Item
                           key={pos}
                           className="flex items-center px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg cursor-pointer outline-none transition-all duration-150"

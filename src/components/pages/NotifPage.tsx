@@ -263,6 +263,8 @@ export default function NotifPage() {
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
   );
+  // Cache for FAQ categories to avoid recalculation
+  const [faqCategoryCache, setFaqCategoryCache] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     setMounted(true);
@@ -452,275 +454,6 @@ export default function NotifPage() {
     window.dispatchEvent(chatEvent);
   };
 
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter((n) => {
-      const matchesSearch =
-        n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.deviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.roomNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.ipAddr?.includes(searchTerm) ||
-        n.errorCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.error?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        n.suggestedSolutions?.some((sol) =>
-          sol.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-      const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
-      const matchesType = typeFilter === "all" || n.type === typeFilter;
-
-      let matchesCategory = true;
-      if (categoryFilter !== "all") {
-        const faqCategory = getSpecificFAQCategory(n);
-
-        if (categoryFilter === "Uncategorized") {
-          matchesCategory = !faqCategory;
-        } else {
-          matchesCategory = faqCategory === categoryFilter;
-        }
-      }
-
-      return matchesSearch && matchesSource && matchesType && matchesCategory;
-    });
-  }, [notifications, searchTerm, sourceFilter, typeFilter, categoryFilter]);
-
-  // Pagination
-  const paginationData = useMemo(() => {
-    const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedNotifications = filteredNotifications.slice(
-      startIndex,
-      startIndex + ITEMS_PER_PAGE
-    );
-
-    return {
-      totalPages,
-      startIndex,
-      paginatedNotifications,
-      endIndex: Math.min(
-        startIndex + ITEMS_PER_PAGE,
-        filteredNotifications.length
-      ),
-    };
-  }, [filteredNotifications, currentPage]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // Reset page when filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, sourceFilter, typeFilter, categoryFilter]);
-
-  // Export to CSV
-  const exportToCSV = useCallback(() => {
-    if (exportLoading) return;
-
-    setExportLoading(true);
-
-    try {
-      const headers = [
-        "Date",
-        "Time",
-        "Title",
-        "Message",
-        "Source",
-        "Type",
-        "Device",
-        "Room",
-        "IP Address",
-        "Status",
-        "Error Category",
-        "FAQ Category",
-        "Response Time",
-        "Signal Level",
-        "Report Status",
-        "Priority",
-        "Assigned Staff",
-        "Handled By Staff",
-      ];
-
-      const csvData = filteredNotifications.map((notification) => [
-        notification.date || "N/A",
-        notification.time || "N/A",
-        notification.title || "N/A",
-        notification.message || "N/A",
-        notification.source || "N/A",
-        notification.type || "N/A",
-        notification.deviceName || "N/A",
-        notification.roomNo || "N/A",
-        notification.ipAddr || "N/A",
-        notification.currentStatus || "N/A",
-        notification.errorCategory || "N/A",
-        getSpecificFAQCategory(notification) || "Uncategorized",
-        notification.responseTime || "N/A",
-        notification.signalLevel || "N/A",
-        (notification as any).reportStatus || "N/A",
-        (notification as any).priority || "N/A",
-        (notification as any).assignedStaff?.name || (notification as any).assignedStaff || "N/A",
-        (notification as any).handledByStaff?.name || (notification as any).handledByStaff || "N/A",
-      ]);
-
-      const csvContent = [headers, ...csvData]
-        .map((row) =>
-          row
-            .map((field) => {
-              const stringField = String(field);
-              if (
-                stringField.includes(",") ||
-                stringField.includes('"') ||
-                stringField.includes("\n") ||
-                stringField.includes("\r")
-              ) {
-                return `"${stringField.replace(/"/g, '""')}"`;
-              }
-              return stringField;
-            })
-            .join(",")
-        )
-        .join("\n");
-
-      const bom = "\uFEFF";
-      const blob = new Blob([bom + csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const link = document.createElement("a");
-
-      if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-
-        const timestamp = new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/[:-]/g, "");
-        const filename = `notifications_export_${timestamp}.csv`;
-        link.setAttribute("download", filename);
-
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }
-    } catch (error) {
-      componentLogger.error("Error exporting CSV:", error);
-      alert("Failed to export CSV. Please try again.");
-    } finally {
-      setExportLoading(false);
-    }
-  }, [filteredNotifications, exportLoading]);
-
-  const StatusBadge = useCallback(
-    ({
-      status,
-      isStatusChange,
-    }: {
-      status: string;
-      isStatusChange?: boolean;
-    }) => (
-      <div className="flex flex-col gap-1">
-        <span
-          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status === "online"
-            ? "bg-green-100 text-green-800"
-            : "bg-red-100 text-red-800"
-            }`}
-        >
-          <div
-            className={`w-1.5 h-1.5 rounded-full mr-1 ${status === "online" ? "bg-green-500" : "bg-red-500"
-              }`}
-          ></div>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
-        {isStatusChange && (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <ClockIcon className="w-3 h-3 mr-1" />
-            Changed
-          </span>
-        )}
-      </div>
-    ),
-    []
-  );
-
-  const TypeBadge = useCallback(({ type }: { type: string }) => {
-    const getTypeConfig = (type: string) => {
-      switch (type) {
-        case "warning":
-          return {
-            bg: "bg-yellow-100",
-            text: "text-yellow-800",
-            icon: ExclamationTriangleIcon,
-          };
-        case "success":
-          return {
-            bg: "bg-green-100",
-            text: "text-green-800",
-            icon: CheckCircleIcon,
-          };
-        default:
-          return { bg: "bg-gray-100", text: "text-gray-800", icon: BellIcon };
-      }
-    };
-
-    const config = getTypeConfig(type);
-    const Icon = config.icon;
-
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
-      >
-        <Icon className="w-3 h-3 mr-1" />
-        {type.charAt(0).toUpperCase() + type.slice(1)}
-      </span>
-    );
-  }, []);
-
-  const getVisiblePages = useCallback(
-    (currentPage: number, totalPages: number, screenSize: string) => {
-      let maxVisiblePages: number;
-      let showFirstLast: boolean;
-
-      switch (screenSize) {
-        case "mobile":
-          maxVisiblePages = 3;
-          showFirstLast = false;
-          break;
-        case "tablet":
-          maxVisiblePages = 5;
-          showFirstLast = true;
-          break;
-        default: // desktop
-          maxVisiblePages = 7;
-          showFirstLast = true;
-          break;
-      }
-
-      let startPage = Math.max(
-        1,
-        currentPage - Math.floor(maxVisiblePages / 2)
-      );
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-      if (endPage - startPage < maxVisiblePages - 1) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-      }
-
-      return {
-        startPage,
-        endPage,
-        maxVisiblePages,
-        showFirstLast,
-        showEllipsis: {
-          start: showFirstLast && startPage > 2,
-          end: showFirstLast && endPage < totalPages - 1,
-        },
-      };
-    },
-    []
-  );
-
   // Helper function to normalize category names
   const normalizeCategoryName = (category: string): string => {
     // Normalize both 'Katagori' and 'Kategori' to 'Kategori' for consistency
@@ -732,6 +465,14 @@ export default function NotifPage() {
   const getSpecificFAQCategory = (
     notification: Notification
   ): string | null => {
+    // Create cache key from notification properties
+    const cacheKey = `${notification.source}-${notification.title || ""}-${notification.message || ""}-${notification.error || ""}-${notification.errorCategory || ""}`;
+
+    // Check cache first
+    if (faqCategoryCache.has(cacheKey)) {
+      return faqCategoryCache.get(cacheKey)!;
+    }
+
     // Normalize notification text for better matching
     const notifText = [
       notification.title?.toLowerCase() || "",
@@ -882,8 +623,319 @@ export default function NotifPage() {
       .filter((match) => match.score > 5) // Minimum threshold
       .sort((a, b) => b.score - a.score)[0];
 
-    return bestMatch ? bestMatch.category : null;
+    const result = bestMatch ? bestMatch.category : null;
+
+    // Cache the result
+    if (result) {
+      setFaqCategoryCache(prev => new Map(prev).set(cacheKey, result));
+    }
+
+    return result;
   };
+
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((n) => {
+      const matchesSearch =
+        n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.deviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.roomNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.ipAddr?.includes(searchTerm) ||
+        n.errorCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.error?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.suggestedSolutions?.some((sol) =>
+          sol.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
+      const matchesType = typeFilter === "all" || n.type === typeFilter;
+
+      let matchesCategory = true;
+      if (categoryFilter !== "all") {
+        const faqCategory = getSpecificFAQCategory(n);
+
+        if (categoryFilter === "Uncategorized") {
+          matchesCategory = !faqCategory;
+        } else {
+          matchesCategory = faqCategory === categoryFilter;
+        }
+      }
+
+      return matchesSearch && matchesSource && matchesType && matchesCategory;
+    });
+  }, [notifications, searchTerm, sourceFilter, typeFilter, categoryFilter, faqCategoryCache]);
+
+  // Pagination
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedNotifications = filteredNotifications.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
+    );
+
+    return {
+      totalPages,
+      startIndex,
+      paginatedNotifications,
+      endIndex: Math.min(
+        startIndex + ITEMS_PER_PAGE,
+        filteredNotifications.length
+      ),
+    };
+  }, [filteredNotifications, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sourceFilter, typeFilter, categoryFilter]);
+
+  // Export to CSV
+  const exportToCSV = useCallback(() => {
+    if (exportLoading) return;
+
+    setExportLoading(true);
+
+    try {
+      const headers = [
+        "Date",
+        "Time",
+        "Title",
+        "Message",
+        "Source",
+        "Type",
+        "Device",
+        "Room",
+        "IP Address",
+        "Status",
+        "Error Category",
+        "FAQ Category",
+        "Response Time (ms)",
+        "Signal Level (%)",
+        "Packet Loss (%)",
+        "Label Packet Loss",
+        "Jitter (ms)",
+        "Label Jitter",
+        "Latency (ms)",
+        "Label Latency",
+        "Error Rate (%)",
+        "Label Error Rate",
+        "Recovery Time (s)",
+        "Label Recovery Time",
+        "Report Status",
+        "Priority",
+        "Assigned Staff",
+        "Handled By Staff",
+      ];
+
+      const csvData = filteredNotifications.map((notification) => {
+        // Helper function to extract staff name from object or string
+        const getStaffName = (staff: string | { name?: string } | undefined): string => {
+          if (!staff) return "N/A";
+          if (typeof staff === 'string') return staff;
+          return (staff as any).name || "N/A";
+        };
+
+        return [
+          notification.date || "N/A",
+          notification.time || "N/A",
+          notification.title || "N/A",
+          notification.message || "N/A",
+          notification.source || "N/A",
+          notification.type || "N/A",
+          notification.deviceName || "N/A",
+          notification.roomNo || "N/A",
+          notification.ipAddr || "N/A",
+          notification.currentStatus || "N/A",
+          notification.errorCategory || "N/A",
+          getSpecificFAQCategory(notification) || "Uncategorized",
+          notification.responseTime?.toString() || "N/A",
+          notification.signalLevel?.toString() || "N/A",
+          notification.packetLoss?.toFixed(2) || "N/A",
+          notification.packetLossScore?.toString() || "N/A",
+          notification.jitter?.toFixed(2) || "N/A",
+          notification.jitterScore?.toString() || "N/A",
+          notification.latency?.toString() || notification.responseTime?.toString() || "N/A",
+          notification.latencyScore?.toString() || "N/A",
+          notification.errorRate?.toFixed(2) || "N/A",
+          notification.errorRateScore?.toString() || "N/A",
+          notification.recoveryTime?.toFixed(1) || "N/A",
+          notification.recoveryTimeScore?.toString() || "N/A",
+          notification.reportStatus || "N/A",
+          notification.priority || "N/A",
+          getStaffName(notification.assignedStaff),
+          getStaffName(notification.handledByStaff),
+        ];
+      });
+
+      const csvContent = [headers, ...csvData]
+        .map((row) =>
+          row
+            .map((field) => {
+              const stringField = String(field);
+              if (
+                stringField.includes(",") ||
+                stringField.includes('"') ||
+                stringField.includes("\n") ||
+                stringField.includes("\r")
+              ) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+              }
+              return stringField;
+            })
+            .join(",")
+        )
+        .join("\n");
+
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
+
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+
+        const timestamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:-]/g, "");
+        const filename = `notifications_export_${timestamp}.csv`;
+        link.setAttribute("download", filename);
+
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+
+        // Safely remove the link element
+        setTimeout(() => {
+          if (link.parentNode === document.body) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        }, 100);
+      }
+    } catch (error) {
+      componentLogger.error("Error exporting CSV:", error);
+      alert("Failed to export CSV. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  }, [filteredNotifications, exportLoading, getSpecificFAQCategory]);
+
+  const StatusBadge = useCallback(
+    ({
+      status,
+      isStatusChange,
+    }: {
+      status: string;
+      isStatusChange?: boolean;
+    }) => (
+      <div className="flex flex-col gap-1">
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status === "online"
+            ? "bg-green-100 text-green-800"
+            : "bg-red-100 text-red-800"
+            }`}
+        >
+          <div
+            className={`w-1.5 h-1.5 rounded-full mr-1 ${status === "online" ? "bg-green-500" : "bg-red-500"
+              }`}
+          ></div>
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
+        {isStatusChange && (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <ClockIcon className="w-3 h-3 mr-1" />
+            Changed
+          </span>
+        )}
+      </div>
+    ),
+    []
+  );
+
+  const TypeBadge = useCallback(({ type }: { type: string }) => {
+    const getTypeConfig = (type: string) => {
+      switch (type) {
+        case "warning":
+          return {
+            bg: "bg-yellow-100",
+            text: "text-yellow-800",
+            icon: ExclamationTriangleIcon,
+          };
+        case "success":
+          return {
+            bg: "bg-green-100",
+            text: "text-green-800",
+            icon: CheckCircleIcon,
+          };
+        default:
+          return { bg: "bg-gray-100", text: "text-gray-800", icon: BellIcon };
+      }
+    };
+
+    const config = getTypeConfig(type);
+    const Icon = config.icon;
+
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
+      >
+        <Icon className="w-3 h-3 mr-1" />
+        {type.charAt(0).toUpperCase() + type.slice(1)}
+      </span>
+    );
+  }, []);
+
+  const getVisiblePages = useCallback(
+    (currentPage: number, totalPages: number, screenSize: string) => {
+      let maxVisiblePages: number;
+      let showFirstLast: boolean;
+
+      switch (screenSize) {
+        case "mobile":
+          maxVisiblePages = 3;
+          showFirstLast = false;
+          break;
+        case "tablet":
+          maxVisiblePages = 5;
+          showFirstLast = true;
+          break;
+        default: // desktop
+          maxVisiblePages = 7;
+          showFirstLast = true;
+          break;
+      }
+
+      let startPage = Math.max(
+        1,
+        currentPage - Math.floor(maxVisiblePages / 2)
+      );
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      return {
+        startPage,
+        endPage,
+        maxVisiblePages,
+        showFirstLast,
+        showEllipsis: {
+          start: showFirstLast && startPage > 2,
+          end: showFirstLast && endPage < totalPages - 1,
+        },
+      };
+    },
+    []
+  );
 
   if (!mounted || loading) {
     return (
@@ -1142,6 +1194,12 @@ export default function NotifPage() {
                   )}
                   <DropdownMenu.Item
                     className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
+                    onClick={() => setCategoryFilter("External")}
+                  >
+                    External
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg cursor-pointer outline-none transition-all duration-150"
                     onClick={() => setCategoryFilter("Uncategorized")}
                   >
                     Uncategorized
@@ -1323,13 +1381,15 @@ export default function NotifPage() {
                         )}
 
                         {/* Assigned Staff */}
-                        {(notification as any).assignedStaff && (
+                        {notification.assignedStaff && (
                           <div className="mt-2 flex items-center gap-1.5">
                             <span className="text-xs text-gray-400 min-w-[35px]">
                               Staff:
                             </span>
                             <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 font-medium truncate max-w-[120px]">
-                              {(notification as any).assignedStaff.name}
+                              {typeof notification.assignedStaff === 'object'
+                                ? (notification.assignedStaff as any)?.name || 'N/A'
+                                : notification.assignedStaff || 'N/A'}
                             </span>
                           </div>
                         )}
@@ -1607,11 +1667,13 @@ export default function NotifPage() {
                     </code>
                   </div>
                 )}
-                {(notification as any).assignedStaff && (
+                {notification.assignedStaff && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Assigned Staff:</span>
                     <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs border border-blue-200 font-medium max-w-[120px] truncate">
-                      {(notification as any).assignedStaff.name}
+                      {typeof notification.assignedStaff === 'object'
+                        ? (notification.assignedStaff as any)?.name || 'N/A'
+                        : notification.assignedStaff || 'N/A'}
                     </span>
                   </div>
                 )}

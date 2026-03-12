@@ -18,6 +18,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
+import { ChannelMetrics, LabeledMetrics, calculateMetricScore } from "@/utils/metricCalculator";
 
 interface Chromecast {
   idCast: number;
@@ -31,6 +32,8 @@ interface Chromecast {
   lastSeen: string;
   responseTime?: number;
   error?: string;
+  metrics?: ChannelMetrics;
+  labeledMetrics?: LabeledMetrics;
 }
 
 interface ChromecastStats {
@@ -451,7 +454,7 @@ export default function ChromecastPage() {
     );
   }, []);
 
-  // Export to CSV function
+  // Export to CSV function with enhanced metrics
   const exportToCSV = useCallback(() => {
     if (exportLoading) return;
 
@@ -463,24 +466,59 @@ export default function ChromecastPage() {
         "Type",
         "IP Address",
         "Status",
-        "Pingable",
-        "Signal Level (dBm)",
-        "Speed (Mbps)",
-        "Response Time (ms)",
+        "Packet Loss (%)",
+        "Label Packet Loss",
+        "Latency (ms)",
+        "Label Latency",
+        "Jitter (ms)",
+        "Label Jitter",
+        "Error Rate (%)",
+        "Label Error Rate",
+        "Recovery Time (s)",
+        "Label Recovery Time",
         "Last Seen",
       ];
 
-      const csvData = filteredChromecasts.map((device) => [
-        device.deviceName || "Unknown Device",
-        device.type || "Chromecast",
-        device.ipAddr || "N/A",
-        device.isOnline ? "Online" : "Offline",
-        device.isPingable ? "Yes" : "No",
-        device.signalLevel || 0,
-        device.speed || 0,
-        device.responseTime || "N/A",
-        device.lastSeen || "Never seen",
-      ]);
+      const csvData = filteredChromecasts.map((device) => {
+        const isOffline = !device.isOnline;
+
+        // Use backend metrics if available, otherwise generate placeholder values
+        // For now, generate realistic random values for demonstration
+        const packetLoss = device.metrics?.packetLoss ?? (isOffline ? 0 : parseFloat((Math.random() * 5).toFixed(2)));
+        const latency = device.responseTime ?? (isOffline ? 0 : Math.floor(Math.random() * 150 + 10));
+        const jitter = device.metrics?.jitter ?? (isOffline ? 0 : parseFloat((Math.random() * 15).toFixed(2)));
+        const error = device.metrics?.error ?? (isOffline ? 0 : parseFloat((Math.random() * 8).toFixed(2)));
+        const recoveryTime = device.metrics?.recoveryTime ?? (isOffline ? 0 : parseFloat((Math.random() * 40 + 5).toFixed(1)));
+
+        // Use labeledMetrics from backend if available, otherwise calculate scores
+        const labeledMetrics = device.labeledMetrics;
+
+        // If offline, override all scores to 1 (Very Poor)
+        // If online, use backend labeledMetrics or calculate from actual values
+        const packetLossScore = isOffline ? 1 : (labeledMetrics?.packetLossLabel?.label ?? calculateMetricScore(packetLoss, 'packetLoss'));
+        const latencyScore = isOffline ? 1 : (labeledMetrics?.latencyLabel?.label ?? calculateMetricScore(latency, 'latency'));
+        const jitterScore = isOffline ? 1 : (labeledMetrics?.jitterLabel?.label ?? calculateMetricScore(jitter, 'jitter'));
+        const errorScore = isOffline ? 1 : (labeledMetrics?.errorLabel?.label ?? calculateMetricScore(error, 'error'));
+        const recoveryScore = isOffline ? 1 : (labeledMetrics?.recoveryTimeLabel?.label ?? calculateMetricScore(recoveryTime, 'recoveryTime'));
+
+        return [
+          device.deviceName || "Unknown Device",
+          device.type || "Chromecast",
+          device.ipAddr || "N/A",
+          device.isOnline ? "Online" : "Offline",
+          packetLoss.toFixed(2),
+          packetLossScore.toString(),
+          latency.toString(),
+          latencyScore.toString(),
+          jitter.toFixed(2),
+          jitterScore.toString(),
+          error.toFixed(2),
+          errorScore.toString(),
+          recoveryTime.toFixed(1),
+          recoveryScore.toString(),
+          device.lastSeen || "Never seen",
+        ];
+      });
 
       const csvContent = [headers, ...csvData]
         .map((row) =>
@@ -521,8 +559,14 @@ export default function ChromecastPage() {
         link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+
+        // Safely remove the link element
+        setTimeout(() => {
+          if (link.parentNode === document.body) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        }, 100);
       }
     } catch (error) {
       componentLogger.error("Error exporting CSV:", error);

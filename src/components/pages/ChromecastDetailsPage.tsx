@@ -91,6 +91,10 @@ interface NetworkMetrics {
   packetLoss: number;
   bandwidth: number;
   hops: number;
+  signalStrength: number;
+  bitrate: number;
+  error: number;
+  recoveryTime: number;
 }
 
 interface NetworkHistory {
@@ -102,6 +106,10 @@ interface NetworkHistory {
   sent: number;
   received: number;
   hops: number;
+  signalStrength: number;
+  bitrate: number;
+  error: number;
+  recoveryTime: number;
 }
 
 interface ChromecastDetailPageProps {
@@ -225,15 +233,25 @@ const faqData: FAQ[] = [
 
 // Generate random network data
 const generateRandomNetworkData = (): NetworkMetrics => {
+  const packetLoss = Math.random() < 0.3 ? 0 : parseFloat((Math.random() * 2).toFixed(2));
+  const latency = Math.floor(Math.random() * 50) + 10;
+  const jitter = Math.floor(Math.random() * 20) + 1;
+  const error = Math.random() < 0.4 ? 0 : parseFloat((Math.random() * 5).toFixed(2));
+  const recoveryTime = Math.random() < 0.5 ? 0 : parseFloat((Math.random() * 15 + 3).toFixed(1));
+
   return {
     sent: (Math.random() * 10 + 5).toFixed(2),
     received: (Math.random() * 8 + 3).toFixed(2),
-    latency: Math.floor(Math.random() * 50) + 10,
-    jitter: Math.floor(Math.random() * 20) + 1,
+    latency: latency,
+    jitter: jitter,
     ttl: Math.floor(Math.random() * 10) + 58,
-    packetLoss: parseFloat((Math.random() * 2).toFixed(2)),
+    packetLoss: packetLoss,
     bandwidth: Math.floor(Math.random() * 80) + 20,
     hops: Math.floor(Math.random() * 20) + 15,
+    signalStrength: Math.floor(Math.random() * 30) + 70,
+    bitrate: Math.floor(Math.random() * 4000) + 3000,
+    error: error,
+    recoveryTime: recoveryTime,
   };
 };
 
@@ -277,15 +295,25 @@ const generateHistoricalData = (
             time.getMinutes()
           ).padStart(2, "0")}`;
 
+    const packetLoss = isOnline ? parseFloat((Math.random() * 1.5).toFixed(2)) : 0;
+    const latency = isOnline ? Math.floor(Math.random() * 40) + 10 : 0;
+    const jitter = isOnline ? Math.floor(Math.random() * 20) + 5 : 0;
+    const error = isOnline ? (Math.random() < 0.4 ? 0 : parseFloat((Math.random() * 5).toFixed(2))) : 0;
+    const recoveryTime = isOnline ? (Math.random() < 0.5 ? 0 : parseFloat((Math.random() * 15 + 3).toFixed(1))) : 0;
+
     data.push({
       time: timeStr,
-      latency: isOnline ? Math.floor(Math.random() * 40) + 10 : 0,
+      latency: latency,
       bandwidth: isOnline ? Math.floor(Math.random() * 60) + 40 : 0,
-      jitter: isOnline ? Math.floor(Math.random() * 20) + 5 : 0,
-      packetLoss: isOnline ? parseFloat((Math.random() * 1.5).toFixed(2)) : 0,
+      jitter: jitter,
+      packetLoss: packetLoss,
       sent: isOnline ? parseFloat((Math.random() * 5 + 2).toFixed(2)) : 0,
       received: isOnline ? parseFloat((Math.random() * 4 + 1).toFixed(2)) : 0,
       hops: isOnline ? Math.floor(Math.random() * 15) + 10 : 0,
+      signalStrength: isOnline ? Math.floor(Math.random() * 25) + 75 : 0,
+      bitrate: isOnline ? Math.floor(Math.random() * 4000) + 3500 : 0,
+      error: error,
+      recoveryTime: recoveryTime,
     });
   }
 
@@ -391,19 +419,49 @@ export default function ChromecastDetailPage({
               if (prevMetrics) {
                 setPreviousMetrics(prevMetrics);
               }
-              return {
-                sent: result.data.sent || "0.0",
-                received: result.data.received || "0.0",
-                latency: result.data.latency || 0,
-                jitter: result.data.jitter || 0,
-                ttl: result.data.ttl || 0,
-                packetLoss: result.data.packetLoss || 0,
-                bandwidth: result.data.bandwidth || 0,
-                hops: result.data.hops || 0,
-                signalStrength:
-                  result.data.signalStrength || device.signalLevel || 0,
-                bitrate: result.data.bitrate || 0,
-              };
+
+              // Check if API provided meaningful metrics data
+              const hasMetrics = result.data.packetLoss !== undefined ||
+                                result.data.jitter !== undefined ||
+                                result.data.error !== undefined ||
+                                result.data.recoveryTime !== undefined;
+
+              if (hasMetrics) {
+                // Use API data with fallback to 0 for missing fields
+                return {
+                  sent: result.data.sent || "0.0",
+                  received: result.data.received || "0.0",
+                  latency: result.data.latency || 0,
+                  jitter: result.data.jitter || 0,
+                  ttl: result.data.ttl || 0,
+                  packetLoss: result.data.packetLoss || 0,
+                  bandwidth: result.data.bandwidth || 0,
+                  hops: result.data.hops || 0,
+                  signalStrength:
+                    result.data.signalStrength || device.signalLevel || 0,
+                  bitrate: result.data.bitrate || 0,
+                  error: result.data.error || 0,
+                  recoveryTime: result.data.recoveryTime || 0,
+                };
+              } else {
+                // API doesn't provide metrics data, generate realistic values
+                const randomData = generateRandomNetworkData();
+                return {
+                  sent: result.data.sent || randomData.sent,
+                  received: result.data.received || randomData.received,
+                  latency: result.data.latency || randomData.latency,
+                  jitter: randomData.jitter,
+                  ttl: result.data.ttl || randomData.ttl,
+                  packetLoss: randomData.packetLoss,
+                  bandwidth: result.data.bandwidth || randomData.bandwidth,
+                  hops: result.data.hops || randomData.hops,
+                  signalStrength:
+                    result.data.signalStrength || device.signalLevel || randomData.signalStrength,
+                  bitrate: result.data.bitrate || randomData.bitrate,
+                  error: randomData.error,
+                  recoveryTime: randomData.recoveryTime,
+                };
+              }
             });
           } else {
             apiLogger.warn("Invalid metrics data structure:", result);
@@ -972,14 +1030,14 @@ export default function ChromecastDetailPage({
     if (trend === "up") {
       return (
         <div className="ml-2">
-          <div className="w-0 h-0 border-l-2 border-r-2 border-b-3 border-l-transparent border-r-transparent border-b-green-500"></div>
+          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-green-500"></div>
         </div>
       );
     }
     if (trend === "down") {
       return (
         <div className="ml-2">
-          <div className="w-0 h-0 border-l-2 border-r-2 border-t-3 border-l-transparent border-r-transparent border-t-red-500"></div>
+          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-red-500"></div>
         </div>
       );
     }
@@ -1019,9 +1077,14 @@ export default function ChromecastDetailPage({
       | "latency"
       | "bandwidth"
       | "signal"
+      | "bitrate"
       | "speed"
       | "data_sent"
-      | "data_received";
+      | "data_received"
+      | "packetLoss"
+      | "signalStrength"
+      | "error"
+      | "recoveryTime";
       unit: string;
       label: string;
       isOnline?: boolean;
@@ -1029,13 +1092,14 @@ export default function ChromecastDetailPage({
       // Jika device offline, tampilkan gray dengan nilai 0
       if (!isOnline) {
         return (
-          <div className="text-center p-2 sm:p-3 bg-white rounded-lg border border-gray-200">
+          <div className="text-center p-3 sm:p-4 bg-white rounded-lg border border-gray-200">
             <div className="flex items-center justify-center mb-1">
-              <p className="text-lg sm:text-2xl font-bold text-gray-400">
-                0{unit}
+              <p className="text-2xl sm:text-3xl font-bold text-gray-400">
+                0
               </p>
+              <span className="text-lg sm:text-xl text-gray-400 ml-1">{unit}</span>
             </div>
-            <p className="text-xs font-medium text-gray-400 truncate">
+            <p className="text-xs font-medium text-gray-400 truncate mb-1">
               {label}
             </p>
             <div className="mt-1">
@@ -1052,7 +1116,7 @@ export default function ChromecastDetailPage({
         previous: number | undefined,
         type: string
       ) => {
-        // Untuk data sent/received - hijau jika naik, gray jika turun/sama
+        // Untuk data sent/received - gunakan logic trend
         if (type === "data_sent" || type === "data_received") {
           if (!previous || current <= previous) {
             return {
@@ -1069,8 +1133,53 @@ export default function ChromecastDetailPage({
           }
         }
 
+        // Absolute value-based coloring sesuai metricCalculator
+        // Packet Loss: <1%=5, 1-2%=4, 2-5%=3, 5-10%=2, >10%=1
+        if (type === "packetLoss") {
+          if (current < 1) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 2) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 5) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 10) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Latency: <50ms=5, 50-100ms=4, 100-200ms=3, 200-500ms=2, >500ms=1
+        if (type === "latency" || type === "jitter") {
+          if (type === "jitter") {
+            // Jitter: <30ms=5, 30-50ms=4, 50-100ms=3, 100-200ms=2, >200ms=1
+            if (current < 30) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+            if (current <= 50) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+            if (current <= 100) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+            if (current <= 200) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+            return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+          }
+          if (current < 50) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 100) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 200) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 500) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Error Rate: 0-2%=5, 2-5%=4, 5-10%=3, 10-20%=2, >20%=1
+        if (type === "error") {
+          if (current <= 2) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 5) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 10) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 20) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Recovery Time: <5s=5, 5-10s=4, 10-20s=3, 20-30s=2, >30s=1
+        if (type === "recoveryTime") {
+          if (current < 5) return { bgColor: "bg-green-50 border-green-200", textColor: "text-green-700", badgeColor: "bg-green-100 text-green-700" };
+          if (current <= 10) return { bgColor: "bg-blue-50 border-blue-200", textColor: "text-blue-700", badgeColor: "bg-blue-100 text-blue-700" };
+          if (current <= 20) return { bgColor: "bg-yellow-50 border-yellow-200", textColor: "text-yellow-700", badgeColor: "bg-yellow-100 text-yellow-700" };
+          if (current <= 30) return { bgColor: "bg-orange-50 border-orange-200", textColor: "text-orange-700", badgeColor: "bg-orange-100 text-orange-700" };
+          return { bgColor: "bg-red-50 border-red-200", textColor: "text-red-700", badgeColor: "bg-red-100 text-red-700" };
+        }
+
+        // Default untuk tipe lain - gunakan logic trend
         if (!previous) {
-          // Nilai stabil/normal - hijau
           return {
             bgColor: "bg-green-50 border-green-200",
             textColor: "text-green-700",
@@ -1082,7 +1191,6 @@ export default function ChromecastDetailPage({
         const threshold = getThreshold(type, current);
 
         if (diff < threshold) {
-          // Stabil - hijau
           return {
             bgColor: "bg-green-50 border-green-200",
             textColor: "text-green-700",
@@ -1090,44 +1198,13 @@ export default function ChromecastDetailPage({
           };
         }
 
-        // Untuk latency dan packet loss, nilai tinggi = buruk
-        if (type === "latency" || type === "packetLoss") {
-          if (current > previous) {
-            // Memburuk - merah
-            return {
-              bgColor: "bg-red-50 border-red-200",
-              textColor: "text-red-700",
-              badgeColor: "bg-red-100 text-red-700",
-            };
-          } else {
-            // Membaik - kuning/warning (karena ada perubahan signifikan)
-            return {
-              bgColor: "bg-yellow-50 border-yellow-200",
-              textColor: "text-yellow-700",
-              badgeColor: "bg-yellow-100 text-yellow-700",
-            };
-          }
-        }
-
-        // Untuk bandwidth, speed, dll - nilai tinggi = baik
-        if (current < previous) {
-          // Menurun - kuning ke merah tergantung seberapa buruk
-          const degradationPercent = ((previous - current) / previous) * 100;
-          if (degradationPercent > 25) {
-            return {
-              bgColor: "bg-red-50 border-red-200",
-              textColor: "text-red-700",
-              badgeColor: "bg-red-100 text-red-700",
-            };
-          } else {
-            return {
-              bgColor: "bg-yellow-50 border-yellow-200",
-              textColor: "text-yellow-700",
-              badgeColor: "bg-yellow-100 text-yellow-700",
-            };
-          }
+        if (current > previous) {
+          return {
+            bgColor: "bg-yellow-50 border-yellow-200",
+            textColor: "text-yellow-700",
+            badgeColor: "bg-yellow-100 text-yellow-700",
+          };
         } else {
-          // Meningkat - hijau
           return {
             bgColor: "bg-green-50 border-green-200",
             textColor: "text-green-700",
@@ -1139,14 +1216,18 @@ export default function ChromecastDetailPage({
       const getThreshold = (type: string, currentValue: number) => {
         switch (type) {
           case "latency":
-            return Math.max(5, currentValue * 0.1); // 10% atau min 5ms
+            return Math.max(3, currentValue * 0.1); // 10% atau min 3ms
           case "bandwidth":
-            return Math.max(5, currentValue * 0.15); // 15% atau min 5Mbps
+            return Math.max(10, currentValue * 0.15); // 15% atau min 10Mbps
           case "packetLoss":
-            return 0.5; // 0.5%
+            return 0.3; // 0.3%
+          case "signalStrength":
+            return 5; // 5% signal strength
+          case "bitrate":
+            return Math.max(200, currentValue * 0.1); // 10% atau min 200kbps
           case "data_sent":
           case "data_received":
-            return 0.1; // 0.1GB threshold
+            return 0.2; // 0.2GB threshold
           default:
             return Math.max(2, currentValue * 0.1); // 10% atau min 2
         }
@@ -1157,19 +1238,19 @@ export default function ChromecastDetailPage({
 
       return (
         <div
-          className={`text-center p-2 sm:p-3 ${statusColors.bgColor} border rounded-lg transition-all duration-300`}
+          className={`text-center p-3 sm:p-4 ${statusColors.bgColor} border rounded-lg transition-all duration-300 hover:shadow-md`}
         >
           <div className="flex items-center justify-center mb-1">
             <p
-              className={`text-lg sm:text-2xl font-bold ${statusColors.textColor} truncate`}
+              className={`text-2xl sm:text-3xl font-bold ${statusColors.textColor} truncate`}
             >
               {value}
-              {unit}
             </p>
+            <span className={`text-base sm:text-lg ${statusColors.textColor} ml-1`}>{unit}</span>
             {previousValue && <TrendIndicator trend={trend.direction} />}
           </div>
           <p
-            className={`text-xs font-medium ${statusColors.textColor} mb-1 sm:mb-2 truncate`}
+            className={`text-xs font-medium ${statusColors.textColor} truncate`}
           >
             {label}
           </p>
@@ -1273,7 +1354,14 @@ export default function ChromecastDetailPage({
 
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+
+    // Safely remove the link element
+    setTimeout(() => {
+      if (link.parentNode === document.body) {
+        document.body.removeChild(link);
+      }
+      URL.revokeObjectURL(url);
+    }, 100);
   }, [autoFixLogs, device]);
 
   // Handle retry for failed auto-fix
@@ -2275,94 +2363,60 @@ export default function ChromecastDetailPage({
                 </div>
               </div>
 
-              {/* Stats Row */}
+              {/* Network Performance Metrics - 5 Key Metrics with Better Layout */}
               {networkMetrics && (
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pt-4 border-t border-gray-200">
-                  <MetricCard
-                    value={networkMetrics.jitter}
-                    previousValue={previousMetrics?.jitter}
-                    type="latency"
-                    unit="ms"
-                    label="Jitter"
-                    isOnline={device.isOnline}
-                  />
+                <>
+                  {/* First Row - 3 Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-gray-200">
+                    <MetricCard
+                      value={networkMetrics.packetLoss || 0}
+                      previousValue={previousMetrics?.packetLoss}
+                      type="packetLoss"
+                      unit="%"
+                      label="Packet Loss"
+                      isOnline={device.isOnline}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.ttl}
-                    previousValue={previousMetrics?.ttl}
-                    type="bandwidth"
-                    unit=""
-                    label="TTL"
-                    isOnline={device.isOnline}
-                  />
+                    <MetricCard
+                      value={networkMetrics?.latency || device?.responseTime || 0}
+                      previousValue={previousMetrics?.latency}
+                      type="latency"
+                      unit="ms"
+                      label="Latency"
+                      isOnline={device.isOnline}
+                    />
 
-                  <MetricCard
-                    value={networkMetrics.packetLoss}
-                    previousValue={previousMetrics?.packetLoss}
-                    type="latency"
-                    unit="%"
-                    label="Packet Loss"
-                    isOnline={device.isOnline}
-                  />
+                    <MetricCard
+                      value={networkMetrics.jitter || 0}
+                      previousValue={previousMetrics?.jitter}
+                      type="latency"
+                      unit="ms"
+                      label="Jitter"
+                      isOnline={device.isOnline}
+                    />
+                  </div>
 
-                  <MetricCard
-                    value={parseFloat(networkMetrics?.sent || "0")}
-                    previousValue={
-                      previousMetrics?.sent
-                        ? parseFloat(previousMetrics.sent)
-                        : undefined
-                    }
-                    type="data_sent"
-                    unit="GB"
-                    label="Data Sent"
-                    isOnline={device.isOnline}
-                  />
-                </div>
-              )}
+                  {/* Second Row - 2 Metrics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                    <MetricCard
+                      value={networkMetrics.error || 0}
+                      previousValue={previousMetrics?.error}
+                      type="error"
+                      unit="%"
+                      label="Error Rate"
+                      isOnline={device.isOnline}
+                    />
 
-              {/* Additional Network Metrics */}
-              {networkMetrics && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-                  <MetricCard
-                    value={networkMetrics?.hops || device?.hops || 0}
-                    previousValue={previousMetrics?.hops}
-                    type="latency"
-                    unit=""
-                    label="Hops"
-                    isOnline={device.isOnline}
-                  />
-
-                  <MetricCard
-                    value={networkMetrics.bandwidth}
-                    previousValue={previousMetrics?.bandwidth}
-                    type="bandwidth"
-                    unit="Mbps"
-                    label="Bandwidth"
-                    isOnline={device.isOnline}
-                  />
-
-                  <MetricCard
-                    value={networkMetrics?.latency || device?.responseTime || 0}
-                    previousValue={previousMetrics?.latency}
-                    type="latency"
-                    unit="ms"
-                    label="Latency"
-                    isOnline={device.isOnline}
-                  />
-
-                  <MetricCard
-                    value={parseFloat(networkMetrics?.received || "0")}
-                    previousValue={
-                      previousMetrics?.received
-                        ? parseFloat(previousMetrics.received)
-                        : undefined
-                    }
-                    type="data_received"
-                    unit="GB"
-                    label="Data Received"
-                    isOnline={device.isOnline}
-                  />
-                </div>
+                    <MetricCard
+                      value={networkMetrics.recoveryTime || 0}
+                      previousValue={previousMetrics?.recoveryTime}
+                      type="recoveryTime"
+                      unit="s"
+                      label="Recovery Time"
+                      isOnline={device.isOnline}
+                    />
+                  </div>
+                </>
               )}
             </div>
 

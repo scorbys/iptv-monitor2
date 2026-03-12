@@ -3,6 +3,7 @@
  * This function replicates the token retrieval logic from AuthContext
  */
 import { storageLogger } from "@/utils/debugLogger";
+import { ChannelMetrics, LabeledMetrics, calculateMetricScore } from "@/utils/metricCalculator";
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -123,6 +124,25 @@ export interface Notification {
   responseTime?: number;
   signalLevel?: number;
   suggestedSolutions?: string[];
+  // Network metrics
+  metrics?: ChannelMetrics;
+  labeledMetrics?: LabeledMetrics;
+  packetLoss?: number;
+  jitter?: number;
+  latency?: number;
+  errorRate?: number;
+  recoveryTime?: number;
+  // Metric scores (labels)
+  packetLossScore?: number;
+  jitterScore?: number;
+  latencyScore?: number;
+  errorRateScore?: number;
+  recoveryTimeScore?: number;
+  // Staff assignment (can be string or object with name property)
+  assignedStaff?: string | { name?: string; id?: string | number; email?: string; department?: string; position?: string };
+  handledByStaff?: string | { name?: string; id?: string | number; email?: string; department?: string; position?: string };
+  reportStatus?: string;
+  priority?: string;
 }
 
 interface ChromecastDevice {
@@ -597,16 +617,25 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
   const all: Notification[] = [];
   const errors: string[] = [];
 
-  // 1. Fetch from backend database notifications (NEW)
+  // 1. FIRST: Load from cache immediately for instant display
+  const cachedNotifications = getNotificationsFromStorage();
+  if (cachedNotifications.length > 0) {
+    debugLog(`Loaded ${cachedNotifications.length} notifications from cache for instant display`);
+    all.push(...cachedNotifications);
+  }
+
+  // 2. THEN: Fetch from backend database notifications with progressive loading
   // Use pagination to fetch ALL notifications, not just 100
   try {
     let hasMore = true;
     let skip = 0;
-    const limit = 100; // Fetch in batches of 100
+    const limit = 200; // Increased from 100 to 200 for fewer round trips
     let totalFetched = 0;
     let totalAvailable = 0;
+    const maxBatches = 25; // Safety limit: max 25 batches = 5000 notifications
+    let batchCount = 0;
 
-    while (hasMore) {
+    while (hasMore && batchCount < maxBatches) {
       const response = await authenticatedFetch(`/api/notifications?limit=${limit}&skip=${skip}`);
 
       if (response.ok) {
@@ -650,11 +679,26 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
               assignedStaff: notif.assignedStaff,
               handledByStaff: notif.handledByStaff,
               createdAt: notif.createdAt,
-              updatedAt: notif.updatedAt
+              updatedAt: notif.updatedAt,
+              // Network metrics from backend
+              responseTime: notif.responseTime,
+              signalLevel: notif.signalLevel,
+              packetLoss: notif.packetLoss,
+              jitter: notif.jitter,
+              latency: notif.latency,
+              errorRate: notif.errorRate,
+              recoveryTime: notif.recoveryTime,
+              // Metric scores from backend
+              packetLossScore: notif.packetLossScore,
+              jitterScore: notif.jitterScore,
+              latencyScore: notif.latencyScore,
+              errorRateScore: notif.errorRateScore,
+              recoveryTimeScore: notif.recoveryTimeScore
             }));
 
           all.push(...backendNotifications);
           totalFetched += json.data.length;
+          batchCount++;
 
           // Continue pagination if there are more notifications
           skip += limit;
@@ -673,13 +717,13 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
       }
     }
 
-    debugLog(`Fetched ${totalFetched} notifications from backend database (total available: ${totalAvailable}, startup notifications excluded)`);
+    debugLog(`Fetched ${totalFetched} notifications from backend database in ${batchCount} batches (total available: ${totalAvailable}, startup notifications excluded)`);
   } catch (error) {
     console.error('Error fetching backend notifications:', error);
     errors.push('Failed to fetch backend notifications');
   }
 
-  // 2. Fetch from device status endpoints (existing - for real-time status)
+  // 3. Fetch from device status endpoints (existing - for real-time status)
   const fetchSources: FetchSource[] = [
     {
       name: "chromecast",
@@ -745,19 +789,114 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     })
   );
 
-  // 3. Merge with cached notifications from localStorage
-  const oldNotifications = getNotificationsFromStorage();
-  const validOldNotifications = cleanOldNotifications(oldNotifications);
+  // 4. Enrich notifications with metrics from device endpoints
+  // Fetch current device data to get metrics for notifications that don't have them
+  try {
+    const deviceDataMap = new Map<string, any>();
 
-  // Deduplicate by ID
-  const newIds = new Set(all.map((n) => n.id));
-  const uniqueOldNotifications = validOldNotifications.filter(
-    (n) => !newIds.has(n.id)
+    // Fetch chromecast data for metrics
+    try {
+      const chromecastResponse = await authenticatedFetch("/api/chromecast");
+      if (chromecastResponse.ok) {
+        const chromecastJson = await chromecastResponse.json();
+        const chromecastData = Array.isArray(chromecastJson) ? chromecastJson :
+                               (chromecastJson?.data || []);
+        chromecastData.forEach((device: any) => {
+          if (device.deviceName || device.ipAddr) {
+            deviceDataMap.set(`chromecast-${device.deviceName || device.ipAddr}`, device);
+          }
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching chromecast for metrics enrichment:", e);
+    }
+
+    // Fetch TV data for metrics
+    try {
+      const tvResponse = await authenticatedFetch("/api/hospitality/tvs");
+      if (tvResponse.ok) {
+        const tvJson = await tvResponse.json();
+        const tvData = Array.isArray(tvJson) ? tvJson : (tvJson?.data || []);
+        tvData.forEach((device: any) => {
+          if (device.roomNo || device.ipAddress) {
+            deviceDataMap.set(`tv-${device.roomNo || device.ipAddress}`, device);
+          }
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching TV for metrics enrichment:", e);
+    }
+
+    // Fetch channel data for metrics
+    try {
+      const channelResponse = await authenticatedFetch("/api/channels");
+      if (channelResponse.ok) {
+        const channelJson = await channelResponse.json();
+        const channelData = Array.isArray(channelJson) ? channelJson : (channelJson?.data || []);
+        channelData.forEach((device: any) => {
+          if (device.channelName || device.ipMulticast) {
+            deviceDataMap.set(`channel-${device.channelName || device.ipMulticast}`, device);
+          }
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching channels for metrics enrichment:", e);
+    }
+
+    // Enrich notifications with device metrics
+    all.forEach((notification) => {
+      // Skip if already has metrics
+      if (notification.packetLoss !== undefined ||
+          notification.jitter !== undefined ||
+          notification.latency !== undefined) {
+        return;
+      }
+
+      // Try to find matching device data
+      const deviceKey = `${notification.source}-${notification.deviceName || notification.roomNo || notification.ipAddr}`;
+      const deviceData = deviceDataMap.get(deviceKey);
+
+      if (deviceData) {
+        // Extract metrics from device data
+        const metrics = deviceData.metrics || deviceData.networkStats || {};
+        notification.packetLoss = metrics.packetLoss || deviceData.packetLoss;
+        notification.jitter = metrics.jitter || deviceData.jitter;
+        notification.latency = metrics.latency || deviceData.latency || deviceData.responseTime;
+        notification.errorRate = metrics.errorRate || deviceData.errorRate;
+        notification.recoveryTime = metrics.recoveryTime || deviceData.recoveryTime;
+        notification.responseTime = deviceData.responseTime;
+        notification.signalLevel = deviceData.signalLevel;
+
+        // Calculate scores if metrics exist
+        if (notification.packetLoss !== undefined) {
+          notification.packetLossScore = calculateMetricScore(notification.packetLoss, 'packetLoss');
+        }
+        if (notification.jitter !== undefined) {
+          notification.jitterScore = calculateMetricScore(notification.jitter, 'jitter');
+        }
+        if (notification.latency !== undefined) {
+          notification.latencyScore = calculateMetricScore(notification.latency, 'latency');
+        }
+        if (notification.errorRate !== undefined) {
+          notification.errorRateScore = calculateMetricScore(notification.errorRate, 'errorRate');
+        }
+        if (notification.recoveryTime !== undefined) {
+          notification.recoveryTimeScore = calculateMetricScore(notification.recoveryTime, 'recoveryTime');
+        }
+      }
+    });
+
+    debugLog(`Enriched notifications with device metrics`);
+  } catch (error) {
+    console.error("Error enriching notifications with metrics:", error);
+  }
+
+  // 5. Deduplicate by ID (in case cache + backend have duplicates)
+  const uniqueNotifications = Array.from(
+    new Map(all.map((n) => [n.id, n])).values()
   );
 
-  all.push(...uniqueOldNotifications);
-
-  const sortedAndCleaned = cleanOldNotifications(all).sort(
+  const sortedAndCleaned = cleanOldNotifications(uniqueNotifications).sort(
     (a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
   );
 
@@ -767,7 +906,7 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     console.warn("Some fetch operations failed:", errors);
   }
 
-  debugLog(`Fetched ${all.length} total notifications (${errors.length} errors)`);
+  debugLog(`Total notifications after all operations: ${sortedAndCleaned.length} (${errors.length} errors)`);
   return sortedAndCleaned;
 }
 

@@ -16,6 +16,16 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
+import {
+  getLabelBadgeStyle,
+  formatMetricValue,
+  type MetricLabel,
+  type ChannelMetrics,
+  type LabeledMetrics,
+  calculateOverallQualityScore,
+  getQualityLabelText,
+  calculateMetricScore
+} from "@/utils/metricCalculator";
 
 interface Channel {
   id: number;
@@ -29,6 +39,8 @@ interface Channel {
   responseTime?: number;
   error?: string;
   slug?: string;
+  metrics?: ChannelMetrics;
+  labeledMetrics?: LabeledMetrics;
 }
 
 interface ChannelStats {
@@ -392,7 +404,7 @@ export default function ChannelsPage() {
     []
   );
 
-  // Export to CSV function
+  // Export to CSV function with enhanced metrics
   const exportToCSV = useCallback(() => {
     if (exportLoading) return;
 
@@ -405,21 +417,71 @@ export default function ChannelsPage() {
         "Category",
         "IP Multicast",
         "Status",
-        "Response Time (ms)",
+        "Packet Loss (%)",
+        "Label Packet Loss",
+        "Latency (ms)",
+        "Label Latency",
+        "Jitter (ms)",
+        "Label Jitter",
+        "Error Rate (%)",
+        "Label Error Rate",
+        "Recovery Time (s)",
+        "Label Recovery Time",
         "Last Checked",
-        "Logo URL",
+        "Logo URL"
       ];
 
-      const csvData = filteredChannels.map((channel) => [
-        channel.channelNumber?.toString() || "",
-        (channel.channelName || "").replace(/"/g, '""'),
-        (channel.category || "").replace(/"/g, '""'),
-        channel.ipMulticast || "",
-        channel.status || "",
-        channel.responseTime?.toString() || "",
-        channel.lastChecked || "",
-        channel.logo || "",
-      ]);
+      const csvData = filteredChannels.map((channel) => {
+        // Check if device is offline - if so, all metrics should be 1 (Very Poor)
+        const isOffline = channel.status === 'offline';
+
+        // Use backend-provided metrics if available, otherwise use placeholder
+        const packetLoss = channel.metrics?.packetLoss ?? 0;
+        const latency = channel.metrics?.latency ?? 0;
+        const jitter = channel.metrics?.jitter ?? 0;
+        const error = channel.metrics?.error ?? 0;
+        const recoveryTime = channel.metrics?.recoveryTime ?? 0;
+
+        // Use labeledMetrics from backend if available, otherwise calculate scores
+        const labeledMetrics = channel.labeledMetrics;
+
+        // If offline, override all scores to 1 (Very Poor)
+        // If online, use backend labeledMetrics or calculate from actual values
+        const packetLossScore = isOffline ? 1 : (labeledMetrics?.packetLossLabel?.label ?? calculateMetricScore(packetLoss, 'packetLoss'));
+        const latencyScore = isOffline ? 1 : (labeledMetrics?.latencyLabel?.label ?? calculateMetricScore(latency, 'latency'));
+        const jitterScore = isOffline ? 1 : (labeledMetrics?.jitterLabel?.label ?? calculateMetricScore(jitter, 'jitter'));
+        const errorScore = isOffline ? 1 : (labeledMetrics?.errorLabel?.label ?? calculateMetricScore(error, 'error'));
+        const recoveryScore = isOffline ? 1 : (labeledMetrics?.recoveryTimeLabel?.label ?? calculateMetricScore(recoveryTime, 'recoveryTime'));
+
+        // Calculate overall quality score
+        const metrics: ChannelMetrics = {
+          packetLoss,
+          latency,
+          jitter,
+          error,
+          recoveryTime
+        };
+
+        return [
+          channel.channelNumber?.toString() || "",
+          (channel.channelName || "").replace(/"/g, '""'),
+          (channel.category || "").replace(/"/g, '""'),
+          channel.ipMulticast || "",
+          channel.status || "",
+          packetLoss.toFixed(2),
+          packetLossScore.toString(),
+          latency.toString(),
+          latencyScore.toString(),
+          jitter.toString(),
+          jitterScore.toString(),
+          error.toFixed(2),
+          errorScore.toString(),
+          recoveryTime.toFixed(1),
+          recoveryScore.toString(),
+          channel.lastChecked || "",
+          channel.logo || ""
+        ];
+      });
 
       const csvContent = [headers, ...csvData]
         .map((row) =>
@@ -460,8 +522,14 @@ export default function ChannelsPage() {
         link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+
+        // Safely remove the link element
+        setTimeout(() => {
+          if (link.parentNode === document.body) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        }, 100);
       }
     } catch (error) {
       componentLogger.error("Error exporting CSV:", error);

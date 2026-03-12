@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import {
   ChartBarIcon,
@@ -18,6 +18,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { apiLogger } from "@/utils/debugLogger";
 import { format, subDays } from 'date-fns';
+
+// Import Notification type and utilities from notifUtils
+import { Notification, fetchAllNotifications as fetchAllNotifsFromUtils, cleanOldNotifications } from "../../app/notifications/notifUtils";
 
 // Dynamic imports with proper loading states
 const MLPredictionForm = dynamic(
@@ -204,9 +207,11 @@ export default function MLDashboardPage() {
   const [topRooms, setTopRooms] = useState<Array<{ room: string; count: number }>>([]);
   const [loadingAutoFix, setLoadingAutoFix] = useState(true);
   const [loadingCharts, setLoadingCharts] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [staffPerformance, setStaffPerformance] = useState<StaffPerformance[]>([]);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
 
   // Advanced filters
   const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
@@ -222,26 +227,33 @@ export default function MLDashboardPage() {
     fetchTimeSeriesData();
     fetchStaffPerformance();
     fetchTopDevicesAndRooms();
+    fetchAllNotificationsForDashboard();
   }, [dateRange]);
+
+  // Fetch all notifications for category breakdown using notifUtils
+  const fetchAllNotificationsForDashboard = async () => {
+    try {
+      setLoadingNotifications(true);
+
+      // Use the same fetchAllNotifications function from notifUtils
+      const notifications = await fetchAllNotifsFromUtils();
+      const cleaned = cleanOldNotifications(notifications);
+
+      setAllNotifications(cleaned);
+      console.log('Loaded notifications for category breakdown:', cleaned.length);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setAllNotifications([]);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
 
   // Update current time
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Auto-refresh
-  useEffect(() => {
-    if (autoRefreshInterval > 0) {
-      const interval = setInterval(() => {
-        fetchAutoFixStats();
-        fetchRecentAutoFixes();
-        fetchTimeSeriesData();
-      }, autoRefreshInterval * 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [autoRefreshInterval, dateRange]);
 
   const fetchTimeSeriesData = async () => {
     try {
@@ -687,8 +699,14 @@ export default function MLDashboardPage() {
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+
+      // Safely remove the link element
+      setTimeout(() => {
+        if (link.parentNode === document.body) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      }, 100);
     } catch (err) {
       console.error('Error exporting CSV:', err);
       alert('Failed to export CSV. Please try again.');
@@ -704,8 +722,221 @@ export default function MLDashboardPage() {
       fetchRecentAutoFixes(),
       fetchTimeSeriesData(),
       fetchStaffPerformance(),
+      fetchAllNotificationsForDashboard(),
     ]);
   };
+
+  // Helper function to normalize category names (same as NotifPage)
+  const normalizeCategoryName = (category: string): string => {
+    return category
+      .replace(/katagori-/gi, 'Kategori-')
+      .replace(/kategori-/gi, 'Kategori-');
+  };
+
+  // FAQ Category mapping function (same as NotifPage) - Optimized with caching
+  const categoryMappings = useMemo(() => ({
+    "Kategori-1": {
+      keywords: ["no device found", "chromecast", "not found", "device offline"],
+      device: "chromecast",
+      priority: 1,
+    },
+    "Kategori-2": {
+      keywords: ["weak", "signal", "no signal", "iptv", "tv offline"],
+      device: "iptv",
+      priority: 2,
+    },
+    "Kategori-3": {
+      keywords: ["unplug", "lan", "cable", "connection", "lan in", "lan out"],
+      device: "iptv",
+      priority: 3,
+    },
+    "Kategori-4": {
+      keywords: ["setup", "ios", "iphone", "google home", "local network"],
+      device: "chromecast",
+      priority: 2,
+    },
+    "Kategori-5": {
+      keywords: ["error playing", "playing", "stream", "video"],
+      device: "channel",
+      priority: 1,
+    },
+    "Kategori-6": {
+      keywords: ["player error", "player_error", "hbrowser", "widget"],
+      device: "channel",
+      priority: 3,
+    },
+    "Kategori-7": {
+      keywords: ["connection failure", "connection_failure", "ip conflict", "network"],
+      device: "channel",
+      priority: 2,
+    },
+    "Kategori-8": {
+      keywords: ["reset", "configuration", "restart", "power"],
+      device: "chromecast",
+      priority: 3,
+    },
+    "Kategori-9": {
+      keywords: ["no device logged", "logged", "login", "authentication"],
+      device: "iptv",
+      priority: 2,
+    },
+    "Kategori-10": {
+      keywords: ["black screen", "screen", "adaptor", "power"],
+      device: "chromecast",
+      priority: 1,
+    },
+    "Kategori-11": {
+      keywords: ["channel not found", "not found", "channel", "missing"],
+      device: "channel",
+      priority: 1,
+    },
+    "Kategori-12": {
+      keywords: ["network connection", "connection failed", "wifi", "router", "network"],
+      device: "chromecast",
+      priority: 2,
+    },
+    "Kategori-13": {
+      keywords: ["initialization", "system error", "firmware", "boot"],
+      device: "iptv",
+      priority: 3,
+    },
+    "Kategori-14": {
+      keywords: ["logined", "logged in", "authentication", "no device found", "registered"],
+      device: "chromecast",
+      priority: 2,
+    },
+  }), []);
+
+  const sourceToDevice: Record<string, string> = useMemo(() => ({
+    chromecast: "chromecast",
+    tv: "iptv",
+    channel: "channel",
+    system: "system",
+  }), []);
+
+  // Cache for category results
+  const categoryCache = useMemo(() => new Map<string, string | null>(), []);
+
+  const getSpecificFAQCategory = (notification: Partial<Notification>): string | null => {
+    // Create cache key from notification content
+    const cacheKey = `${notification.title?.slice(0, 50)}|${notification.message?.slice(0, 50)}|${notification.source}`;
+
+    // Check cache first
+    if (categoryCache.has(cacheKey)) {
+      return categoryCache.get(cacheKey)!;
+    }
+
+    // Normalize notification text for better matching
+    const notifText = [
+      notification.title?.toLowerCase() || "",
+      notification.message?.toLowerCase() || "",
+      notification.error?.toLowerCase() || "",
+      notification.deviceName?.toLowerCase() || "",
+      notification.errorCategory?.toLowerCase() || "",
+    ].join(" ");
+
+    // Normalize ML predicted categories to match FAQ naming convention
+    const normalizedNotifText = notifText
+      .replace(/katagori-/gi, 'kategori-')
+      .replace(/kategori-/gi, 'kategori-');
+
+    const expectedDevice = sourceToDevice[notification.source || ""] || null;
+
+    // Find matching categories with scoring system
+    const matches = Object.entries(categoryMappings).map(
+      ([category, config]) => {
+        let score = 0;
+
+        // Device match bonus
+        if (!expectedDevice || config.device === expectedDevice) {
+          score += 10;
+        } else {
+          score -= 5; // Penalty for device mismatch
+        }
+
+        // Keyword matching with weighted scoring
+        const keywordMatches = config.keywords.filter((keyword) =>
+          normalizedNotifText.includes(keyword.toLowerCase())
+        );
+
+        score += keywordMatches.length * 5;
+
+        // Priority bonus (lower number = higher priority)
+        score += 4 - config.priority;
+
+        // Exact phrase matching bonus
+        const hasExactMatch = config.keywords.some((keyword) =>
+          normalizedNotifText.includes(keyword.toLowerCase())
+        );
+        if (hasExactMatch) score += 3;
+
+        return {
+          category,
+          score,
+          matches: keywordMatches.length,
+        };
+      }
+    );
+
+    // Sort by score and return best match
+    const bestMatch = matches
+      .filter((match) => match.score > 5) // Minimum threshold
+      .sort((a, b) => b.score - a.score)[0];
+
+    const result = bestMatch ? bestMatch.category : null;
+
+    // Cache the result
+    categoryCache.set(cacheKey, result);
+
+    return result;
+  };
+
+  // Calculate category breakdown from notifications using FAQ categories
+  const categoryBreakdown = useMemo(() => {
+    console.time('CategoryBreakdownCalculation');
+
+    const breakdown: Record<string, { count: number; success: number }> = {};
+
+    // Process in batches to avoid blocking UI
+    allNotifications.forEach((notification) => {
+      const faqCategory = getSpecificFAQCategory(notification);
+      const category = faqCategory || "Uncategorized";
+
+      if (!breakdown[category]) {
+        breakdown[category] = { count: 0, success: 0 };
+      }
+
+      breakdown[category].count++;
+
+      // Count as success if notification is online (resolved)
+      if (notification.currentStatus === "online") {
+        breakdown[category].success++;
+      }
+    });
+
+    // Convert to array and sort by count
+    const result = Object.entries(breakdown)
+      .map(([_id, stats]) => ({ _id, count: stats.count, success: stats.success }))
+      .sort((a, b) => b.count - a.count);
+
+    console.timeEnd('CategoryBreakdownCalculation');
+    console.log('Category breakdown calculated:', result.length, 'categories');
+    return result;
+  }, [allNotifications]);
+
+  // Update auto-refresh to include notifications
+  useEffect(() => {
+    if (autoRefreshInterval > 0) {
+      const interval = setInterval(() => {
+        fetchAutoFixStats();
+        fetchRecentAutoFixes();
+        fetchTimeSeriesData();
+        fetchAllNotificationsForDashboard();
+      }, autoRefreshInterval * 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [autoRefreshInterval, dateRange]);
 
   // Chart configurations
   const chartOptions = {
@@ -781,10 +1012,10 @@ export default function MLDashboardPage() {
   };
 
   const doughnutChartData = {
-    labels: autoFixStats?.byCategory.slice(0, 6).map(c => c._id) || [],
+    labels: categoryBreakdown.slice(0, 6).map(c => c._id) || [],
     datasets: [
       {
-        data: autoFixStats?.byCategory.slice(0, 6).map(c => c.count) || [],
+        data: categoryBreakdown.slice(0, 6).map(c => c.count) || [],
         backgroundColor: [
           'rgba(59, 130, 246, 0.8)',
           'rgba(34, 197, 94, 0.8)',
@@ -1262,14 +1493,20 @@ export default function MLDashboardPage() {
                 <SignalIcon className="w-6 h-6 text-purple-500" />
               </div>
               <div className="h-80">
-                {loadingAutoFix ? (
-                  <div className="flex items-center justify-center h-full">
+                {loadingNotifications ? (
+                  <div className="flex flex-col items-center justify-center h-full space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Analyzing notification patterns...</p>
+                      <p className="text-xs text-gray-400 mt-1">Processing {allNotifications.length} notifications</p>
+                    </div>
                   </div>
+                ) : Chart && categoryBreakdown.length > 0 ? (
+                  <Chart type="doughnut" data={doughnutChartData} options={chartOptions} />
                 ) : (
-                  Chart && autoFixStats?.byCategory && autoFixStats.byCategory.length > 0 && (
-                    <Chart type="doughnut" data={doughnutChartData} options={chartOptions} />
-                  )
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <p>No category data available</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -1278,28 +1515,37 @@ export default function MLDashboardPage() {
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Top Issue Categories</h3>
               <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                {autoFixStats?.byCategory.map((category, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                        index === 0 ? 'bg-red-500' :
-                        index === 1 ? 'bg-orange-500' :
-                        index === 2 ? 'bg-yellow-500' :
-                        index === 3 ? 'bg-blue-500' :
-                        index === 4 ? 'bg-purple-500' :
-                        'bg-gray-500'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <span className="text-sm font-semibold text-gray-900">{category._id}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-gray-900">{category.count}</div>
-                      <div className="text-xs text-gray-500">{category.success} successful</div>
+                {loadingNotifications ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Categorizing issues...</p>
+                      <p className="text-xs text-gray-400 mt-1">This may take a moment for large datasets</p>
                     </div>
                   </div>
-                ))}
-                {autoFixStats?.byCategory.length === 0 && (
+                ) : categoryBreakdown.length > 0 ? (
+                  categoryBreakdown.map((category, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                          index === 0 ? 'bg-red-500' :
+                          index === 1 ? 'bg-orange-500' :
+                          index === 2 ? 'bg-yellow-500' :
+                          index === 3 ? 'bg-blue-500' :
+                          index === 4 ? 'bg-purple-500' :
+                          'bg-gray-500'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{category._id}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-bold text-gray-900">{category.count}</div>
+                        <div className="text-xs text-gray-500">{category.success} resolved</div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
                   <div className="text-center py-8 text-gray-500 text-sm">
                     No issue categories available
                   </div>
