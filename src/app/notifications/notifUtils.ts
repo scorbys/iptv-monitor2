@@ -878,7 +878,7 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
           notification.latencyScore = calculateMetricScore(notification.latency, 'latency');
         }
         if (notification.errorRate !== undefined) {
-          notification.errorRateScore = calculateMetricScore(notification.errorRate, 'errorRate');
+          notification.errorRateScore = calculateMetricScore(notification.errorRate, 'error');
         }
         if (notification.recoveryTime !== undefined) {
           notification.recoveryTimeScore = calculateMetricScore(notification.recoveryTime, 'recoveryTime');
