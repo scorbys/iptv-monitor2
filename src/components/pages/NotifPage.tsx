@@ -714,7 +714,7 @@ export default function NotifPage() {
         hasMetrics: notificationsToExport.some(n => !!n.metrics),
         hasLabeledMetrics: notificationsToExport.some(n => !!n.labeledMetrics),
         sampleMetrics: notificationsToExport.slice(0, 3).map(n => ({
-          id: n.notificationId,
+          id: n.id,
           packetLoss: n.metrics?.packetLoss,
           latency: n.metrics?.latency
         }))
@@ -771,7 +771,7 @@ export default function NotifPage() {
           (n.message && n.message.toLowerCase().includes(searchLower)) ||
           (n.deviceName && n.deviceName.toLowerCase().includes(searchLower)) ||
           (n.roomNo && n.roomNo.toLowerCase().includes(searchLower)) ||
-          (n.notificationId && n.notificationId.toLowerCase().includes(searchLower));
+          (n.id && String(n.id).toLowerCase().includes(searchLower));
 
         const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
         const matchesType = typeFilter === "all" || n.type === typeFilter;
@@ -791,7 +791,7 @@ export default function NotifPage() {
 
       const csvData = filteredForExport.map((notification) => {
         // Helper function to extract staff name from populated staff object
-        const getStaffName = (staff: string | { name?: string; id?: string; email?: string; department?: string; position?: string } | null | undefined): string => {
+        const getStaffName = (staff: string | { name?: string; id?: string | number; email?: string; department?: string; position?: string } | null | undefined): string => {
           if (!staff) return "N/A";
           if (typeof staff === 'string') return staff;
           // Staff object populated from backend
@@ -807,7 +807,7 @@ export default function NotifPage() {
         const labeledMetrics = (notification as any).labeledMetrics || {};
 
         // DEBUG: Log metrics data to understand what we're getting
-        console.log('[CSV Export] Notification:', notification.notificationId, {
+        console.log('[CSV Export] Notification:', notification.id, {
           hasMetrics: !!notification.metrics,
           hasLabeledMetrics: !!notification.labeledMetrics,
           metricsKeys: Object.keys(metrics),
@@ -837,7 +837,7 @@ export default function NotifPage() {
         const packetLossScore = isOffline ? 1 : (labeledMetrics.packetLossLabel?.label ?? calculateMetricScore(packetLoss, 'packetLoss'));
         const jitterScore = isOffline ? 1 : (labeledMetrics.jitterLabel?.label ?? calculateMetricScore(jitter, 'jitter'));
         const latencyScore = isOffline ? 1 : (labeledMetrics.latencyLabel?.label ?? calculateMetricScore(latency, 'latency'));
-        const errorRateScore = isOffline ? 1 : (labeledMetrics.errorLabel?.label ?? calculateMetricScore(errorRate, 'errorRate'));
+        const errorRateScore = isOffline ? 1 : (labeledMetrics.errorLabel?.label ?? calculateMetricScore(errorRate, 'error'));
         const recoveryTimeScore = isOffline ? 1 : (labeledMetrics.recoveryTimeLabel?.label ?? calculateMetricScore(recoveryTime, 'recoveryTime'));
 
         // Debug logging for staff data
