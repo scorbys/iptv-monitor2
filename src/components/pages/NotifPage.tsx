@@ -28,6 +28,7 @@ import {
   fetchAllNotifications,
   cleanOldNotifications,
 } from "../../app/notifications/notifUtils";
+import { calculateMetricScore } from "@/utils/metricCalculator";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -695,10 +696,40 @@ export default function NotifPage() {
   }, [searchTerm, sourceFilter, typeFilter, categoryFilter]);
 
   // Export to CSV
-  const exportToCSV = useCallback(() => {
+  const exportToCSV = useCallback(async () => {
     if (exportLoading) return;
 
     setExportLoading(true);
+
+    let notificationsToExport = notifications;
+
+    // Force fresh data fetch before exporting to ensure we have latest metrics
+    try {
+      componentLogger.info('[CSV Export] Forcing fresh data fetch before export...');
+      const freshData = await fetchAllNotifications();
+      notificationsToExport = cleanOldNotifications(freshData);
+
+      componentLogger.info('[CSV Export] Fresh data fetched, proceeding with export', {
+        count: notificationsToExport.length,
+        hasMetrics: notificationsToExport.some(n => !!n.metrics),
+        hasLabeledMetrics: notificationsToExport.some(n => !!n.labeledMetrics),
+        sampleMetrics: notificationsToExport.slice(0, 3).map(n => ({
+          id: n.notificationId,
+          packetLoss: n.metrics?.packetLoss,
+          latency: n.metrics?.latency
+        }))
+      });
+
+      // Update state with fresh data
+      setNotifications(notificationsToExport);
+      setStats(calculateStats(notificationsToExport));
+
+      // Wait a bit for state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      componentLogger.error('[CSV Export] Failed to fetch fresh data, using cached data:', error);
+      notificationsToExport = notifications;
+    }
 
     try {
       const headers = [
@@ -732,13 +763,94 @@ export default function NotifPage() {
         "Handled By Staff",
       ];
 
-      const csvData = filteredNotifications.map((notification) => {
-        // Helper function to extract staff name from object or string
-        const getStaffName = (staff: string | { name?: string } | undefined): string => {
+      // Apply filters to the fresh data before exporting
+      const filteredForExport = notificationsToExport.filter(n => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch =
+          (n.title && n.title.toLowerCase().includes(searchLower)) ||
+          (n.message && n.message.toLowerCase().includes(searchLower)) ||
+          (n.deviceName && n.deviceName.toLowerCase().includes(searchLower)) ||
+          (n.roomNo && n.roomNo.toLowerCase().includes(searchLower)) ||
+          (n.notificationId && n.notificationId.toLowerCase().includes(searchLower));
+
+        const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
+        const matchesType = typeFilter === "all" || n.type === typeFilter;
+
+        let matchesCategory = true;
+        if (categoryFilter !== "all") {
+          const faqCategory = getSpecificFAQCategory(n);
+          if (categoryFilter === "Uncategorized") {
+            matchesCategory = !faqCategory;
+          } else {
+            matchesCategory = faqCategory === categoryFilter;
+          }
+        }
+
+        return matchesSearch && matchesSource && matchesType && matchesCategory;
+      });
+
+      const csvData = filteredForExport.map((notification) => {
+        // Helper function to extract staff name from populated staff object
+        const getStaffName = (staff: string | { name?: string; id?: string; email?: string; department?: string; position?: string } | null | undefined): string => {
           if (!staff) return "N/A";
           if (typeof staff === 'string') return staff;
-          return (staff as any).name || "N/A";
+          // Staff object populated from backend
+          if (staff && typeof staff === 'object' && staff.name) {
+            return staff.name;
+          }
+          return "N/A";
         };
+
+        // Extract metrics from backend response structure
+        // Backend sends: metrics and labeledMetrics
+        const metrics = (notification as any).metrics || {};
+        const labeledMetrics = (notification as any).labeledMetrics || {};
+
+        // DEBUG: Log metrics data to understand what we're getting
+        console.log('[CSV Export] Notification:', notification.notificationId, {
+          hasMetrics: !!notification.metrics,
+          hasLabeledMetrics: !!notification.labeledMetrics,
+          metricsKeys: Object.keys(metrics),
+          labeledMetricsKeys: Object.keys(labeledMetrics),
+          packetLoss: metrics.packetLoss,
+          latency: metrics.latency
+        });
+
+        // Determine if device is offline (for score calculation)
+        // Match the logic from ChannelsPage.tsx
+        const isOffline = notification.currentStatus === 'offline' ||
+                         notification.reportStatus === 'pending' ||
+                         notification.reportStatus === 'investigating';
+
+        // Extract metric values - use backend data only, NO random generation
+        // This matches exactly how ChannelsPage.tsx handles metrics (line 439-443)
+        const packetLoss = metrics.packetLoss ?? 0;
+        const jitter = metrics.jitter ?? 0;
+        const latency = metrics.latency ?? 0;
+        const errorRate = metrics.error ?? 0;  // Note: backend uses 'error', frontend expects 'errorRate'
+        const recoveryTime = metrics.recoveryTime ?? 0;
+
+        // Use labeledMetrics from backend if available, otherwise calculate scores
+        // This matches exactly how ChannelsPage.tsx handles labels (line 450-454)
+        // If offline, override all scores to 1 (Very Poor)
+        // If online, use backend labeledMetrics or calculate from actual values
+        const packetLossScore = isOffline ? 1 : (labeledMetrics.packetLossLabel?.label ?? calculateMetricScore(packetLoss, 'packetLoss'));
+        const jitterScore = isOffline ? 1 : (labeledMetrics.jitterLabel?.label ?? calculateMetricScore(jitter, 'jitter'));
+        const latencyScore = isOffline ? 1 : (labeledMetrics.latencyLabel?.label ?? calculateMetricScore(latency, 'latency'));
+        const errorRateScore = isOffline ? 1 : (labeledMetrics.errorLabel?.label ?? calculateMetricScore(errorRate, 'errorRate'));
+        const recoveryTimeScore = isOffline ? 1 : (labeledMetrics.recoveryTimeLabel?.label ?? calculateMetricScore(recoveryTime, 'recoveryTime'));
+
+        // Debug logging for staff data
+        if (notification.reportStatus === 'resolved' && (!notification.assignedStaff && !notification.handledByStaff)) {
+          componentLogger.warn('[CSV Export] Resolved notification missing staff data:', {
+            notificationId: notification.id,
+            reportStatus: notification.reportStatus,
+            assignedStaff: notification.assignedStaff,
+            handledByStaff: notification.handledByStaff,
+            assignedStaffId: (notification as any).assignedStaffId,
+            handledByStaffId: (notification as any).handledByStaffId
+          });
+        }
 
         return [
           notification.date || "N/A",
@@ -755,16 +867,16 @@ export default function NotifPage() {
           getSpecificFAQCategory(notification) || "Uncategorized",
           notification.responseTime?.toString() || "N/A",
           notification.signalLevel?.toString() || "N/A",
-          notification.packetLoss?.toFixed(2) || "N/A",
-          notification.packetLossScore?.toString() || "N/A",
-          notification.jitter?.toFixed(2) || "N/A",
-          notification.jitterScore?.toString() || "N/A",
-          notification.latency?.toString() || notification.responseTime?.toString() || "N/A",
-          notification.latencyScore?.toString() || "N/A",
-          notification.errorRate?.toFixed(2) || "N/A",
-          notification.errorRateScore?.toString() || "N/A",
-          notification.recoveryTime?.toFixed(1) || "N/A",
-          notification.recoveryTimeScore?.toString() || "N/A",
+          packetLoss.toFixed(2),
+          packetLossScore.toString(),
+          jitter.toFixed(2),
+          jitterScore.toString(),
+          latency.toString(),
+          latencyScore.toString(),
+          errorRate.toFixed(2),
+          errorRateScore.toString(),
+          recoveryTime.toFixed(1),
+          recoveryTimeScore.toString(),
           notification.reportStatus || "N/A",
           notification.priority || "N/A",
           getStaffName(notification.assignedStaff),
@@ -826,7 +938,7 @@ export default function NotifPage() {
     } finally {
       setExportLoading(false);
     }
-  }, [filteredNotifications, exportLoading, getSpecificFAQCategory]);
+  }, [notifications, exportLoading, searchTerm, sourceFilter, typeFilter, categoryFilter, getSpecificFAQCategory, calculateStats]);
 
   const StatusBadge = useCallback(
     ({
@@ -1386,8 +1498,12 @@ export default function NotifPage() {
                             <span className="text-xs text-gray-400 min-w-[35px]">
                               Staff:
                             </span>
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 font-medium truncate max-w-[120px]">
-                              {typeof notification.assignedStaff === 'object'
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200 font-medium truncate max-w-[120px]" title={
+                              typeof notification.assignedStaff === 'object' && notification.assignedStaff
+                                ? `${(notification.assignedStaff as any).name}${(notification.assignedStaff as any).department ? ` - ${(notification.assignedStaff as any).department}` : ''}`
+                                : notification.assignedStaff || 'N/A'
+                            }>
+                              {typeof notification.assignedStaff === 'object' && notification.assignedStaff
                                 ? (notification.assignedStaff as any)?.name || 'N/A'
                                 : notification.assignedStaff || 'N/A'}
                             </span>
@@ -1670,8 +1786,12 @@ export default function NotifPage() {
                 {notification.assignedStaff && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Assigned Staff:</span>
-                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs border border-blue-200 font-medium max-w-[120px] truncate">
-                      {typeof notification.assignedStaff === 'object'
+                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs border border-blue-200 font-medium max-w-[120px] truncate" title={
+                      typeof notification.assignedStaff === 'object' && notification.assignedStaff
+                        ? `${(notification.assignedStaff as any).name}${(notification.assignedStaff as any).department ? ` - ${(notification.assignedStaff as any).department}` : ''}`
+                        : notification.assignedStaff || 'N/A'
+                    }>
+                      {typeof notification.assignedStaff === 'object' && notification.assignedStaff
                         ? (notification.assignedStaff as any)?.name || 'N/A'
                         : notification.assignedStaff || 'N/A'}
                     </span>

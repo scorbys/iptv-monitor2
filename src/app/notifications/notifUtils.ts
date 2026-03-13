@@ -654,47 +654,62 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
           // Filter out startup notifications to avoid counting them
           const backendNotifications = json.data
             .filter((notif: any) => !notif.isStartup) // Exclude startup notifications
-            .map((notif: any) => ({
-              id: notif.notificationId,
-              title: notif.title,
-              message: notif.message,
-              rawDate: notif.createdAt,
-              time: getRelativeTime(notif.createdAt),
-              date: formatDate(notif.createdAt),
-              type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
-              source: notif.source as "chromecast" | "tv" | "channel" | "system",
-              deviceName: notif.deviceName,
-              roomNo: notif.roomNo,
-              ipAddr: notif.ipAddr,
-              error: notif.error,
-              errorCategory: notif.errorCategory,
-              currentStatus: notif.currentStatus,
-              previousStatus: notif.previousStatus,
-              isStatusChange: notif.currentStatus === 'online',
-              reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
-              priority: notif.priority, // low, medium, high, critical
-              suggestedSolutions: notif.notes?.length > 0
-                ? notif.notes.map((n: any) => n.note)
-                : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
-              assignedStaff: notif.assignedStaff,
-              handledByStaff: notif.handledByStaff,
-              createdAt: notif.createdAt,
-              updatedAt: notif.updatedAt,
-              // Network metrics from backend
-              responseTime: notif.responseTime,
-              signalLevel: notif.signalLevel,
-              packetLoss: notif.packetLoss,
-              jitter: notif.jitter,
-              latency: notif.latency,
-              errorRate: notif.errorRate,
-              recoveryTime: notif.recoveryTime,
-              // Metric scores from backend
-              packetLossScore: notif.packetLossScore,
-              jitterScore: notif.jitterScore,
-              latencyScore: notif.latencyScore,
-              errorRateScore: notif.errorRateScore,
-              recoveryTimeScore: notif.recoveryTimeScore
-            }));
+            .map((notif: any) => {
+              // Debug logging for staff data
+              if (notif.reportStatus === 'resolved' || notif.reportStatus === 'investigating') {
+                if (!notif.assignedStaff && !notif.handledByStaff) {
+                  storageLogger.warn('[Notification Fetch] Missing staff data for notification:', {
+                    notificationId: notif.notificationId,
+                    reportStatus: notif.reportStatus,
+                    assignedStaff: notif.assignedStaff,
+                    handledByStaff: notif.handledByStaff,
+                    assignedStaffId: notif.assignedStaffId,
+                    handledByStaffId: notif.handledByStaffId
+                  });
+                } else {
+                  storageLogger.log('[Notification Fetch] Staff data found:', {
+                    notificationId: notif.notificationId,
+                    reportStatus: notif.reportStatus,
+                    assignedStaff: notif.assignedStaff?.name || notif.assignedStaff,
+                    handledByStaff: notif.handledByStaff?.name || notif.handledByStaff
+                  });
+                }
+              }
+
+              return {
+                id: notif.notificationId,
+                title: notif.title,
+                message: notif.message,
+                rawDate: notif.createdAt,
+                time: getRelativeTime(notif.createdAt),
+                date: formatDate(notif.createdAt),
+                type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
+                source: notif.source as "chromecast" | "tv" | "channel" | "system",
+                deviceName: notif.deviceName,
+                roomNo: notif.roomNo,
+                ipAddr: notif.ipAddr,
+                error: notif.error,
+                errorCategory: notif.errorCategory,
+                currentStatus: notif.currentStatus,
+                previousStatus: notif.previousStatus,
+                isStatusChange: notif.currentStatus === 'online',
+                reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
+                priority: notif.priority, // low, medium, high, critical
+                suggestedSolutions: notif.notes?.length > 0
+                  ? notif.notes.map((n: any) => n.note)
+                  : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
+                assignedStaff: notif.assignedStaff,
+                handledByStaff: notif.handledByStaff,
+                createdAt: notif.createdAt,
+                updatedAt: notif.updatedAt,
+                // Network metrics from backend - NEW STRUCTURE with metrics and labeledMetrics objects
+                metrics: notif.metrics, // Contains packetLoss, latency, jitter, error, recoveryTime
+                labeledMetrics: notif.labeledMetrics, // Contains label objects for each metric
+                // Legacy fields for backward compatibility (deprecated)
+                responseTime: notif.responseTime,
+                signalLevel: notif.signalLevel
+              };
+            });
 
           all.push(...backendNotifications);
           totalFetched += json.data.length;
