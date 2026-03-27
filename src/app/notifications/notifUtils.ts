@@ -143,6 +143,7 @@ export interface Notification {
   handledByStaff?: string | { name?: string; id?: string | number; email?: string; department?: string; position?: string };
   reportStatus?: string;
   priority?: string;
+  notificationId?: string
 }
 
 interface ChromecastDevice {
@@ -707,7 +708,8 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
                 labeledMetrics: notif.labeledMetrics, // Contains label objects for each metric
                 // Legacy fields for backward compatibility (deprecated)
                 responseTime: notif.responseTime,
-                signalLevel: notif.signalLevel
+                signalLevel: notif.signalLevel,
+                notificationId: notif.notificationId
               };
             });
 

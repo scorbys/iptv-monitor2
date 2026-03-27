@@ -714,7 +714,7 @@ export default function NotifPage() {
         hasMetrics: notificationsToExport.some(n => !!n.metrics),
         hasLabeledMetrics: notificationsToExport.some(n => !!n.labeledMetrics),
         sampleMetrics: notificationsToExport.slice(0, 3).map(n => ({
-          id: n.id,
+          id: n.notificationId,
           packetLoss: n.metrics?.packetLoss,
           latency: n.metrics?.latency
         }))
@@ -771,7 +771,7 @@ export default function NotifPage() {
           (n.message && n.message.toLowerCase().includes(searchLower)) ||
           (n.deviceName && n.deviceName.toLowerCase().includes(searchLower)) ||
           (n.roomNo && n.roomNo.toLowerCase().includes(searchLower)) ||
-          (n.id && String(n.id).toLowerCase().includes(searchLower));
+          (n.notificationId && n.notificationId.toLowerCase().includes(searchLower));
 
         const matchesSource = sourceFilter === "all" || n.source === sourceFilter;
         const matchesType = typeFilter === "all" || n.type === typeFilter;
@@ -807,7 +807,7 @@ export default function NotifPage() {
         const labeledMetrics = (notification as any).labeledMetrics || {};
 
         // DEBUG: Log metrics data to understand what we're getting
-        console.log('[CSV Export] Notification:', notification.id, {
+        console.log('[CSV Export] Notification:', notification.notificationId, {
           hasMetrics: !!notification.metrics,
           hasLabeledMetrics: !!notification.labeledMetrics,
           metricsKeys: Object.keys(metrics),
