@@ -803,17 +803,14 @@ a:focus-visible {
    INPUT PASSWORD STYLES
    ======================================== */
 
-@layer base {
-
-  input::-ms-reveal,
-  input::-ms-clear,
-  input[type="password"]::-webkit-textfield-decoration-container,
-  input[type="password"]::-webkit-clear-button,
-  input[type="password"]::-webkit-inner-spin-button,
-  input[type="password"]::-webkit-credentials-auto-fill-button {
-    display: none !important;
-    appearance: none !important;
-  }
+input::-ms-reveal,
+input::-ms-clear,
+input[type="password"]::-webkit-textfield-decoration-container,
+input[type="password"]::-webkit-clear-button,
+input[type="password"]::-webkit-inner-spin-button,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  appearance: none !important;
 }
 
 /* ========================================
@@ -1042,11 +1039,11 @@ a:focus-visible {
   .recharts-wrapper {
     font-size: 10px;
   }
-  
+
   .recharts-cartesian-axis-tick-value {
     font-size: 10px !important;
   }
-  
+
   .recharts-tooltip-wrapper {
     font-size: 11px;
   }
@@ -1056,7 +1053,7 @@ a:focus-visible {
   .recharts-wrapper {
     font-size: 11px;
   }
-  
+
   .recharts-cartesian-axis-tick-value {
     font-size: 11px !important;
   }
