@@ -8,6 +8,7 @@ interface ModelInfo {
   n_classes?: number;
   classes?: string[];
   n_features?: number;
+  accuracy?: number;
   oob_score?: number;
 }
 
@@ -219,6 +220,14 @@ export default function MLTrainingPanel({
                 </p>
               </div>
             </div>
+            {modelInfo.accuracy && (
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <p className="text-xs text-gray-600 mb-1">Accuracy</p>
+                <p className="text-lg font-bold text-green-700">
+                  {(modelInfo.accuracy * 100).toFixed(2)}%
+                </p>
+              </div>
+            )}
             {modelInfo.oob_score && (
               <div className="bg-white rounded-lg p-3 border border-green-200">
                 <p className="text-xs text-gray-600 mb-1">Out-of-Bag Score</p>

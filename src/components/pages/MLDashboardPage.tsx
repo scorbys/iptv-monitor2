@@ -104,6 +104,7 @@ interface ModelInfo {
   n_classes?: number;
   classes?: string[];
   n_features?: number;
+  accuracy?: number;
   oob_score?: number;
 }
 
@@ -1090,7 +1091,7 @@ export default function MLDashboardPage() {
                       <div className="flex items-center gap-2">
                         <SignalIcon className="w-4 h-4 text-blue-200" />
                         <span className="text-sm">
-                          {modelInfo.oob_score ? `${(modelInfo.oob_score * 100).toFixed(1)}%` : 'N/A'} Accuracy
+                          {modelInfo.accuracy ? `${(modelInfo.accuracy * 100).toFixed(1)}%` : 'N/A'} Accuracy
                         </span>
                       </div>
                     </>
