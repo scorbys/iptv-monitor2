@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   MagnifyingGlassIcon,
   ArrowPathIcon,
@@ -265,7 +265,7 @@ export default function NotifPage() {
     "desktop"
   );
   // Cache for FAQ categories to avoid recalculation
-  const [faqCategoryCache, setFaqCategoryCache] = useState<Map<string, string>>(new Map());
+  const faqCategoryCache = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     setMounted(true);
@@ -375,22 +375,27 @@ export default function NotifPage() {
     if (!mounted) return;
 
     const loadData = async () => {
-      setLoading(true);
-      try {
-        const stored = localStorage.getItem("notif-cache");
-        if (stored) {
+      // [FIX] Tampilkan cache dulu agar halaman langsung terlihat (instant)
+      const stored = localStorage.getItem("notif-cache");
+      if (stored) {
+        try {
           const parsed: Notification[] = JSON.parse(stored);
           const cleaned = cleanOldNotifications(parsed);
           setNotifications(cleaned);
           setStats(calculateStats(cleaned));
-        }
+        } catch (_) { }
+      }
+      // Baru set loading false supaya UI langsung muncul dari cache
+      setLoading(false);
+
+      // [FIX] Fetch fresh data di background tanpa memblokir render
+      try {
         await fetchNotifications();
       } catch (error) {
         componentLogger.error("Error loading notifications:", error);
-      } finally {
-        setLoading(false);
       }
     };
+
     loadData();
     // Auto-refresh every 30 minutes (matching backend status check interval)
     const interval = setInterval(() => {
@@ -470,8 +475,8 @@ export default function NotifPage() {
     const cacheKey = `${notification.source}-${notification.title || ""}-${notification.message || ""}-${notification.error || ""}-${notification.errorCategory || ""}`;
 
     // Check cache first
-    if (faqCategoryCache.has(cacheKey)) {
-      return faqCategoryCache.get(cacheKey)!;
+    if (faqCategoryCache.current.has(cacheKey)) {
+      return faqCategoryCache.current.get(cacheKey)!;
     }
 
     // Normalize notification text for better matching
@@ -627,9 +632,7 @@ export default function NotifPage() {
     const result = bestMatch ? bestMatch.category : null;
 
     // Cache the result
-    if (result) {
-      setFaqCategoryCache(prev => new Map(prev).set(cacheKey, result));
-    }
+    if (result) faqCategoryCache.current.set(cacheKey, result);
 
     return result;
   };
@@ -664,7 +667,7 @@ export default function NotifPage() {
 
       return matchesSearch && matchesSource && matchesType && matchesCategory;
     });
-  }, [notifications, searchTerm, sourceFilter, typeFilter, categoryFilter, faqCategoryCache]);
+  }, [notifications, searchTerm, sourceFilter, typeFilter, categoryFilter]);
 
   // Pagination
   const paginationData = useMemo(() => {
@@ -698,7 +701,6 @@ export default function NotifPage() {
   // Export to CSV
   const exportToCSV = useCallback(async () => {
     if (exportLoading) return;
-
     setExportLoading(true);
 
     let notificationsToExport = notifications;
@@ -708,17 +710,6 @@ export default function NotifPage() {
       componentLogger.info('[CSV Export] Forcing fresh data fetch before export...');
       const freshData = await fetchAllNotifications();
       notificationsToExport = cleanOldNotifications(freshData);
-
-      componentLogger.info('[CSV Export] Fresh data fetched, proceeding with export', {
-        count: notificationsToExport.length,
-        hasMetrics: notificationsToExport.some(n => !!n.metrics),
-        hasLabeledMetrics: notificationsToExport.some(n => !!n.labeledMetrics),
-        sampleMetrics: notificationsToExport.slice(0, 3).map(n => ({
-          id: n.notificationId,
-          packetLoss: n.metrics?.packetLoss,
-          latency: n.metrics?.latency
-        }))
-      });
 
       // Update state with fresh data
       setNotifications(notificationsToExport);
@@ -757,6 +748,9 @@ export default function NotifPage() {
         "Label Error Rate",
         "Recovery Time (s)",
         "Label Recovery Time",
+        "Receiving (Mbps)",
+        "Outgoing (Mbps)",
+        "Bandwidth (Mbps)",
         "Report Status",
         "Priority",
         "Assigned Staff",
@@ -805,6 +799,7 @@ export default function NotifPage() {
         // Backend sends: metrics and labeledMetrics
         const metrics = (notification as any).metrics || {};
         const labeledMetrics = (notification as any).labeledMetrics || {};
+        const netStats = (notification as any).networkStats || {};
 
         // DEBUG: Log metrics data to understand what we're getting
         console.log('[CSV Export] Notification:', notification.notificationId, {
@@ -819,8 +814,8 @@ export default function NotifPage() {
         // Determine if device is offline (for score calculation)
         // Match the logic from ChannelsPage.tsx
         const isOffline = notification.currentStatus === 'offline' ||
-                         notification.reportStatus === 'pending' ||
-                         notification.reportStatus === 'investigating';
+          notification.reportStatus === 'pending' ||
+          notification.reportStatus === 'investigating';
 
         // Extract metric values - use backend data only, NO random generation
         // This matches exactly how ChannelsPage.tsx handles metrics (line 439-443)
@@ -840,8 +835,24 @@ export default function NotifPage() {
         const errorRateScore = isOffline ? 1 : (labeledMetrics.errorLabel?.label ?? calculateMetricScore(errorRate, 'error'));
         const recoveryTimeScore = isOffline ? 1 : (labeledMetrics.recoveryTimeLabel?.label ?? calculateMetricScore(recoveryTime, 'recoveryTime'));
 
+        const bandwidthMbps = isOffline ? 0 : (netStats.bandwidth ?? 0);
+        const receivingMbps = isOffline ? 0 : (
+          netStats.receivingMbps != null
+            ? parseFloat(netStats.receivingMbps.toFixed(2))
+            : netStats.received != null
+              ? parseFloat(((parseFloat(String(netStats.received)) * 1024 * 8) / 3600).toFixed(2))
+              : "N/A"
+        );
+        const outgoingMbps = isOffline ? 0 : (
+          netStats.outgoingMbps != null
+            ? parseFloat(netStats.outgoingMbps.toFixed(2))
+            : netStats.sent != null
+              ? parseFloat(((parseFloat(String(netStats.sent)) * 1024 * 8) / 3600).toFixed(2))
+              : "N/A"
+        );
+
         // Debug logging for staff data
-        if (notification.reportStatus === 'resolved' && (!notification.assignedStaff && !notification.handledByStaff)) {
+        /* if (notification.reportStatus === 'resolved' && (!notification.assignedStaff && !notification.handledByStaff)) {
           componentLogger.warn('[CSV Export] Resolved notification missing staff data:', {
             notificationId: notification.id,
             reportStatus: notification.reportStatus,
@@ -850,7 +861,7 @@ export default function NotifPage() {
             assignedStaffId: (notification as any).assignedStaffId,
             handledByStaffId: (notification as any).handledByStaffId
           });
-        }
+        } */
 
         return [
           notification.date || "N/A",
@@ -877,6 +888,9 @@ export default function NotifPage() {
           errorRateScore.toString(),
           recoveryTime.toFixed(1),
           recoveryTimeScore.toString(),
+          receivingMbps.toString(),
+          outgoingMbps.toString(),
+          bandwidthMbps.toString(),
           notification.reportStatus || "N/A",
           notification.priority || "N/A",
           getStaffName(notification.assignedStaff),
@@ -913,10 +927,7 @@ export default function NotifPage() {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
 
-        const timestamp = new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/[:-]/g, "");
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
         const filename = `notifications_export_${timestamp}.csv`;
         link.setAttribute("download", filename);
 
@@ -938,7 +949,7 @@ export default function NotifPage() {
     } finally {
       setExportLoading(false);
     }
-  }, [notifications, exportLoading, searchTerm, sourceFilter, typeFilter, categoryFilter, getSpecificFAQCategory, calculateStats]);
+  }, [notifications, exportLoading, searchTerm, sourceFilter, typeFilter, categoryFilter, calculateStats]);
 
   const StatusBadge = useCallback(
     ({

@@ -138,6 +138,21 @@ export interface Notification {
   latencyScore?: number;
   errorRateScore?: number;
   recoveryTimeScore?: number;
+  // [FIX] Bandwidth/throughput data: sent & received in Mbps
+  networkStats?: {
+    sent?: string | number;      // Data sent (GB or Mbps)
+    received?: string | number;  // Data received (GB or Mbps)
+    bandwidth?: number;          // Total bandwidth (Mbps)
+    bitrate?: number;            // Bitrate (kbps)
+    latency?: number;
+    jitter?: number;
+    packetLoss?: number;
+    ttl?: number;
+    hops?: number;
+    signalStrength?: number;
+    error?: number;
+    recoveryTime?: number;
+  };
   // Staff assignment (can be string or object with name property)
   assignedStaff?: string | { name?: string; id?: string | number; email?: string; department?: string; position?: string };
   handledByStaff?: string | { name?: string; id?: string | number; email?: string; department?: string; position?: string };
@@ -625,122 +640,82 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     all.push(...cachedNotifications);
   }
 
-  // 2. THEN: Fetch from backend database notifications with progressive loading
-  // Use pagination to fetch ALL notifications, not just 100
+  // 2. THEN: Fetch from backend database notifications
+  // [FIX] Use a single large request instead of paginated while-loop to reduce round trips.
+  // The while-loop was causing multiple sequential awaits that blocked initial load.
   try {
-    let hasMore = true;
-    let skip = 0;
-    const limit = 200; // Increased from 100 to 200 for fewer round trips
-    let totalFetched = 0;
-    let totalAvailable = 0;
-    const maxBatches = 25; // Safety limit: max 25 batches = 5000 notifications
-    let batchCount = 0;
+    const limit = 500; // Fetch up to 500 at once – adjust based on your typical dataset size
+    const response = await authenticatedFetch(`/api/notifications?limit=${limit}&skip=0`);
 
-    while (hasMore && batchCount < maxBatches) {
-      const response = await authenticatedFetch(`/api/notifications?limit=${limit}&skip=${skip}`);
+    if (response.ok) {
+      const json = await response.json();
+      if (json.success && Array.isArray(json.data)) {
+        const totalAvailable = json.pagination?.total ?? json.data.length;
 
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && Array.isArray(json.data)) {
-          // Get total from pagination info
-          if (json.pagination && json.pagination.total !== undefined) {
-            totalAvailable = json.pagination.total;
-            hasMore = json.pagination.hasMore;
-          } else {
-            // If no pagination info, stop after this batch
-            hasMore = false;
-          }
+        const backendNotifications = json.data
+          .filter((notif: any) => !notif.isStartup)
+          .map((notif: any) => {
+            return {
+              id: notif.notificationId,
+              title: notif.title,
+              message: notif.message,
+              rawDate: notif.createdAt,
+              time: getRelativeTime(notif.createdAt),
+              date: formatDate(notif.createdAt),
+              type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
+              source: notif.source as "chromecast" | "tv" | "channel" | "system",
+              deviceName: notif.deviceName,
+              roomNo: notif.roomNo,
+              ipAddr: notif.ipAddr,
+              error: notif.error,
+              errorCategory: notif.errorCategory,
+              currentStatus: notif.currentStatus,
+              previousStatus: notif.previousStatus,
+              isStatusChange: notif.currentStatus === 'online',
+              reportStatus: notif.reportStatus,
+              priority: notif.priority,
+              suggestedSolutions: notif.notes?.length > 0
+                ? notif.notes.map((n: any) => n.note)
+                : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
+              assignedStaff: notif.assignedStaff,
+              handledByStaff: notif.handledByStaff,
+              createdAt: notif.createdAt,
+              updatedAt: notif.updatedAt,
+              // Network metrics
+              metrics: notif.metrics,
+              labeledMetrics: notif.labeledMetrics,
+              // [FIX] Map networkStats so sent/received Mbps is available in export
+              networkStats: notif.networkStats,
+              // Legacy fields
+              responseTime: notif.responseTime,
+              signalLevel: notif.signalLevel,
+              notificationId: notif.notificationId
+            } as Notification;
+          });
 
-          // Transform backend notifications to frontend format
-          // Filter out startup notifications to avoid counting them
-          const backendNotifications = json.data
-            .filter((notif: any) => !notif.isStartup) // Exclude startup notifications
-            .map((notif: any) => {
-              // Debug logging for staff data
-              if (notif.reportStatus === 'resolved' || notif.reportStatus === 'investigating') {
-                if (!notif.assignedStaff && !notif.handledByStaff) {
-                  storageLogger.warn('[Notification Fetch] Missing staff data for notification:', {
-                    notificationId: notif.notificationId,
-                    reportStatus: notif.reportStatus,
-                    assignedStaff: notif.assignedStaff,
-                    handledByStaff: notif.handledByStaff,
-                    assignedStaffId: notif.assignedStaffId,
-                    handledByStaffId: notif.handledByStaffId
-                  });
-                } else {
-                  storageLogger.log('[Notification Fetch] Staff data found:', {
-                    notificationId: notif.notificationId,
-                    reportStatus: notif.reportStatus,
-                    assignedStaff: notif.assignedStaff?.name || notif.assignedStaff,
-                    handledByStaff: notif.handledByStaff?.name || notif.handledByStaff
-                  });
-                }
-              }
+        all.push(...backendNotifications);
+        debugLog(`Fetched ${backendNotifications.length} notifications (total available: ${totalAvailable})`);
 
-              return {
-                id: notif.notificationId,
-                title: notif.title,
-                message: notif.message,
-                rawDate: notif.createdAt,
-                time: getRelativeTime(notif.createdAt),
-                date: formatDate(notif.createdAt),
-                type: notif.reportStatus === 'resolved' ? 'success' : 'warning',
-                source: notif.source as "chromecast" | "tv" | "channel" | "system",
-                deviceName: notif.deviceName,
-                roomNo: notif.roomNo,
-                ipAddr: notif.ipAddr,
-                error: notif.error,
-                errorCategory: notif.errorCategory,
-                currentStatus: notif.currentStatus,
-                previousStatus: notif.previousStatus,
-                isStatusChange: notif.currentStatus === 'online',
-                reportStatus: notif.reportStatus, // pending, investigating, resolved, closed
-                priority: notif.priority, // low, medium, high, critical
-                suggestedSolutions: notif.notes?.length > 0
-                  ? notif.notes.map((n: any) => n.note)
-                  : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
-                assignedStaff: notif.assignedStaff,
-                handledByStaff: notif.handledByStaff,
-                createdAt: notif.createdAt,
-                updatedAt: notif.updatedAt,
-                // Network metrics from backend - NEW STRUCTURE with metrics and labeledMetrics objects
-                metrics: notif.metrics, // Contains packetLoss, latency, jitter, error, recoveryTime
-                labeledMetrics: notif.labeledMetrics, // Contains label objects for each metric
-                // Legacy fields for backward compatibility (deprecated)
-                responseTime: notif.responseTime,
-                signalLevel: notif.signalLevel,
-                notificationId: notif.notificationId
-              };
-            });
-
-          all.push(...backendNotifications);
-          totalFetched += json.data.length;
-          batchCount++;
-
-          // Continue pagination if there are more notifications
-          skip += limit;
-
-          // Safety check: if we got less than limit, we're done
-          if (json.data.length < limit) {
-            hasMore = false;
-          }
-        } else {
-          hasMore = false;
+        // [FIX] If backend has more records than single fetch, do a background paginated fetch
+        // but DO NOT block the initial render – fire-and-forget
+        if (totalAvailable > limit) {
+          debugLog(`Backend has ${totalAvailable} records, fetching remainder in background`);
+          fetchRemainingNotifications(limit, totalAvailable, all).catch(e =>
+            console.warn('[notifUtils] Background pagination failed:', e)
+          );
         }
-      } else {
-        console.error('Error fetching backend notifications batch:', response.status);
-        errors.push(`Failed to fetch backend notifications batch at skip=${skip}`);
-        hasMore = false;
       }
+    } else {
+      errors.push(`Failed to fetch backend notifications: HTTP ${response.status}`);
     }
-
-    debugLog(`Fetched ${totalFetched} notifications from backend database in ${batchCount} batches (total available: ${totalAvailable}, startup notifications excluded)`);
   } catch (error) {
     console.error('Error fetching backend notifications:', error);
     errors.push('Failed to fetch backend notifications');
   }
 
-  // 3. Fetch from device status endpoints (existing - for real-time status)
+  // 3. Fetch from device status endpoints in parallel (real-time status)
+  // [FIX] These 3 fetches now run in parallel AND share the same response for metrics enrichment,
+  //       avoiding the duplicate /api/chromecast, /api/hospitality/tvs, /api/channels calls in step 4.
   const fetchSources: FetchSource[] = [
     {
       name: "chromecast",
@@ -762,12 +737,14 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     },
   ];
 
+  // [FIX] Collect device data for metrics enrichment while fetching status —
+  // this eliminates the separate second round of API calls in the original step 4.
+  const deviceDataMap = new Map<string, any>();
+
   await Promise.allSettled(
     fetchSources.map(async (source) => {
       try {
-        // Use authenticatedFetch to include JWT token
         const response = await authenticatedFetch(source.url);
-
         if (response.ok) {
           const json = await response.json();
           let dataArray: unknown[] = [];
@@ -779,24 +756,25 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
           } else if (json.data && Array.isArray(json.data)) {
             dataArray = json.data;
           } else {
-            console.warn(
-              `Unexpected response format for ${source.name}:`,
-              json
-            );
+            console.warn(`Unexpected response format for ${source.name}:`, json);
             errors.push(`Invalid response format for ${source.name}`);
             return;
           }
 
-          if (dataArray.length >= 0) {
-            source.processor(dataArray);
-            debugLog(`Processed ${dataArray.length} items from ${source.name}`);
-          }
+          // Process status changes
+          source.processor(dataArray);
+          debugLog(`Processed ${dataArray.length} items from ${source.name}`);
+
+          // [FIX] Also populate deviceDataMap here — no extra fetch needed
+          dataArray.forEach((device: any) => {
+            const key = source.name === "tv"
+              ? `tv-${device.roomNo || device.ipAddress}`
+              : source.name === "chromecast"
+                ? `chromecast-${device.deviceName || device.ipAddr}`
+                : `channel-${device.channelName || device.ipMulticast}`;
+            if (key) deviceDataMap.set(key, device);
+          });
         } else {
-          const errorText = await response.text();
-          console.error(
-            `HTTP ${response.status} for ${source.name}:`,
-            errorText
-          );
           errors.push(`HTTP ${response.status} for ${source.name}`);
         }
       } catch (error) {
@@ -806,109 +784,53 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     })
   );
 
-  // 4. Enrich notifications with metrics from device endpoints
-  // Fetch current device data to get metrics for notifications that don't have them
-  try {
-    const deviceDataMap = new Map<string, any>();
-
-    // Fetch chromecast data for metrics
-    try {
-      const chromecastResponse = await authenticatedFetch("/api/chromecast");
-      if (chromecastResponse.ok) {
-        const chromecastJson = await chromecastResponse.json();
-        const chromecastData = Array.isArray(chromecastJson) ? chromecastJson :
-                               (chromecastJson?.data || []);
-        chromecastData.forEach((device: any) => {
-          if (device.deviceName || device.ipAddr) {
-            deviceDataMap.set(`chromecast-${device.deviceName || device.ipAddr}`, device);
-          }
-        });
-      }
-    } catch (e) {
-      console.error("Error fetching chromecast for metrics enrichment:", e);
+  // 4. Enrich notifications with metrics (no extra API calls needed now)
+  all.forEach((notification) => {
+    if (
+      notification.packetLoss !== undefined ||
+      notification.jitter !== undefined ||
+      notification.latency !== undefined
+    ) {
+      return; // Already has metrics
     }
 
-    // Fetch TV data for metrics
-    try {
-      const tvResponse = await authenticatedFetch("/api/hospitality/tvs");
-      if (tvResponse.ok) {
-        const tvJson = await tvResponse.json();
-        const tvData = Array.isArray(tvJson) ? tvJson : (tvJson?.data || []);
-        tvData.forEach((device: any) => {
-          if (device.roomNo || device.ipAddress) {
-            deviceDataMap.set(`tv-${device.roomNo || device.ipAddress}`, device);
-          }
-        });
+    const deviceKey = `${notification.source}-${notification.deviceName || notification.roomNo || notification.ipAddr}`;
+    const deviceData = deviceDataMap.get(deviceKey);
+
+    if (deviceData) {
+      const metrics = deviceData.metrics || deviceData.networkStats || {};
+      notification.packetLoss = metrics.packetLoss || deviceData.packetLoss;
+      notification.jitter = metrics.jitter || deviceData.jitter;
+      notification.latency = metrics.latency || deviceData.latency || deviceData.responseTime;
+      notification.errorRate = metrics.errorRate || deviceData.errorRate;
+      notification.recoveryTime = metrics.recoveryTime || deviceData.recoveryTime;
+      notification.responseTime = deviceData.responseTime;
+      notification.signalLevel = deviceData.signalLevel;
+      // [FIX] Also carry networkStats (sent/received/bandwidth) from device data
+      if (deviceData.networkStats) {
+        notification.networkStats = deviceData.networkStats;
       }
-    } catch (e) {
-      console.error("Error fetching TV for metrics enrichment:", e);
+
+      // Calculate scores if metrics exist
+      if (notification.packetLoss !== undefined) {
+        notification.packetLossScore = calculateMetricScore(notification.packetLoss, 'packetLoss');
+      }
+      if (notification.jitter !== undefined) {
+        notification.jitterScore = calculateMetricScore(notification.jitter, 'jitter');
+      }
+      if (notification.latency !== undefined) {
+        notification.latencyScore = calculateMetricScore(notification.latency, 'latency');
+      }
+      if (notification.errorRate !== undefined) {
+        notification.errorRateScore = calculateMetricScore(notification.errorRate, 'error');
+      }
+      if (notification.recoveryTime !== undefined) {
+        notification.recoveryTimeScore = calculateMetricScore(notification.recoveryTime, 'recoveryTime');
+      }
     }
+  });
 
-    // Fetch channel data for metrics
-    try {
-      const channelResponse = await authenticatedFetch("/api/channels");
-      if (channelResponse.ok) {
-        const channelJson = await channelResponse.json();
-        const channelData = Array.isArray(channelJson) ? channelJson : (channelJson?.data || []);
-        channelData.forEach((device: any) => {
-          if (device.channelName || device.ipMulticast) {
-            deviceDataMap.set(`channel-${device.channelName || device.ipMulticast}`, device);
-          }
-        });
-      }
-    } catch (e) {
-      console.error("Error fetching channels for metrics enrichment:", e);
-    }
-
-    // Enrich notifications with device metrics
-    all.forEach((notification) => {
-      // Skip if already has metrics
-      if (notification.packetLoss !== undefined ||
-          notification.jitter !== undefined ||
-          notification.latency !== undefined) {
-        return;
-      }
-
-      // Try to find matching device data
-      const deviceKey = `${notification.source}-${notification.deviceName || notification.roomNo || notification.ipAddr}`;
-      const deviceData = deviceDataMap.get(deviceKey);
-
-      if (deviceData) {
-        // Extract metrics from device data
-        const metrics = deviceData.metrics || deviceData.networkStats || {};
-        notification.packetLoss = metrics.packetLoss || deviceData.packetLoss;
-        notification.jitter = metrics.jitter || deviceData.jitter;
-        notification.latency = metrics.latency || deviceData.latency || deviceData.responseTime;
-        notification.errorRate = metrics.errorRate || deviceData.errorRate;
-        notification.recoveryTime = metrics.recoveryTime || deviceData.recoveryTime;
-        notification.responseTime = deviceData.responseTime;
-        notification.signalLevel = deviceData.signalLevel;
-
-        // Calculate scores if metrics exist
-        if (notification.packetLoss !== undefined) {
-          notification.packetLossScore = calculateMetricScore(notification.packetLoss, 'packetLoss');
-        }
-        if (notification.jitter !== undefined) {
-          notification.jitterScore = calculateMetricScore(notification.jitter, 'jitter');
-        }
-        if (notification.latency !== undefined) {
-          notification.latencyScore = calculateMetricScore(notification.latency, 'latency');
-        }
-        if (notification.errorRate !== undefined) {
-          notification.errorRateScore = calculateMetricScore(notification.errorRate, 'error');
-        }
-        if (notification.recoveryTime !== undefined) {
-          notification.recoveryTimeScore = calculateMetricScore(notification.recoveryTime, 'recoveryTime');
-        }
-      }
-    });
-
-    debugLog(`Enriched notifications with device metrics`);
-  } catch (error) {
-    console.error("Error enriching notifications with metrics:", error);
-  }
-
-  // 5. Deduplicate by ID (in case cache + backend have duplicates)
+  // 5. Deduplicate by ID
   const uniqueNotifications = Array.from(
     new Map(all.map((n) => [n.id, n])).values()
   );
@@ -923,8 +845,79 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
     console.warn("Some fetch operations failed:", errors);
   }
 
-  debugLog(`Total notifications after all operations: ${sortedAndCleaned.length} (${errors.length} errors)`);
+  debugLog(`Total notifications after all operations: ${sortedAndCleaned.length}`);
   return sortedAndCleaned;
+}
+
+/**
+ * [FIX] Background pagination for remaining records beyond the initial fetch limit.
+ * Runs after the initial render — does NOT block the UI.
+ */
+async function fetchRemainingNotifications(
+  startSkip: number,
+  total: number,
+  allArray: Notification[]
+): Promise<void> {
+  let skip = startSkip;
+  const limit = 200;
+  const maxBatches = 20; // Safety cap
+  let batchCount = 0;
+
+  while (skip < total && batchCount < maxBatches) {
+    const response = await authenticatedFetch(`/api/notifications?limit=${limit}&skip=${skip}`);
+    if (!response.ok) break;
+
+    const json = await response.json();
+    if (!json.success || !Array.isArray(json.data) || json.data.length === 0) break;
+
+    const mapped = json.data
+      .filter((n: any) => !n.isStartup)
+      .map((notif: any) => ({
+        id: notif.notificationId,
+        title: notif.title,
+        message: notif.message,
+        rawDate: notif.createdAt,
+        time: getRelativeTime(notif.createdAt),
+        date: formatDate(notif.createdAt),
+        type: notif.reportStatus === 'resolved' ? 'success' : ('warning' as const),
+        source: notif.source as "chromecast" | "tv" | "channel" | "system",
+        deviceName: notif.deviceName,
+        roomNo: notif.roomNo,
+        ipAddr: notif.ipAddr,
+        error: notif.error,
+        errorCategory: notif.errorCategory,
+        currentStatus: notif.currentStatus,
+        previousStatus: notif.previousStatus,
+        isStatusChange: notif.currentStatus === 'online',
+        reportStatus: notif.reportStatus,
+        priority: notif.priority,
+        suggestedSolutions: notif.notes?.length > 0
+          ? notif.notes.map((n: any) => n.note)
+          : getSuggestedSolutions(notif.error, notif.source, notif.errorCategory),
+        assignedStaff: notif.assignedStaff,
+        handledByStaff: notif.handledByStaff,
+        metrics: notif.metrics,
+        labeledMetrics: notif.labeledMetrics,
+        networkStats: notif.networkStats,
+        responseTime: notif.responseTime,
+        signalLevel: notif.signalLevel,
+        notificationId: notif.notificationId,
+      } as Notification));
+
+    allArray.push(...mapped);
+    skip += limit;
+    batchCount++;
+
+    if (!json.pagination?.hasMore) break;
+  }
+
+  // Persist the extended dataset quietly
+  const unique = Array.from(new Map(allArray.map(n => [n.id, n])).values());
+  const sorted = cleanOldNotifications(unique).sort(
+    (a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
+  );
+  saveNotificationsToStorage(sorted);
+  debugLog(`Background pagination complete: ${sorted.length} total notifications cached`);
 }
 
 function processChromecastNotifications(
@@ -940,12 +933,9 @@ function processChromecastNotifications(
     const isOnline = device.isOnline === true;
     const currentStatus = isOnline ? "online" : "offline";
 
-    // HANYA buat notifikasi jika device baru saja berubah status (online -> offline)
-    // JANGAN buat notifikasi jika device sudah offline sebelumnya
     const statusChange = checkStatusChange(deviceId, currentStatus);
 
     if (!isOnline && statusChange.previousStatus === "online") {
-      // Device baru saja mati: buat notifikasi
       const error = device.error || "Device not responding";
       const errorCategory = getErrorCategory(error, "offline", "chromecast");
 
@@ -972,7 +962,6 @@ function processChromecastNotifications(
       );
     }
 
-    // Device recovery notification (offline -> online)
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
@@ -1011,12 +1000,9 @@ function processTVNotifications(
     const isOnline = device.status === "online";
     const currentStatus = isOnline ? "online" : "offline";
 
-    // HANYA buat notifikasi jika device baru saja berubah status (online -> offline)
-    // JANGAN buat notifikasi jika device sudah offline sebelumnya
     const statusChange = checkStatusChange(deviceId, currentStatus);
 
     if (!isOnline && statusChange.previousStatus === "online") {
-      // Device baru saja mati: buat notifikasi
       const error = device.error || "TV not responding";
       const errorCategory = getErrorCategory(error, "offline", "tv");
 
@@ -1044,7 +1030,6 @@ function processTVNotifications(
       );
     }
 
-    // Device recovery notification (offline -> online)
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
@@ -1084,12 +1069,9 @@ function processChannelNotifications(
     const isOnline = channel.status === "online";
     const currentStatus = isOnline ? "online" : "offline";
 
-    // HANYA buat notifikasi jika device baru saja berubah status (online -> offline)
-    // JANGAN buat notifikasi jika device sudah offline sebelumnya
     const statusChange = checkStatusChange(deviceId, currentStatus);
 
     if (!isOnline && statusChange.previousStatus === "online") {
-      // Device baru saja mati: buat notifikasi
       const error = channel.error || "Channel not available";
       const errorCategory = getErrorCategory(error, "offline", "channel");
 
@@ -1116,7 +1098,6 @@ function processChannelNotifications(
       );
     }
 
-    // Device recovery notification (offline -> online)
     if (
       statusChange.isStatusChange &&
       statusChange.previousStatus === "offline" &&
