@@ -220,15 +220,18 @@ export default function MLDashboardPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'analytics'>('overview');
 
-  // Fetch model info on mount
   useEffect(() => {
     fetchModelInfo();
+  }, []);
+
+  // Fetch model info on mount
+  useEffect(() => {
     fetchAutoFixStats();
     fetchRecentAutoFixes();
     fetchTimeSeriesData();
     fetchStaffPerformance();
     fetchTopDevicesAndRooms();
-    fetchAllNotificationsForDashboard();
+    //fetchAllNotificationsForDashboard();
   }, [dateRange]);
 
   // Fetch all notifications for category breakdown using notifUtils
@@ -252,7 +255,7 @@ export default function MLDashboardPage() {
 
   // Update current time
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -723,7 +726,7 @@ export default function MLDashboardPage() {
       fetchRecentAutoFixes(),
       fetchTimeSeriesData(),
       fetchStaffPerformance(),
-      fetchAllNotificationsForDashboard(),
+      //fetchAllNotificationsForDashboard(),
     ]);
   };
 
@@ -894,36 +897,9 @@ export default function MLDashboardPage() {
 
   // Calculate category breakdown from notifications using FAQ categories
   const categoryBreakdown = useMemo(() => {
-    console.time('CategoryBreakdownCalculation');
-
-    const breakdown: Record<string, { count: number; success: number }> = {};
-
-    // Process in batches to avoid blocking UI
-    allNotifications.forEach((notification) => {
-      const faqCategory = getSpecificFAQCategory(notification);
-      const category = faqCategory || "Uncategorized";
-
-      if (!breakdown[category]) {
-        breakdown[category] = { count: 0, success: 0 };
-      }
-
-      breakdown[category].count++;
-
-      // Count as success if notification is online (resolved)
-      if (notification.currentStatus === "online") {
-        breakdown[category].success++;
-      }
-    });
-
-    // Convert to array and sort by count
-    const result = Object.entries(breakdown)
-      .map(([_id, stats]) => ({ _id, count: stats.count, success: stats.success }))
-      .sort((a, b) => b.count - a.count);
-
-    console.timeEnd('CategoryBreakdownCalculation');
-    console.log('Category breakdown calculated:', result.length, 'categories');
-    return result;
-  }, [allNotifications]);
+    if (!autoFixStats?.byCategory) return [];
+    return autoFixStats.byCategory; // sudah dalam format {_id, count, success}
+  }, [autoFixStats]);
 
   // Update auto-refresh to include notifications
   useEffect(() => {
@@ -932,7 +908,7 @@ export default function MLDashboardPage() {
         fetchAutoFixStats();
         fetchRecentAutoFixes();
         fetchTimeSeriesData();
-        fetchAllNotificationsForDashboard();
+        //fetchAllNotificationsForDashboard();
       }, autoRefreshInterval * 1000);
 
       return () => clearInterval(interval);
@@ -1190,33 +1166,30 @@ export default function MLDashboardPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeTab === 'overview'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'overview'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
           >
             <ChartBarIcon className="w-5 h-5" />
             <span>Overview</span>
           </button>
           <button
             onClick={() => setActiveTab('staff')}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeTab === 'staff'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'staff'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
           >
             <ShieldCheckIcon className="w-5 h-5" />
             <span>Staff Performance</span>
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeTab === 'analytics'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'analytics'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
           >
             <SignalIcon className="w-5 h-5" />
             <span>Analytics</span>
@@ -1336,15 +1309,14 @@ export default function MLDashboardPage() {
                       <div className="flex items-center gap-4">
                         {/* Rank Badge */}
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md ${
-                            index === 0
-                              ? 'bg-gradient-to-br from-yellow-400 to-yellow-600'
-                              : index === 1
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md ${index === 0
+                            ? 'bg-gradient-to-br from-yellow-400 to-yellow-600'
+                            : index === 1
                               ? 'bg-gradient-to-br from-gray-400 to-gray-600'
                               : index === 2
-                              ? 'bg-gradient-to-br from-orange-400 to-orange-600'
-                              : 'bg-gradient-to-br from-blue-400 to-blue-600'
-                          }`}
+                                ? 'bg-gradient-to-br from-orange-400 to-orange-600'
+                                : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                            }`}
                         >
                           {index + 1}
                         </div>
@@ -1355,15 +1327,14 @@ export default function MLDashboardPage() {
                       </div>
                       {/* Success Rate Badge - Calculate correctly */}
                       <div
-                        className={`px-4 py-2 rounded-full text-sm font-bold ${
-                          staff.stats.totalAssigned > 0
-                            ? ((staff.stats.totalResolved / staff.stats.totalAssigned) * 100) >= 80
-                              ? 'bg-green-100 text-green-700'
-                              : ((staff.stats.totalResolved / staff.stats.totalAssigned) * 100) >= 50
+                        className={`px-4 py-2 rounded-full text-sm font-bold ${staff.stats.totalAssigned > 0
+                          ? ((staff.stats.totalResolved / staff.stats.totalAssigned) * 100) >= 80
+                            ? 'bg-green-100 text-green-700'
+                            : ((staff.stats.totalResolved / staff.stats.totalAssigned) * 100) >= 50
                               ? 'bg-yellow-100 text-yellow-700'
                               : 'bg-red-100 text-red-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
+                          : 'bg-gray-100 text-gray-700'
+                          }`}
                       >
                         {staff.stats.totalAssigned > 0
                           ? `${((staff.stats.totalResolved / staff.stats.totalAssigned) * 100).toFixed(1)}% Success`
@@ -1411,12 +1382,11 @@ export default function MLDashboardPage() {
                       <span className="text-xs font-medium text-gray-500">
                         {new Date(fix.createdAt).toLocaleString()}
                       </span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        fix.status === 'success' ? 'bg-green-100 text-green-700' :
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${fix.status === 'success' ? 'bg-green-100 text-green-700' :
                         fix.status === 'failed' ? 'bg-red-100 text-red-700' :
-                        fix.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                          fix.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
                         {fix.status}
                       </span>
                     </div>
@@ -1528,14 +1498,13 @@ export default function MLDashboardPage() {
                   categoryBreakdown.map((category, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                          index === 0 ? 'bg-red-500' :
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${index === 0 ? 'bg-red-500' :
                           index === 1 ? 'bg-orange-500' :
-                          index === 2 ? 'bg-yellow-500' :
-                          index === 3 ? 'bg-blue-500' :
-                          index === 4 ? 'bg-purple-500' :
-                          'bg-gray-500'
-                        }`}>
+                            index === 2 ? 'bg-yellow-500' :
+                              index === 3 ? 'bg-blue-500' :
+                                index === 4 ? 'bg-purple-500' :
+                                  'bg-gray-500'
+                          }`}>
                           {index + 1}
                         </div>
                         <span className="text-sm font-semibold text-gray-900">{category._id}</span>
@@ -1567,9 +1536,8 @@ export default function MLDashboardPage() {
                   topDevices.map((item, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
+                          }`}>
                           {index + 1}
                         </div>
                         <div className="flex items-center gap-2">
@@ -1598,9 +1566,8 @@ export default function MLDashboardPage() {
                   topRooms.map((item, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'
+                          }`}>
                           {index + 1}
                         </div>
                         <span className="text-sm font-semibold text-gray-900">Room {item.room}</span>

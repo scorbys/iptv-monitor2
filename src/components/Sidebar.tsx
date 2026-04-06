@@ -14,6 +14,7 @@ import {
   IconUsers,
   IconUserCog,
   IconSettings,
+  IconFolderBolt,
 } from "@tabler/icons-react";
 import { Stack, Tooltip, UnstyledButton } from "@mantine/core";
 import classes from "../app/NavbarMinimalColored.module.css";
@@ -81,6 +82,7 @@ const mockdata = [
   { name: "Chromecast", href: "/chromecast", icon: IconCast, roles: ["admin"], section: "main" },
   { name: "Hospitality", href: "/hospitality", icon: IconDeviceTv, roles: ["admin"], section: "main" },
   { name: "ML Dashboard", href: "/ml-dashboard", icon: IconBrain, roles: ["admin"], section: "main" },
+  { name: "QOS", href: "/qos", icon: IconFolderBolt, roles: ["admin"], section: "main" },
   { name: "Notifications", href: "/notifications", icon: IconInfoHexagon, roles: ["admin", "guest"], section: "main" },
   { name: "Help", href: "/help", icon: IconMichelinBibGourmand, roles: ["admin", "guest"], section: "main" },
 
