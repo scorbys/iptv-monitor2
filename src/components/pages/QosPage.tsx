@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon,
   ChartBarIcon,
   FunnelIcon,
+  FolderIcon
 } from "@heroicons/react/24/outline";
 import {
   Notification,
@@ -100,6 +101,11 @@ function avgScoreToLabel(scores: number[]): string {
 
 function safe(val: number | undefined | null, fallback = 0): number {
   return (val != null && isFinite(val)) ? val : fallback;
+}
+
+function getCategoryNumber(category: string): number {
+  const match = category.match(/Kategori-(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
 }
 
 function getFAQCategory(notification: Notification, cache: Map<string, string | null>): string | null {
@@ -326,6 +332,11 @@ export default function QosPage() {
     }
     return [...out].sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey];
+      if (sortKey === "category") {
+        const aNum = getCategoryNumber(av as string);
+        const bNum = getCategoryNumber(bv as string);
+        return sortDir === "asc" ? aNum - bNum : bNum - aNum;
+      }
       if (typeof av === "number" && typeof bv === "number")
         return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc"
@@ -388,9 +399,6 @@ export default function QosPage() {
         "Label Avg Error Rate",
         "Avg Recovery Time (s)",
         "Label Avg Recovery Time",
-        "Avg Signal Level (%)",
-        "Avg Response Time (ms)",
-        "Avg Bandwidth (Mbps)",
       ];
 
       const csvRows = exportRows.map((r) => [
@@ -408,9 +416,6 @@ export default function QosPage() {
         r.labelErrorRate,
         r.avgRecoveryTime.toFixed(2),
         r.labelRecoveryTime,
-        r.avgSignalLevel.toFixed(2),
-        r.avgResponseTime.toFixed(0),
-        r.avgBandwidth.toFixed(2),
       ]);
 
       const escape = (v: string | number) => {
@@ -491,11 +496,11 @@ export default function QosPage() {
 
                   {/* Stats Pills */}
                   <div className="flex flex-wrap gap-3">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                    {/* <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ChartBarIcon className="w-4 h-4 text-white" />
                       <span className="text-white font-semibold">{notifications.length}</span>
                       <span className="text-blue-100 text-sm">Notifications</span>
-                    </div>
+                    </div> */ }
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ExclamationTriangleIcon className="w-4 h-4 text-white" />
                       <span className="text-white font-semibold">{summary.totalIssues}</span>
@@ -503,8 +508,15 @@ export default function QosPage() {
                     </div>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <FunnelIcon className="w-4 h-4 text-white" />
-                      <span className="text-white font-semibold">14</span>
-                      <span className="text-blue-100 text-sm">Categories</span>
+                      <span className="text-white font-semibold">
+                        {rows.filter((r) => r.count > 0).length}/{`${FAQ_DATA.length}`}
+                      </span>
+                      <span className="text-blue-100 text-sm">Active Cat</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                      <FolderIcon className="w-4 h-4 text-white" />
+                      <span className="text-white font-semibold">{summary.worstCat?.category ?? "—"}</span>
+                      <span className="text-blue-100 text-sm">Most</span>
                     </div>
                   </div>
                 </div>
@@ -534,7 +546,7 @@ export default function QosPage() {
         </div>
 
         {/* ── Summary Cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <SummaryCard
             label="Total Issues"
             value={summary.totalIssues}
@@ -559,7 +571,7 @@ export default function QosPage() {
             sub={summary.worstCat ? `${summary.worstCat.count} reports` : "no data"}
             color="border-red-200 bg-red-50"
           />
-        </div>
+        </div> */}
 
         {/* ── Filters ── */}
         <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl p-4">
@@ -668,13 +680,6 @@ export default function QosPage() {
                   >
                     Avg Recovery <SortIcon k="avgRecoveryTime" />
                   </th>
-                  {/* Signal */}
-                  <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
-                    onClick={() => toggleSort("avgSignalLevel")}
-                  >
-                    Avg Signal <SortIcon k="avgSignalLevel" />
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -742,12 +747,6 @@ export default function QosPage() {
                       {/* Recovery Time */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <MetricCell value={row.avgRecoveryTime} unit="s" label={row.labelRecoveryTime} />
-                      </td>
-                      {/* Signal */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                          {row.avgSignalLevel > 0 ? `${row.avgSignalLevel.toFixed(1)}%` : "—"}
-                        </span>
                       </td>
                     </tr>
                   ))
