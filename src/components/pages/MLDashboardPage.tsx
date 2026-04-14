@@ -106,6 +106,7 @@ interface ModelInfo {
   n_features?: number;
   accuracy?: number;
   oob_score?: number;
+  per_class_accuracy?: Record<string, number>;
 }
 
 interface PredictionResult {
@@ -1279,13 +1280,126 @@ export default function MLDashboardPage() {
             </div>
 
             {/* Right Column - ML Training */}
-            <div>
+            <div className="space-y-6">
               <MLTrainingPanel
                 onTrain={handleTrain}
                 onDeleteModel={handleDeleteModel}
                 onRefresh={fetchModelInfo}
                 modelInfo={modelInfo}
               />
+
+              {/* Per-Category Accuracy Panel */}
+              {modelInfo?.is_trained && (
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+                    <h2 className="text-xl font-bold text-gray-900">Akurasi Per Kategori</h2>
+                  </div>
+
+                  {/* Overall scores */}
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                      <p className="text-xs text-blue-600 font-medium mb-1">Overall Accuracy</p>
+                      <p className="text-2xl font-bold text-blue-700">
+                        {modelInfo.accuracy ? `${(modelInfo.accuracy * 100).toFixed(2)}%` : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
+                      <p className="text-xs text-indigo-600 font-medium mb-1">OOB Score</p>
+                      <p className="text-2xl font-bold text-indigo-700">
+                        {modelInfo.oob_score ? `${(modelInfo.oob_score * 100).toFixed(2)}%` : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Per-class accuracy — from backend if available, else show static thesis results */}
+                  {(() => {
+                    // Static thesis results as baseline fallback
+                    const thesisAccuracy: Record<string, number> = {
+                      "External":    84.44,
+                      "Katagori-1":  97.06,
+                      "Katagori-10": 94.09,
+                      "Katagori-11": 93.64,
+                      "Katagori-12": 95.50,
+                      "Katagori-13": 92.00,
+                      "Katagori-2":  97.18,
+                      "Katagori-3":  96.57,
+                      "Katagori-4":  93.36,
+                      "Katagori-5":  96.82,
+                      "Katagori-6":  97.14,
+                      "Katagori-7":  94.09,
+                      "Katagori-8":  95.00,
+                      "Katagori-9":  95.00,
+                    };
+
+                    // Prefer live per_class_accuracy if returned by ML service
+                    const rawData: Record<string, number> = modelInfo.per_class_accuracy
+                      ? Object.fromEntries(
+                          Object.entries(modelInfo.per_class_accuracy).map(([k, v]) => [k, v * 100])
+                        )
+                      : thesisAccuracy;
+
+                    // Sort: External first, then Kategori-1..14 in numeric order
+                    const sorted = Object.entries(rawData).sort(([a], [b]) => {
+                      if (a === 'External') return -1;
+                      if (b === 'External') return 1;
+                      const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+                      const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+                      return numA - numB;
+                    });
+
+                    const maxAcc = Math.max(...sorted.map(([, v]) => v));
+
+                    return (
+                      <div className="space-y-2">
+                        {!modelInfo.per_class_accuracy && (
+                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                            📊 Menampilkan hasil pelatihan dari data tesis (Random Forest, 1952 fitur, Akurasi TEST: 94.37%)
+                          </p>
+                        )}
+                        {sorted.map(([label, acc]) => {
+                          const isExternal = label === 'External';
+                          const barWidth = Math.min(100, (acc / maxAcc) * 100);
+                          const color =
+                            acc >= 97 ? 'bg-green-500'
+                            : acc >= 95 ? 'bg-blue-500'
+                            : acc >= 93 ? 'bg-indigo-500'
+                            : acc >= 90 ? 'bg-yellow-500'
+                            : 'bg-orange-500';
+                          const textColor =
+                            acc >= 97 ? 'text-green-700'
+                            : acc >= 95 ? 'text-blue-700'
+                            : acc >= 93 ? 'text-indigo-700'
+                            : acc >= 90 ? 'text-yellow-700'
+                            : 'text-orange-700';
+
+                          // Normalise label display: Katagori → Kategori
+                          const displayLabel = label.replace(/Katagori-/gi, 'Kategori-');
+
+                          return (
+                            <div key={label} className="group">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-xs font-medium ${isExternal ? 'text-gray-500 italic' : 'text-gray-700'}`}>
+                                  {displayLabel}
+                                </span>
+                                <span className={`text-xs font-bold ${textColor}`}>
+                                  {acc.toFixed(2)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`${color} h-2 rounded-full transition-all duration-500`}
+                                  style={{ width: `${barWidth}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>

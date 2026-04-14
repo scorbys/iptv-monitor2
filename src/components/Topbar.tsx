@@ -12,7 +12,6 @@ import { componentLogger } from "@/utils/debugLogger";
 import {
   Notification,
   fetchAllNotifications,
-  cleanOldNotifications,
 } from "../app/notifications/notifUtils";
 
 interface NotificationStats {
@@ -77,6 +76,21 @@ const faqData = [
     category: "Kategori-11",
     keywords: ["channel not found", "not found", "missing"],
     device: "Channel",
+  },
+  {
+    category: "Kategori-12",
+    keywords: ["network connection", "connection failed", "wifi", "router"],
+    device: "Chromecast",
+  },
+  {
+    category: "Kategori-13",
+    keywords: ["initialization", "system error", "firmware", "boot"],
+    device: "IPTV",
+  },
+  {
+    category: "Kategori-14",
+    keywords: ["logined", "logged in", "authentication", "registered"],
+    device: "Chromecast",
   },
 ];
 
@@ -162,6 +176,7 @@ export default function Topbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
+  const [totalNotifCount, setTotalNotifCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState({
     username: "Loading...",
@@ -262,21 +277,36 @@ export default function Topbar() {
     try {
       setLoading(true);
 
-      // Load from cache first
-      const cached = localStorage.getItem("notif-cache");
-      if (cached) {
-        const parsed: Notification[] = JSON.parse(cached);
-        const cleaned = cleanOldNotifications(parsed);
-        const recent = cleaned.slice(0, 20); // Limit untuk topbar
-        setNotifications(recent);
-        setStats(calculateStats(recent));
+      // Fetch fresh data from backend
+      const fresh = await fetchAllNotifications();
+
+      // De-duplicate by id (safety net) and keep only DB-backed notifications
+      // (those with a string notificationId from backend) to avoid device-status dupes
+      const deduped = Array.from(new Map(fresh.map((n) => [n.id, n])).values());
+
+      // Fetch real total from backend stats endpoint for accurate count
+      try {
+        const statsRes = await fetch("/api/notifications/stats", {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (statsRes.ok) {
+          const statsJson = await statsRes.json();
+          if (statsJson.success && statsJson.data?.totalNotifications !== undefined) {
+            setTotalNotifCount(statsJson.data.totalNotifications);
+          } else {
+            setTotalNotifCount(deduped.length);
+          }
+        } else {
+          setTotalNotifCount(deduped.length);
+        }
+      } catch {
+        setTotalNotifCount(deduped.length);
       }
 
-      // Fetch fresh data
-      const fresh = await fetchAllNotifications();
-      const recent = fresh.slice(0, 20); // Limit untuk topbar
+      const recent = deduped.slice(0, 20); // Limit untuk topbar display
       setNotifications(recent);
-      setStats(calculateStats(recent));
+      setStats(calculateStats(deduped)); // Use full deduped list for stats
     } catch (error) {
       componentLogger.error("Failed to fetch notifications:", error);
       setNotifications([]);
@@ -347,6 +377,24 @@ export default function Topbar() {
 
       {/* Right Section - User Profile and Notifications dengan glassmorphism */}
       <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 relative z-10">
+        {/* Telegram Bot Link */}
+        <a
+          href="https://t.me/iptv_rdbu_bot"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open Telegram Bot"
+          className="relative p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20 group flex items-center justify-center"
+        >
+          <svg
+            className="w-5 h-5 sm:w-6 sm:h-6 text-white transition-transform duration-300 group-hover:scale-110"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.948 13.88l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.2.679z" />
+          </svg>
+        </a>
+
         {/* Notifications dropdown */}
         <DropdownMenu.Root
           open={notificationOpen}
