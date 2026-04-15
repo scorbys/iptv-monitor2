@@ -253,6 +253,7 @@ export default function NotifPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cacheHydrated, setCacheHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -421,13 +422,14 @@ export default function NotifPage() {
         } catch (_) { }
       }
       // Baru set loading false supaya UI langsung muncul dari cache
-      setLoading(false);
-
       // [FIX] Fetch fresh data di background tanpa memblokir render
       try {
         await fetchNotifications();
       } catch (error) {
         componentLogger.error("Error loading notifications:", error);
+      } finally {
+        setLoading(false);
+        setCacheHydrated(true);
       }
     };
 
@@ -1095,7 +1097,7 @@ export default function NotifPage() {
     []
   );
 
-  if (!mounted || loading) {
+  if (!mounted || (loading && !cacheHydrated)) {
     return (
       <div className="p-6 bg-blue-50 min-h-screen">
         <div className="flex items-center justify-center h-64">

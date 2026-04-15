@@ -18,6 +18,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
+import { calculateMetricScore } from "@/utils/metricCalculator";
 import IPTVPreview from '../IPTVPreview';
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
@@ -1028,6 +1029,23 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     };
   };
 
+  const QUALITY_SCORE_LABELS: Record<number, string> = {
+    4: "Good",
+    3: "Fair",
+    2: "Poor",
+    1: "Very Poor",
+  };
+
+  const QUALITY_BADGE_CLASSES: Record<string, string> = {
+    Good: "text-emerald-700 bg-emerald-50 border border-emerald-200",
+    Fair: "text-amber-700 bg-amber-50 border border-amber-200",
+    Poor: "text-orange-700 bg-orange-50 border border-orange-200",
+    "Very Poor": "text-red-700 bg-red-50 border border-red-200",
+  };
+
+  const getMetricQualityLabel = (score: number) =>
+    QUALITY_SCORE_LABELS[Math.min(Math.max(score, 1), 4)] || "Very Poor";
+
   const MetricCard = React.memo(
     ({
       value,
@@ -1044,6 +1062,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       | "bandwidth"
       | "signal"
       | "bitrate"
+      | "jitter"
       | "speed"
       | "data_sent"
       | "data_received"
@@ -1199,6 +1218,11 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         }
       };
 
+      const qualityScore = ["packetLoss", "latency", "jitter", "error", "recoveryTime"].includes(type)
+        ? calculateMetricScore(value, type as any)
+        : 4;
+      const qualityLabel = getMetricQualityLabel(qualityScore);
+      const qualityBadge = QUALITY_BADGE_CLASSES[qualityLabel];
       const statusColors = getStatusColor(value, previousValue, type);
       const trend = getTrendIndicator(value, previousValue, type);
 
@@ -1220,6 +1244,9 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
           >
             {label}
           </p>
+          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${qualityBadge} mt-2`}>
+            {qualityLabel}
+          </span>
         </div>
       );
     }
@@ -2184,7 +2211,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     <MetricCard
                       value={networkMetrics.jitter || 0}
                       previousValue={previousMetrics?.jitter}
-                      type="latency"
+                      type="jitter"
                       unit="ms"
                       label="Jitter"
                       isOnline={tvs.status === "online"}

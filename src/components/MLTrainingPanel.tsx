@@ -22,11 +22,13 @@ interface TrainingResult {
   test_samples?: number;
 }
 
-interface MLTrainingPanelProps {
+export interface MLTrainingPanelProps {
   modelInfo: ModelInfo | null;
   onTrain: (file: File, sheetName: string) => Promise<TrainingResult>;
   onDeleteModel: () => void;
   onRefresh: () => void;
+  trainingInProgress?: boolean;
+  trainingStatusMessage?: string | null;
 }
 
 export default function MLTrainingPanel({
@@ -34,6 +36,8 @@ export default function MLTrainingPanel({
   onTrain,
   onDeleteModel,
   onRefresh,
+  trainingInProgress = false,
+  trainingStatusMessage = null,
 }: MLTrainingPanelProps) {
   const [training, setTraining] = useState(false);
   const [sheetName, setSheetName] = useState('Sheet1');
@@ -111,13 +115,13 @@ export default function MLTrainingPanel({
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleFileChange}
-                disabled={training}
+                disabled={training || trainingInProgress}
                 className="hidden"
               />
               <label
                 htmlFor="file-upload"
                 className={`flex items-center justify-center gap-3 w-full border-2 border-dashed rounded-xl px-4 py-8 transition-all cursor-pointer ${
-                  training
+                  training || trainingInProgress
                     ? 'border-gray-300 bg-gray-50 opacity-50 cursor-not-allowed'
                     : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50 bg-gray-50'
                 }`}
@@ -156,7 +160,7 @@ export default function MLTrainingPanel({
                     type="text"
                     value={sheetName}
                     onChange={(e) => setSheetName(e.target.value)}
-                    disabled={training}
+                    disabled={training || trainingInProgress}
                     className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:opacity-50 transition-all"
                     placeholder="Sheet1"
                   />
@@ -164,6 +168,13 @@ export default function MLTrainingPanel({
               </div>
             )}
           </div>
+
+          {trainingInProgress && (
+            <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900 mb-4">
+              <p className="font-semibold">Training is already in progress.</p>
+              <p>{trainingStatusMessage ?? 'Please wait for the current training job to complete before uploading a new dataset.'}</p>
+            </div>
+          )}
 
           {/* Progress Bar */}
           {training && (
@@ -184,7 +195,7 @@ export default function MLTrainingPanel({
           {/* Train Button */}
           <button
             onClick={handleTrain}
-            disabled={!file || training}
+            disabled={!file || training || trainingInProgress}
             className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
           >
             {training ? (

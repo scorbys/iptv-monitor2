@@ -273,6 +273,7 @@ export default function QosPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cacheHydrated, setCacheHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [deviceFilter, setDeviceFilter] = useState<"all" | "Chromecast" | "IPTV" | "Channel">("all");
@@ -318,6 +319,7 @@ export default function QosPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setCacheHydrated(true);
     }
   }, []);
 
@@ -328,7 +330,7 @@ export default function QosPage() {
       if (cached) {
         const parsed: Notification[] = JSON.parse(cached);
         setNotifications(cleanOldNotifications(parsed));
-        setLoading(false);
+        setCacheHydrated(true);
       }
     } catch { /* ignore */ }
     load();
@@ -476,7 +478,7 @@ export default function QosPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (loading) {
+  if (loading && !cacheHydrated) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="flex flex-col items-center gap-3">
@@ -528,7 +530,7 @@ export default function QosPage() {
                     </div> */ }
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ExclamationTriangleIcon className="w-4 h-4 text-white" />
-                      <span className="text-white font-semibold">{dbTotalCount ?? notifications.length}</span>
+                      <span className="text-white font-semibold">{dbTotalCount ?? summary.totalIssues}</span>
                       <span className="text-blue-100 text-sm">Total Issues</span>
                     </div>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">

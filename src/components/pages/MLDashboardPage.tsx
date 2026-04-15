@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import MLTrainingPanel from '@/components/MLTrainingPanel';
 import {
   ChartBarIcon,
   SignalIcon,
@@ -38,20 +39,6 @@ const MLPredictionForm = dynamic(
   }
 );
 
-const MLTrainingPanel = dynamic(
-  () => import('@/components/MLTrainingPanel'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    )
-  }
-);
 
 const MLResults = dynamic(
   () => import('@/components/MLResults'),
@@ -214,6 +201,9 @@ interface StaffPerformance {
 
 export default function MLDashboardPage() {
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [trainingInProgress, setTrainingInProgress] = useState(false);
+  const [trainingJobId, setTrainingJobId] = useState<string | null>(null);
+  const [trainingStatusMessage, setTrainingStatusMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -238,6 +228,7 @@ export default function MLDashboardPage() {
 
   useEffect(() => {
     fetchModelInfo();
+    fetchTrainingJobStatus();
   }, []);
 
   // Fetch model info on mount
@@ -399,6 +390,28 @@ export default function MLDashboardPage() {
       console.error('Error fetching all auto-fixes:', err);
       return [];
     }
+  };
+
+  const fetchTrainingJobStatus = async () => {
+    try {
+      const response = await fetch('/api/ml/model/train/status');
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.success) {
+        const activeJob = data.data?.active_job;
+        if (activeJob?.status === 'running' || activeJob?.status === 'pending') {
+          setTrainingInProgress(true);
+          setTrainingJobId(activeJob.job_id);
+          setTrainingStatusMessage(`Training job ${activeJob.job_id} is currently ${activeJob.status}. Please wait until it completes.`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Unable to fetch current training status:', err);
+    }
+    setTrainingInProgress(false);
+    setTrainingJobId(null);
+    setTrainingStatusMessage(null);
   };
 
   const fetchModelInfo = async () => {
@@ -611,6 +624,12 @@ export default function MLDashboardPage() {
 
         if (data.success) {
           const jobId = data.data?.job_id;
+          if (jobId) {
+            setTrainingInProgress(true);
+            setTrainingJobId(jobId);
+            setTrainingStatusMessage(`Training started (job ${jobId}). Please wait until it completes.`);
+          }
+
           let result: TrainingResult;
           if (jobId) {
             result = await pollTrainingStatus(jobId);
@@ -618,6 +637,9 @@ export default function MLDashboardPage() {
             result = data.data;
           }
 
+          setTrainingInProgress(false);
+          setTrainingStatusMessage('Training completed. You may upload a new dataset now.');
+          setTrainingJobId(null);
           await fetchModelInfo();
           await fetchAutoFixStats();
           return result;
@@ -1344,6 +1366,8 @@ export default function MLDashboardPage() {
                 onDeleteModel={handleDeleteModel}
                 onRefresh={fetchModelInfo}
                 modelInfo={modelInfo}
+                trainingInProgress={trainingInProgress}
+                trainingStatusMessage={trainingStatusMessage}
               />
             </div>
           </div>

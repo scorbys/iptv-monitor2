@@ -20,6 +20,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
+import { calculateMetricScore } from "@/utils/metricCalculator";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
   XAxis,
@@ -422,9 +423,9 @@ export default function ChromecastDetailPage({
 
               // Check if API provided meaningful metrics data
               const hasMetrics = result.data.packetLoss !== undefined ||
-                                result.data.jitter !== undefined ||
-                                result.data.error !== undefined ||
-                                result.data.recoveryTime !== undefined;
+                result.data.jitter !== undefined ||
+                result.data.error !== undefined ||
+                result.data.recoveryTime !== undefined;
 
               if (hasMetrics) {
                 // Use API data with fallback to 0 for missing fields
@@ -1062,6 +1063,23 @@ export default function ChromecastDetailPage({
     );
   }, []);
 
+  const QUALITY_SCORE_LABELS: Record<number, string> = {
+    4: "Good",
+    3: "Fair",
+    2: "Poor",
+    1: "Very Poor",
+  };
+
+  const QUALITY_BADGE_CLASSES: Record<string, string> = {
+    Good: "text-emerald-700 bg-emerald-50 border border-emerald-200",
+    Fair: "text-amber-700 bg-amber-50 border border-amber-200",
+    Poor: "text-orange-700 bg-orange-50 border border-orange-200",
+    "Very Poor": "text-red-700 bg-red-50 border border-red-200",
+  };
+
+  const getMetricQualityLabel = (score: number) =>
+    QUALITY_SCORE_LABELS[Math.min(Math.max(score, 1), 4)] || "Very Poor";
+
   const MetricCard = React.memo(
     ({
       value,
@@ -1078,6 +1096,7 @@ export default function ChromecastDetailPage({
       | "bandwidth"
       | "signal"
       | "bitrate"
+      | "jitter"
       | "speed"
       | "data_sent"
       | "data_received"
@@ -1233,6 +1252,11 @@ export default function ChromecastDetailPage({
         }
       };
 
+      const qualityScore = ["packetLoss", "latency", "jitter", "error", "recoveryTime"].includes(type)
+        ? calculateMetricScore(value, type as any)
+        : 4;
+      const qualityLabel = getMetricQualityLabel(qualityScore);
+      const qualityBadge = QUALITY_BADGE_CLASSES[qualityLabel];
       const statusColors = getStatusColor(value, previousValue, type);
       const trend = getTrendIndicator(value, previousValue, type);
 
@@ -1254,6 +1278,9 @@ export default function ChromecastDetailPage({
           >
             {label}
           </p>
+          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${qualityBadge} mt-2`}>
+            {qualityLabel}
+          </span>
         </div>
       );
     }
@@ -2389,7 +2416,7 @@ export default function ChromecastDetailPage({
                     <MetricCard
                       value={networkMetrics.jitter || 0}
                       previousValue={previousMetrics?.jitter}
-                      type="latency"
+                      type="jitter"
                       unit="ms"
                       label="Jitter"
                       isOnline={device.isOnline}
@@ -2700,38 +2727,36 @@ export default function ChromecastDetailPage({
                   {autoFixLogs.map((log) => (
                     <div
                       key={log.fixId}
-                      className={`p-4 rounded-lg border transition-all ${
-                        log.status === 'success'
+                      className={`p-4 rounded-lg border transition-all ${log.status === 'success'
                           ? 'bg-green-50 border-green-200'
                           : log.status === 'failed'
-                          ? 'bg-red-50 border-red-200'
-                          : log.status === 'executing'
-                          ? 'bg-yellow-50 border-yellow-200'
-                          : 'bg-gray-50 border-gray-200'
-                      }`}
+                            ? 'bg-red-50 border-red-200'
+                            : log.status === 'executing'
+                              ? 'bg-yellow-50 border-yellow-200'
+                              : 'bg-gray-50 border-gray-200'
+                        }`}
                     >
                       {/* Header */}
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                                log.status === 'success'
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${log.status === 'success'
                                   ? 'bg-green-100 text-green-800'
                                   : log.status === 'failed'
-                                  ? 'bg-red-100 text-red-800'
-                                  : log.status === 'executing'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
+                                    ? 'bg-red-100 text-red-800'
+                                    : log.status === 'executing'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                }`}
                             >
                               {log.status === 'success'
                                 ? '✅ Berhasil'
                                 : log.status === 'failed'
-                                ? '❌ Gagal'
-                                : log.status === 'executing'
-                                ? '⏳ Sedang Berjalan'
-                                : '⏸ Pending'}
+                                  ? '❌ Gagal'
+                                  : log.status === 'executing'
+                                    ? '⏳ Sedang Berjalan'
+                                    : '⏸ Pending'}
                             </span>
                             <span className="text-xs text-gray-500">
                               <DateFormatter date={log.timestamp} />
@@ -2759,11 +2784,10 @@ export default function ChromecastDetailPage({
                           {log.successRate !== undefined && log.successRate !== null && (
                             <div className="text-right">
                               <p className="text-xs text-gray-500">Success Rate</p>
-                              <p className={`text-sm font-bold ${
-                                log.successRate >= 80 ? 'text-green-600' :
-                                log.successRate >= 50 ? 'text-yellow-600' :
-                                'text-red-600'
-                              }`}>
+                              <p className={`text-sm font-bold ${log.successRate >= 80 ? 'text-green-600' :
+                                  log.successRate >= 50 ? 'text-yellow-600' :
+                                    'text-red-600'
+                                }`}>
                                 {log.successRate.toFixed(1)}%
                               </p>
                             </div>
@@ -2856,15 +2880,14 @@ export default function ChromecastDetailPage({
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <span
-                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                              selectedLog.status === 'success'
+                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${selectedLog.status === 'success'
                                 ? 'bg-green-100 text-green-800'
                                 : selectedLog.status === 'failed'
-                                ? 'bg-red-100 text-red-800'
-                                : selectedLog.status === 'executing'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
+                                  ? 'bg-red-100 text-red-800'
+                                  : selectedLog.status === 'executing'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-gray-100 text-gray-800'
+                              }`}
                           >
                             {selectedLog.status.toUpperCase()}
                           </span>
@@ -2914,11 +2937,10 @@ export default function ChromecastDetailPage({
                       {selectedLog.successRate !== undefined && selectedLog.successRate !== null && (
                         <div className="text-center p-3 bg-green-50 rounded-lg">
                           <p className="text-xs text-gray-600 mb-1">Success Rate</p>
-                          <p className={`text-lg font-bold ${
-                            selectedLog.successRate >= 80 ? 'text-green-600' :
-                            selectedLog.successRate >= 50 ? 'text-yellow-600' :
-                            'text-red-600'
-                          }`}>
+                          <p className={`text-lg font-bold ${selectedLog.successRate >= 80 ? 'text-green-600' :
+                              selectedLog.successRate >= 50 ? 'text-yellow-600' :
+                                'text-red-600'
+                            }`}>
                             {selectedLog.successRate.toFixed(1)}%
                           </p>
                         </div>
