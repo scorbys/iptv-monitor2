@@ -121,6 +121,8 @@ interface PredictionResult {
 }
 
 interface TrainingResult {
+  job_id?: string;
+  message?: string;
   accuracy?: number;
   oob_score?: number;
   n_classes?: number;
@@ -128,6 +130,19 @@ interface TrainingResult {
   n_features?: number;
   train_samples?: number;
   test_samples?: number;
+}
+
+interface TrainingStatusResponse {
+  success: boolean;
+  data: {
+    job_id: string;
+    status: 'running' | 'completed' | 'failed';
+    created_at: number;
+    completed_at: number | null;
+    error: string | null;
+    result?: TrainingResult;
+  };
+  error?: string;
 }
 
 interface AutoFixStats {
@@ -526,6 +541,41 @@ export default function MLDashboardPage() {
     }
   };
 
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const pollTrainingStatus = async (jobId: string): Promise<TrainingResult> => {
+    const start = Date.now();
+    const timeoutMs = 1000 * 60 * 12; // 12 minutes polling limit
+
+    while (true) {
+      const response = await fetch(`/api/ml/model/train/status/${jobId}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Training status error! status: ${response.status}. ${errorText.substring(0, 200)}`);
+      }
+
+      const data: TrainingStatusResponse = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Training status failed');
+      }
+
+      const status = data.data.status;
+      if (status === 'completed') {
+        return data.data.result || { job_id: jobId, message: 'Training completed' };
+      }
+
+      if (status === 'failed') {
+        throw new Error(data.data.error || 'Training failed');
+      }
+
+      if (Date.now() - start > timeoutMs) {
+        throw new Error('Training status polling timed out. Please check back later.');
+      }
+
+      await delay(5000);
+    }
+  };
+
   const handleTrain = async (file: File, sheetName: string): Promise<TrainingResult> => {
     try {
       setError(null);
@@ -560,9 +610,17 @@ export default function MLDashboardPage() {
         const data = await response.json();
 
         if (data.success) {
+          const jobId = data.data?.job_id;
+          let result: TrainingResult;
+          if (jobId) {
+            result = await pollTrainingStatus(jobId);
+          } else {
+            result = data.data;
+          }
+
           await fetchModelInfo();
           await fetchAutoFixStats();
-          return data.data;
+          return result;
         } else {
           setError(data.error || 'Training failed');
           throw new Error(data.error || 'Training failed');

@@ -40,6 +40,12 @@ export default function MLTrainingPanel({
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [trainingResult, setTrainingResult] = useState<TrainingResult | null>(null);
+
+  const displayedAccuracy = trainingResult?.accuracy ?? modelInfo?.accuracy;
+  const displayedOobScore = trainingResult?.oob_score ?? modelInfo?.oob_score;
+  const displayedClasses = trainingResult?.n_classes ?? modelInfo?.n_classes;
+  const displayedFeatures = trainingResult?.n_features ?? modelInfo?.n_features;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -70,7 +76,9 @@ export default function MLTrainingPanel({
     }, 500);
 
     try {
-      await onTrain(file, sheetName);
+      setTrainingResult(null);
+      const result = await onTrain(file, sheetName);
+      setTrainingResult(result);
       setProgress(100);
       setFile(null);
 
@@ -216,26 +224,42 @@ export default function MLTrainingPanel({
               <div>
                 <h3 className="text-sm font-semibold text-green-900">Model is Trained</h3>
                 <p className="text-xs text-green-700">
-                  {modelInfo.n_classes} classes • {modelInfo.n_features} features
+                  {displayedClasses ?? '—'} classes • {displayedFeatures ?? '—'} features
                 </p>
               </div>
             </div>
-            {modelInfo.accuracy && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="bg-white rounded-lg p-3 border border-green-200">
                 <p className="text-xs text-gray-600 mb-1">Accuracy</p>
                 <p className="text-lg font-bold text-green-700">
-                  {(modelInfo.accuracy * 100).toFixed(2)}%
+                  {displayedAccuracy != null
+                    ? `${(displayedAccuracy * 100).toFixed(2)}%`
+                    : '—'}
                 </p>
               </div>
-            )}
-            {modelInfo.oob_score && (
               <div className="bg-white rounded-lg p-3 border border-green-200">
                 <p className="text-xs text-gray-600 mb-1">Out-of-Bag Score</p>
                 <p className="text-lg font-bold text-green-700">
-                  {(modelInfo.oob_score * 100).toFixed(2)}%
+                  {displayedOobScore != null
+                    ? `${(displayedOobScore * 100).toFixed(2)}%`
+                    : '—'}
                 </p>
               </div>
-            )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <p className="text-xs text-gray-600 mb-1">Classes</p>
+                <p className="text-lg font-bold text-green-700">
+                  {trainingResult?.n_classes ?? modelInfo.n_classes ?? '—'}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <p className="text-xs text-gray-600 mb-1">Features</p>
+                <p className="text-lg font-bold text-green-700">
+                  {trainingResult?.n_features ?? modelInfo.n_features ?? '—'}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Action Buttons */}

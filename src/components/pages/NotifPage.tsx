@@ -306,8 +306,11 @@ export default function NotifPage() {
         });
         if (!resp.ok || cancelled) return;
         const data = await resp.json();
-        if (data.success && data.data?.totalNotifications != null) {
-          setDbTotalCount(data.data.totalNotifications);
+        if (data.success) {
+          const count = data.data?.totalNotifications ?? data.data?.total;
+          if (typeof count === 'number') {
+            setDbTotalCount(count);
+          }
         }
       } catch (_) { }
     };

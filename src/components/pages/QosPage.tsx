@@ -271,6 +271,7 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
 
 export default function QosPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
@@ -288,6 +289,30 @@ export default function QosPage() {
     try {
       const fresh = await fetchAllNotifications();
       setNotifications(cleanOldNotifications(fresh));
+
+      try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await fetch("/api/notifications/stats", {
+          headers: new Headers(headers),
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const count = data.data?.totalNotifications ?? data.data?.total;
+          if (typeof count === "number") {
+            setDbTotalCount(count);
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to fetch notifications count:", error);
+      }
     } catch {
       /* silent */
     } finally {
@@ -503,7 +528,7 @@ export default function QosPage() {
                     </div> */ }
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ExclamationTriangleIcon className="w-4 h-4 text-white" />
-                      <span className="text-white font-semibold">{notifications.length}</span>
+                      <span className="text-white font-semibold">{dbTotalCount ?? notifications.length}</span>
                       <span className="text-blue-100 text-sm">Total Issues</span>
                     </div>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
