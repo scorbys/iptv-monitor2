@@ -1287,9 +1287,11 @@ export default function MLDashboardPage() {
                 onRefresh={fetchModelInfo}
                 modelInfo={modelInfo}
               />
+            </div>
+          </div>
 
-              {/* Per-Category Accuracy Panel */}
-              {modelInfo?.is_trained && (() => {
+          {/* Per-Category Accuracy Panel - Full Width Below */}
+          {modelInfo?.is_trained && (() => {
                 // ── data source ──────────────────────────────────────────────
                 // Use live per_class_accuracy when available (populated after
                 // training with the updated model_service.py).
@@ -1331,9 +1333,6 @@ export default function MLDashboardPage() {
                 });
 
                 const values = sorted.map(([, v]) => v);
-                const maxAcc  = Math.max(...values);
-                const minAcc  = Math.min(...values);
-                const avgAcc  = values.reduce((s, v) => s + v, 0) / values.length;
 
                 // Colour ramp based on distance from max
                 const getBarColor = (acc: number) => {
@@ -1376,23 +1375,17 @@ export default function MLDashboardPage() {
 
                     <div className="p-6 space-y-5">
                       {/* ── Overall + OOB score row ── */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="col-span-1 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-3 text-center">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 text-center">
                           <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider mb-1">Test Accuracy</p>
                           <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
                             {modelInfo.accuracy ? `${(modelInfo.accuracy * 100).toFixed(2)}%` : "—"}
                           </p>
                         </div>
-                        <div className="col-span-1 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-3 text-center">
+                        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 text-center">
                           <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider mb-1">OOB Score</p>
                           <p className="text-2xl font-extrabold text-indigo-700 tabular-nums">
                             {modelInfo.oob_score ? `${(modelInfo.oob_score * 100).toFixed(2)}%` : "—"}
-                          </p>
-                        </div>
-                        <div className="col-span-1 bg-gradient-to-br from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Rata-rata</p>
-                          <p className="text-2xl font-extrabold text-gray-700 tabular-nums">
-                            {avgAcc.toFixed(1)}%
                           </p>
                         </div>
                       </div>
@@ -1412,22 +1405,19 @@ export default function MLDashboardPage() {
                         ))}
                       </div>
 
-                      {/* ── Per-class bars ── */}
-                      <div className="space-y-2.5">
+                      {/* ── Per-class bars (2-column grid on wider screens) ── */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                         {sorted.map(([rawLabel, acc], idx) => {
                           const displayLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
                           const isNonNumeric = isNaN(parseInt(rawLabel.replace(/[^0-9]/g, ""), 10));
                           const { bar, badge } = getBarColor(acc);
-                          // Bar width: scale relative to minAcc so differences are visible
-                          const barFloor = Math.max(0, minAcc - 2);
-                          const barWidth  = Math.max(4, ((acc - barFloor) / (maxAcc - barFloor + 0.001)) * 100);
-                          const isHighest = acc === maxAcc;
-                          const isLowest  = acc === minAcc;
+                          // Bar width: use actual percentage (0-100 scale) for honest representation
+                          const barWidth = Math.max(1, acc);
 
                           return (
                             <div
                               key={rawLabel}
-                              className="group flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors duration-150"
+                              className="group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors duration-150"
                             >
                               {/* Row number */}
                               <span className="flex-shrink-0 w-5 text-[10px] font-bold text-gray-300 text-right tabular-nums select-none">
@@ -1440,7 +1430,7 @@ export default function MLDashboardPage() {
                               </span>
 
                               {/* Bar track */}
-                              <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
                                 <div
                                   className={`h-full rounded-full bg-gradient-to-r ${bar} transition-all duration-700 ease-out`}
                                   style={{ width: `${barWidth}%` }}
@@ -1449,20 +1439,8 @@ export default function MLDashboardPage() {
 
                               {/* Percentage badge */}
                               <span className={`flex-shrink-0 text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${badge}`}>
-                                {acc.toFixed(2)}%
+                                {acc.toFixed(1)}%
                               </span>
-
-                              {/* Highest / Lowest marker */}
-                              {isHighest && (
-                                <span className="flex-shrink-0 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded px-1 py-0.5 leading-none">
-                                  BEST
-                                </span>
-                              )}
-                              {isLowest && !isHighest && (
-                                <span className="flex-shrink-0 text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 leading-none">
-                                  LOW
-                                </span>
-                              )}
                             </div>
                           );
                         })}
@@ -1499,8 +1477,6 @@ export default function MLDashboardPage() {
                   </div>
                 );
               })()}
-            </div>
-          </div>
         </div>
       )}
 

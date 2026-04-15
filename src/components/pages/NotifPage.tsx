@@ -292,6 +292,35 @@ export default function NotifPage() {
     }
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDbCount = async () => {
+      try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const resp = await fetch("/api/notifications/stats", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+        if (!resp.ok || cancelled) return;
+        const data = await resp.json();
+        if (data.success && data.data?.totalNotifications != null) {
+          setDbTotalCount(data.data.totalNotifications);
+        }
+      } catch (_) { }
+    };
+
+    fetchDbCount();
+    // Refresh count setiap 30 detik agar sinkron
+    const interval = setInterval(fetchDbCount, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []); // mount only, independent dari fetchNotifications
+
   const calculateStats = useCallback(
     (notifications: Notification[]): NotificationStats => {
       const now = new Date();
@@ -367,31 +396,6 @@ export default function NotifPage() {
       setNotifications(cleaned);
       setStats(calculateStats(cleaned));
       localStorage.setItem("notif-cache", JSON.stringify(cleaned));
-
-      // Fetch authoritative total count from DB to avoid cache inflation
-      try {
-        const token =
-          localStorage.getItem("authToken") ||
-          localStorage.getItem("token");
-        const statsResp = await fetch("/api/notifications/stats", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-        });
-        if (statsResp.ok) {
-          const statsData = await statsResp.json();
-          if (
-            statsData.success &&
-            statsData.data?.totalNotifications != null
-          ) {
-            setDbTotalCount(statsData.data.totalNotifications);
-          }
-        }
-      } catch (_) {
-        // Non-fatal: fall back to notifications.length if stats API fails
-      }
     } catch (error) {
       componentLogger.error("Failed to fetch notifications:", error);
       setNotifications([]);
@@ -1377,16 +1381,6 @@ export default function NotifPage() {
               <span className="text-xs sm:text-sm font-medium">
                 {refreshing ? "Refreshing..." : "Refresh"}
               </span>
-            </button>
-
-            {/* Cleanup Button */}
-            <button
-              onClick={handleCleanup}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600 text-white rounded-lg sm:rounded-xl hover:bg-amber-700 transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial"
-              title="Cleanup old notifications"
-            >
-              <WrenchScrewdriverIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">Cleanup</span>
             </button>
 
             {/* Export CSV Button */}
