@@ -1354,11 +1354,11 @@ export default function MLDashboardPage() {
                           </div>
                           <div>
                             <h2 className="text-base font-bold text-gray-900">Akurasi Per Kategori</h2>
-                            <p className="text-xs text-gray-400 mt-0.5">
+                            {/* <p className="text-xs text-gray-400 mt-0.5">
                               {isLiveData
                                 ? `${sorted.length} kelas · data aktual dari model`
                                 : "data baseline tesis · latih ulang untuk memperbarui"}
-                            </p>
+                            </p>  */}
                           </div>
                         </div>
                         {/* Live / Fallback badge */}
@@ -1406,7 +1406,7 @@ export default function MLDashboardPage() {
                       </div>
 
                       {/* ── Per-class bars (2-column grid on wider screens) ── */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                      <div className="grid grid-cols-1 gap-y-2">
                         {sorted.map(([rawLabel, acc], idx) => {
                           const displayLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
                           const isNonNumeric = isNaN(parseInt(rawLabel.replace(/[^0-9]/g, ""), 10));
