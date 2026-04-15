@@ -264,6 +264,8 @@ export default function NotifPage() {
   const [screenSize, setScreenSize] = useState<"mobile" | "tablet" | "desktop">(
     "desktop"
   );
+  // Authoritative total count fetched directly from MongoDB (avoids cache inflation)
+  const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
   // Cache for FAQ categories to avoid recalculation
   const faqCategoryCache = useRef<Map<string, string>>(new Map());
 
@@ -359,11 +361,37 @@ export default function NotifPage() {
     if (!mounted) return;
 
     try {
+      // Fetch fresh notifications list
       const recent = await fetchAllNotifications();
       const cleaned = cleanOldNotifications(recent);
       setNotifications(cleaned);
       setStats(calculateStats(cleaned));
       localStorage.setItem("notif-cache", JSON.stringify(cleaned));
+
+      // Fetch authoritative total count from DB to avoid cache inflation
+      try {
+        const token =
+          localStorage.getItem("authToken") ||
+          localStorage.getItem("token");
+        const statsResp = await fetch("/api/notifications/stats", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+        if (statsResp.ok) {
+          const statsData = await statsResp.json();
+          if (
+            statsData.success &&
+            statsData.data?.totalNotifications != null
+          ) {
+            setDbTotalCount(statsData.data.totalNotifications);
+          }
+        }
+      } catch (_) {
+        // Non-fatal: fall back to notifications.length if stats API fails
+      }
     } catch (error) {
       componentLogger.error("Failed to fetch notifications:", error);
       setNotifications([]);
@@ -1084,7 +1112,7 @@ export default function NotifPage() {
                   Total
                 </p>
                 <p className="text-3xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
-                  {stats.totalNotifications}
+                  {dbTotalCount ?? stats.totalNotifications}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">All notifications</p>
               </div>

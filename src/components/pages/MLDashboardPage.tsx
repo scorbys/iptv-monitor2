@@ -1289,39 +1289,23 @@ export default function MLDashboardPage() {
               />
 
               {/* Per-Category Accuracy Panel */}
-              {modelInfo?.is_trained && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-xl font-bold text-gray-900">Akurasi Per Kategori</h2>
-                  </div>
+              {modelInfo?.is_trained && (() => {
+                // ── data source ──────────────────────────────────────────────
+                // Use live per_class_accuracy when available (populated after
+                // training with the updated model_service.py).
+                // Values from the API are 0-1 floats; convert to percentages.
+                const isLiveData = !!modelInfo.per_class_accuracy;
 
-                  {/* Overall scores */}
-                  <div className="grid grid-cols-2 gap-3 mb-5">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                      <p className="text-xs text-blue-600 font-medium mb-1">Overall Accuracy</p>
-                      <p className="text-2xl font-bold text-blue-700">
-                        {modelInfo.accuracy ? `${(modelInfo.accuracy * 100).toFixed(2)}%` : 'N/A'}
-                      </p>
-                    </div>
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
-                      <p className="text-xs text-indigo-600 font-medium mb-1">OOB Score</p>
-                      <p className="text-2xl font-bold text-indigo-700">
-                        {modelInfo.oob_score ? `${(modelInfo.oob_score * 100).toFixed(2)}%` : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Per-class accuracy — from backend if available, else show static thesis results */}
-                  {(() => {
-                    // Static thesis results as baseline fallback
-                    const thesisAccuracy: Record<string, number> = {
+                const rawData: Record<string, number> = isLiveData
+                  ? Object.fromEntries(
+                      Object.entries(modelInfo.per_class_accuracy!).map(
+                        ([k, v]) => [k, (v as number) * 100]
+                      )
+                    )
+                  : {
+                      // Fallback: thesis baseline — shown only before first retrain
                       "External":    84.44,
                       "Katagori-1":  97.06,
-                      "Katagori-10": 94.09,
-                      "Katagori-11": 93.64,
-                      "Katagori-12": 95.50,
-                      "Katagori-13": 92.00,
                       "Katagori-2":  97.18,
                       "Katagori-3":  96.57,
                       "Katagori-4":  93.36,
@@ -1330,76 +1314,191 @@ export default function MLDashboardPage() {
                       "Katagori-7":  94.09,
                       "Katagori-8":  95.00,
                       "Katagori-9":  95.00,
+                      "Katagori-10": 94.09,
+                      "Katagori-11": 93.64,
+                      "Katagori-12": 95.50,
+                      "Katagori-13": 92.00,
                     };
 
-                    // Prefer live per_class_accuracy if returned by ML service
-                    const rawData: Record<string, number> = modelInfo.per_class_accuracy
-                      ? Object.fromEntries(
-                          Object.entries(modelInfo.per_class_accuracy).map(([k, v]) => [k, v * 100])
-                        )
-                      : thesisAccuracy;
+                // Sort: External/non-numeric first, then Kategori-1..N numerically
+                const sorted = Object.entries(rawData).sort(([a], [b]) => {
+                  const numA = parseInt(a.replace(/[^0-9]/g, ""), 10);
+                  const numB = parseInt(b.replace(/[^0-9]/g, ""), 10);
+                  if (isNaN(numA) && isNaN(numB)) return a.localeCompare(b);
+                  if (isNaN(numA)) return -1;
+                  if (isNaN(numB)) return 1;
+                  return numA - numB;
+                });
 
-                    // Sort: External first, then Kategori-1..14 in numeric order
-                    const sorted = Object.entries(rawData).sort(([a], [b]) => {
-                      if (a === 'External') return -1;
-                      if (b === 'External') return 1;
-                      const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
-                      const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
-                      return numA - numB;
-                    });
+                const values = sorted.map(([, v]) => v);
+                const maxAcc  = Math.max(...values);
+                const minAcc  = Math.min(...values);
+                const avgAcc  = values.reduce((s, v) => s + v, 0) / values.length;
 
-                    const maxAcc = Math.max(...sorted.map(([, v]) => v));
+                // Colour ramp based on distance from max
+                const getBarColor = (acc: number) => {
+                  if (acc >= 97)   return { bar: "from-emerald-400 to-emerald-500", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+                  if (acc >= 95)   return { bar: "from-blue-400 to-blue-500",       badge: "bg-blue-50 text-blue-700 border-blue-200" };
+                  if (acc >= 93)   return { bar: "from-indigo-400 to-indigo-500",   badge: "bg-indigo-50 text-indigo-700 border-indigo-200" };
+                  if (acc >= 90)   return { bar: "from-amber-400 to-amber-500",     badge: "bg-amber-50 text-amber-700 border-amber-200" };
+                  return              { bar: "from-orange-400 to-orange-500",    badge: "bg-orange-50 text-orange-700 border-orange-200" };
+                };
 
-                    return (
-                      <div className="space-y-2">
-                        {!modelInfo.per_class_accuracy && (
-                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-                            📊 Menampilkan hasil pelatihan dari data tesis (Random Forest, 1952 fitur, Akurasi TEST: 94.37%)
+                return (
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                    {/* ── Header ── */}
+                    <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-sm">
+                            <ShieldCheckIcon className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-base font-bold text-gray-900">Akurasi Per Kategori</h2>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {isLiveData
+                                ? `${sorted.length} kelas · data aktual dari model`
+                                : "data baseline tesis · latih ulang untuk memperbarui"}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Live / Fallback badge */}
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                          isLiveData
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isLiveData ? "bg-emerald-500 animate-pulse" : "bg-amber-400"}`} />
+                          {isLiveData ? "Live" : "Baseline"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-5">
+                      {/* ── Overall + OOB score row ── */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-1 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-3 text-center">
+                          <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider mb-1">Test Accuracy</p>
+                          <p className="text-2xl font-extrabold text-blue-700 tabular-nums">
+                            {modelInfo.accuracy ? `${(modelInfo.accuracy * 100).toFixed(2)}%` : "—"}
                           </p>
-                        )}
-                        {sorted.map(([label, acc]) => {
-                          const isExternal = label === 'External';
-                          const barWidth = Math.min(100, (acc / maxAcc) * 100);
-                          const color =
-                            acc >= 97 ? 'bg-green-500'
-                            : acc >= 95 ? 'bg-blue-500'
-                            : acc >= 93 ? 'bg-indigo-500'
-                            : acc >= 90 ? 'bg-yellow-500'
-                            : 'bg-orange-500';
-                          const textColor =
-                            acc >= 97 ? 'text-green-700'
-                            : acc >= 95 ? 'text-blue-700'
-                            : acc >= 93 ? 'text-indigo-700'
-                            : acc >= 90 ? 'text-yellow-700'
-                            : 'text-orange-700';
+                        </div>
+                        <div className="col-span-1 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-3 text-center">
+                          <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider mb-1">OOB Score</p>
+                          <p className="text-2xl font-extrabold text-indigo-700 tabular-nums">
+                            {modelInfo.oob_score ? `${(modelInfo.oob_score * 100).toFixed(2)}%` : "—"}
+                          </p>
+                        </div>
+                        <div className="col-span-1 bg-gradient-to-br from-slate-50 to-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Rata-rata</p>
+                          <p className="text-2xl font-extrabold text-gray-700 tabular-nums">
+                            {avgAcc.toFixed(1)}%
+                          </p>
+                        </div>
+                      </div>
 
-                          // Normalise label display: Katagori → Kategori
-                          const displayLabel = label.replace(/Katagori-/gi, 'Kategori-');
+                      {/* ── Legend chips ── */}
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: "≥ 97%", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                          { label: "≥ 95%", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+                          { label: "≥ 93%", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+                          { label: "≥ 90%", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+                          { label: "< 90%", cls: "bg-orange-50 text-orange-700 border-orange-200" },
+                        ].map(({ label, cls }) => (
+                          <span key={label} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* ── Per-class bars ── */}
+                      <div className="space-y-2.5">
+                        {sorted.map(([rawLabel, acc], idx) => {
+                          const displayLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
+                          const isNonNumeric = isNaN(parseInt(rawLabel.replace(/[^0-9]/g, ""), 10));
+                          const { bar, badge } = getBarColor(acc);
+                          // Bar width: scale relative to minAcc so differences are visible
+                          const barFloor = Math.max(0, minAcc - 2);
+                          const barWidth  = Math.max(4, ((acc - barFloor) / (maxAcc - barFloor + 0.001)) * 100);
+                          const isHighest = acc === maxAcc;
+                          const isLowest  = acc === minAcc;
 
                           return (
-                            <div key={label} className="group">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs font-medium ${isExternal ? 'text-gray-500 italic' : 'text-gray-700'}`}>
-                                  {displayLabel}
-                                </span>
-                                <span className={`text-xs font-bold ${textColor}`}>
-                                  {acc.toFixed(2)}%
-                                </span>
-                              </div>
-                              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              key={rawLabel}
+                              className="group flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors duration-150"
+                            >
+                              {/* Row number */}
+                              <span className="flex-shrink-0 w-5 text-[10px] font-bold text-gray-300 text-right tabular-nums select-none">
+                                {(idx + 1).toString().padStart(2, "0")}
+                              </span>
+
+                              {/* Label */}
+                              <span className={`flex-shrink-0 w-24 text-xs font-semibold truncate ${isNonNumeric ? "text-gray-400 italic" : "text-gray-700"}`}>
+                                {displayLabel}
+                              </span>
+
+                              {/* Bar track */}
+                              <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
                                 <div
-                                  className={`${color} h-2 rounded-full transition-all duration-500`}
+                                  className={`h-full rounded-full bg-gradient-to-r ${bar} transition-all duration-700 ease-out`}
                                   style={{ width: `${barWidth}%` }}
                                 />
                               </div>
+
+                              {/* Percentage badge */}
+                              <span className={`flex-shrink-0 text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${badge}`}>
+                                {acc.toFixed(2)}%
+                              </span>
+
+                              {/* Highest / Lowest marker */}
+                              {isHighest && (
+                                <span className="flex-shrink-0 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded px-1 py-0.5 leading-none">
+                                  BEST
+                                </span>
+                              )}
+                              {isLowest && !isHighest && (
+                                <span className="flex-shrink-0 text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 leading-none">
+                                  LOW
+                                </span>
+                              )}
                             </div>
                           );
                         })}
                       </div>
-                    );
-                  })()}
-                </div>
-              )}
+
+                      {/* ── Baseline notice (only when not live) ── */}
+                      {!isLiveData && (
+                        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-1">
+                          <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-700 leading-relaxed">
+                            Data ini berasal dari hasil tesis (Random Forest, 1952 fitur, Test Accuracy 94.37%).
+                            Lakukan <strong>training ulang</strong> dengan dataset terbaru untuk memperbarui ke data aktual.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* ── Model meta footer ── */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-gray-100">
+                        {modelInfo.n_classes != null && (
+                          <span className="text-[10px] text-gray-400">
+                            <span className="font-semibold text-gray-600">{modelInfo.n_classes}</span> kelas
+                          </span>
+                        )}
+                        {modelInfo.n_features != null && (
+                          <span className="text-[10px] text-gray-400">
+                            <span className="font-semibold text-gray-600">{modelInfo.n_features.toLocaleString()}</span> fitur
+                          </span>
+                        )}
+                        <span className="text-[10px] text-gray-400">
+                          akurasi per kelas = <span className="font-semibold text-gray-600">recall</span> (sklearn)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
