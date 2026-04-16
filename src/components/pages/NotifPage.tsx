@@ -27,6 +27,7 @@ import {
   Notification,
   fetchAllNotifications,
   cleanOldNotifications,
+  saveNotificationsToStorage,
 } from "../../app/notifications/notifUtils";
 import { calculateMetricScore } from "@/utils/metricCalculator";
 
@@ -399,7 +400,7 @@ export default function NotifPage() {
       const cleaned = cleanOldNotifications(recent);
       setNotifications(cleaned);
       setStats(calculateStats(cleaned));
-      localStorage.setItem("notif-cache", JSON.stringify(cleaned));
+      saveNotificationsToStorage(cleaned);
     } catch (error) {
       componentLogger.error("Failed to fetch notifications:", error);
       setNotifications([]);

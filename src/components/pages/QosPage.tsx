@@ -65,6 +65,8 @@ const SOURCE_TO_DEVICE: Record<string, string> = {
   system: "system",
 };
 
+const UNCATEGORIZED_CATEGORY = "Uncategorized";
+
 const SCORE_TO_LABEL: Record<number, string> = {
   4: "Good",
   3: "Fair",
@@ -179,8 +181,15 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
     sig: number[]; resp: number[]; bw: number[];
   }> = {};
 
-  // initialise all 14 categories so they always appear
-  FAQ_DATA.forEach((faq) => {
+  const uncategorizedFaq = {
+    category: UNCATEGORIZED_CATEGORY,
+    device: "Mixed",
+    issue: "Other / uncategorized issues",
+    keywords: [],
+  };
+
+  // initialise all known categories plus uncategorized so they always appear
+  [...FAQ_DATA, uncategorizedFaq].forEach((faq) => {
     buckets[faq.category] = {
       faq, count: 0,
       pl: [], ji: [], la: [], er: [], rt: [],
@@ -191,9 +200,9 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
 
   notifications.forEach((n) => {
     const cat = getFAQCategory(n, cache);
-    if (!cat || !buckets[cat]) return;
+    const bucketKey = cat && buckets[cat] ? cat : UNCATEGORIZED_CATEGORY;
 
-    const b = buckets[cat];
+    const b = buckets[bucketKey];
     b.count++;
 
     const mx = extractMetrics(n);
@@ -210,7 +219,7 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
   const avg = (arr: number[]) =>
     arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
-  return FAQ_DATA.map(({ category }) => {
+  return [...FAQ_DATA, { category: UNCATEGORIZED_CATEGORY, device: "Mixed", issue: "Other / uncategorized issues", keywords: [] }].map(({ category }) => {
     const b = buckets[category];
     return {
       category,
@@ -271,7 +280,6 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
 
 export default function QosPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [cacheHydrated, setCacheHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -290,30 +298,6 @@ export default function QosPage() {
     try {
       const fresh = await fetchAllNotifications();
       setNotifications(cleanOldNotifications(fresh));
-
-      try {
-        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
-        }
-
-        const response = await fetch("/api/notifications/stats", {
-          headers: new Headers(headers),
-          credentials: "include",
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const count = data.data?.totalNotifications ?? data.data?.total;
-          if (typeof count === "number") {
-            setDbTotalCount(count);
-          }
-        }
-      } catch (error) {
-        console.warn("Failed to fetch notifications count:", error);
-      }
     } catch {
       /* silent */
     } finally {
@@ -539,13 +523,15 @@ export default function QosPage() {
                     </div> */ }
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ExclamationTriangleIcon className="w-4 h-4 text-white" />
-                      <span className="text-white font-semibold">{dbTotalCount ?? summary.totalIssues}</span>
+                      <span className="text-white font-semibold">
+                        {loading ? "Loading…" : summary.totalIssues}
+                      </span>
                       <span className="text-blue-100 text-sm">Total Issues</span>
                     </div>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <FunnelIcon className="w-4 h-4 text-white" />
                       <span className="text-white font-semibold">
-                        {rows.filter((r) => r.count > 0).length}/{`${FAQ_DATA.length}`}
+                        {rows.filter((r) => r.count > 0).length}/{`${FAQ_DATA.length + 1}`}
                       </span>
                       <span className="text-blue-100 text-sm">Active Cat</span>
                     </div>
@@ -592,7 +578,7 @@ export default function QosPage() {
           <SummaryCard
             label="Active Categories"
             value={rows.filter((r) => r.count > 0).length}
-            sub={`of ${FAQ_DATA.length} total`}
+            sub={`of ${FAQ_DATA.length + 1} total`}
             color="border-purple-200 bg-purple-50"
           />
           <SummaryCard
@@ -813,7 +799,7 @@ export default function QosPage() {
         <div className="flex items-center justify-between text-xs text-gray-400">
           <span>Data sourced from notification metrics · auto-refreshes every 30 min</span>
           <span>
-            Export includes all {FAQ_DATA.length} categories regardless of active filters
+            Export includes all {FAQ_DATA.length + 1} categories regardless of active filters
           </span>
         </div>
       </div>
