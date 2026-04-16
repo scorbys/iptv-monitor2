@@ -227,9 +227,29 @@ export default function MLDashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'analytics'>('overview');
 
   useEffect(() => {
+    const persisted = getPersistedTrainingState();
+    if (persisted?.trainingInProgress && persisted.trainingJobId) {
+      setTrainingInProgress(true);
+      setTrainingJobId(persisted.trainingJobId);
+      setTrainingStatusMessage(
+        persisted.trainingStatusMessage ||
+          `Training job ${persisted.trainingJobId} is currently running. Please wait until it completes.`
+      );
+    }
+
     fetchModelInfo();
     fetchTrainingJobStatus();
   }, []);
+
+  useEffect(() => {
+    if (!trainingInProgress && !trainingJobId) return;
+
+    const intervalId = window.setInterval(() => {
+      fetchTrainingJobStatus();
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [trainingInProgress, trainingJobId]);
 
   // Fetch model info on mount
   useEffect(() => {
@@ -400,17 +420,36 @@ export default function MLDashboardPage() {
       if (data.success) {
         const activeJob = data.data?.active_job;
         if (activeJob?.status === 'running' || activeJob?.status === 'pending') {
+          const message = `Training job ${activeJob.job_id} is currently ${activeJob.status}. Please wait until it completes.`;
           setTrainingInProgress(true);
           setTrainingJobId(activeJob.job_id);
-          setTrainingStatusMessage(`Training job ${activeJob.job_id} is currently ${activeJob.status}. Please wait until it completes.`);
+          setTrainingStatusMessage(message);
+          saveTrainingState({
+            trainingInProgress: true,
+            trainingJobId: activeJob.job_id,
+            trainingStatusMessage: message,
+          });
           return;
         }
       }
     } catch (err) {
       console.warn('Unable to fetch current training status:', err);
     }
+
+    const persisted = getPersistedTrainingState();
+    const wasTraining = persisted?.trainingInProgress && !!persisted.trainingJobId;
+
     setTrainingInProgress(false);
     setTrainingJobId(null);
+
+    if (wasTraining) {
+      setTrainingStatusMessage('Training has completed. Refreshing model info...');
+      clearTrainingState();
+      await fetchModelInfo();
+      setTrainingStatusMessage('Training completed. You may upload a new dataset now.');
+      return;
+    }
+
     setTrainingStatusMessage(null);
   };
 
@@ -554,6 +593,45 @@ export default function MLDashboardPage() {
     }
   };
 
+  const TRAINING_STATUS_STORAGE_KEY = 'mlTrainingStatus';
+
+  const saveTrainingState = (state: {
+    trainingInProgress: boolean;
+    trainingJobId: string | null;
+    trainingStatusMessage: string | null;
+  }) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(TRAINING_STATUS_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // ignore write errors
+    }
+  };
+
+  const clearTrainingState = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(TRAINING_STATUS_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const getPersistedTrainingState = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(TRAINING_STATUS_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as {
+        trainingInProgress: boolean;
+        trainingJobId: string | null;
+        trainingStatusMessage: string | null;
+      };
+    } catch {
+      return null;
+    }
+  };
+
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const pollTrainingStatus = async (jobId: string): Promise<TrainingResult> => {
@@ -625,9 +703,15 @@ export default function MLDashboardPage() {
         if (data.success) {
           const jobId = data.data?.job_id;
           if (jobId) {
+            const message = `Training started (job ${jobId}). Please wait until it completes.`;
             setTrainingInProgress(true);
             setTrainingJobId(jobId);
-            setTrainingStatusMessage(`Training started (job ${jobId}). Please wait until it completes.`);
+            setTrainingStatusMessage(message);
+            saveTrainingState({
+              trainingInProgress: true,
+              trainingJobId: jobId,
+              trainingStatusMessage: message,
+            });
           }
 
           let result: TrainingResult;
@@ -640,6 +724,7 @@ export default function MLDashboardPage() {
           setTrainingInProgress(false);
           setTrainingStatusMessage('Training completed. You may upload a new dataset now.');
           setTrainingJobId(null);
+          clearTrainingState();
           await fetchModelInfo();
           await fetchAutoFixStats();
           return result;
@@ -657,6 +742,9 @@ export default function MLDashboardPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to train model';
       setError(errorMessage);
+      setTrainingInProgress(false);
+      setTrainingJobId(null);
+      clearTrainingState();
       apiLogger.error('Error training:', err);
       throw new Error(errorMessage);
     }

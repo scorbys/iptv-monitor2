@@ -336,6 +336,15 @@ export default function QosPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const handleCacheUpdated = () => {
+      load();
+    };
+
+    window.addEventListener('notificationsCacheUpdated', handleCacheUpdated);
+    return () => window.removeEventListener('notificationsCacheUpdated', handleCacheUpdated);
+  }, [load]);
+
   // ── QoS rows ──────────────────────────────────────────────────────────────
 
   const rows = useMemo(

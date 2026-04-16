@@ -918,6 +918,12 @@ async function fetchRemainingNotifications(
   );
   saveNotificationsToStorage(sorted);
   debugLog(`Background pagination complete: ${sorted.length} total notifications cached`);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('notificationsCacheUpdated', {
+      detail: { total: sorted.length }
+    }));
+  }
 }
 
 function processChromecastNotifications(

@@ -454,6 +454,16 @@ export default function NotifPage() {
     }
   }, [refreshing, fetchNotifications]);
 
+  useEffect(() => {
+    const handleCacheUpdated = () => {
+      if (!mounted) return;
+      fetchNotifications();
+    };
+
+    window.addEventListener('notificationsCacheUpdated', handleCacheUpdated);
+    return () => window.removeEventListener('notificationsCacheUpdated', handleCacheUpdated);
+  }, [mounted, fetchNotifications]);
+
   const handleCleanup = useCallback(() => {
     try {
       const cleaned = cleanOldNotifications(notifications);
