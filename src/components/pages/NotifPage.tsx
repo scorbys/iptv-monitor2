@@ -256,6 +256,10 @@ export default function NotifPage() {
   const [loading, setLoading] = useState(true);
   const [cacheHydrated, setCacheHydrated] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [autoFixStats, setAutoFixStats] = useState<{
+    total: number;
+    byStatus: { pending: number; executing?: number; success?: number; failed?: number; cancelled?: number };
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -317,9 +321,31 @@ export default function NotifPage() {
       } catch (_) { }
     };
 
+    const fetchAutoFixStats = async () => {
+      try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const resp = await fetch("/api/auto-fix/stats", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+        if (!resp.ok || cancelled) return;
+        const data = await resp.json();
+        if (data.success && data.data) {
+          setAutoFixStats(data.data);
+        }
+      } catch (_) { }
+    };
+
     fetchDbCount();
-    // Refresh count setiap 30 detik agar sinkron
-    const interval = setInterval(fetchDbCount, 30_000);
+    fetchAutoFixStats();
+    // Refresh counts setiap 30 detik agar sinkron
+    const interval = setInterval(() => {
+      fetchDbCount();
+      fetchAutoFixStats();
+    }, 30_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -507,6 +533,10 @@ export default function NotifPage() {
     });
     window.dispatchEvent(chatEvent);
   };
+
+  const activeIssuesDisplay = autoFixStats
+    ? Math.max(0, autoFixStats.total - (autoFixStats.byStatus.pending ?? 0))
+    : stats?.activeIssues ?? 0;
 
   // Helper function to normalize category names
   const normalizeCategoryName = (category: string): string => {
@@ -1123,7 +1153,7 @@ export default function NotifPage() {
     <div className="p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-6">
           {/* Total Notifications Card */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
             <div className="flex items-start justify-between">
@@ -1152,9 +1182,9 @@ export default function NotifPage() {
                   Active
                 </p>
                 <p className="text-3xl font-bold text-red-600 group-hover:text-red-700 transition-colors">
-                  {stats.activeIssues}
+                  {activeIssuesDisplay}
                 </p>
-                {stats.activeIssues > 0 && (
+                {activeIssuesDisplay > 0 && (
                   <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
                     Needs attention
@@ -1169,45 +1199,6 @@ export default function NotifPage() {
             </div>
           </div>
 
-          {/* Recoveries Card */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-green-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Resolved
-                </p>
-                <p className="text-3xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
-                  {stats.recentRecoveries}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">Recovered</p>
-              </div>
-              <div className="flex-shrink-0">
-                <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                  <CheckCircleIcon className="w-6 h-6 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 24h Alerts Card */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-orange-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  24h Alerts
-                </p>
-                <p className="text-3xl font-bold text-orange-600 group-hover:text-orange-700 transition-colors">
-                  {stats.last24HourAlerts}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">Last 24 hours</p>
-              </div>
-              <div className="flex-shrink-0">
-                <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                  <ClockIcon className="w-6 h-6 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Average Response Time Card */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-purple-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
