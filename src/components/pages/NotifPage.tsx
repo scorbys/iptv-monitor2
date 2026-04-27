@@ -303,7 +303,7 @@ export default function NotifPage() {
     const fetchDbCount = async () => {
       try {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-        const resp = await fetch("/api/notifications/stats", {
+        const resp = await fetch("/api/notifications/stats/count/total", {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -312,11 +312,8 @@ export default function NotifPage() {
         });
         if (!resp.ok || cancelled) return;
         const data = await resp.json();
-        if (data.success) {
-          const count = data.data?.totalNotifications ?? data.data?.total;
-          if (typeof count === 'number') {
-            setDbTotalCount(count);
-          }
+        if (data.success && typeof data.data?.total === 'number') {
+          setDbTotalCount(data.data.total);
         }
       } catch (_) { }
     };
@@ -339,12 +336,12 @@ export default function NotifPage() {
       } catch (_) { }
     };
 
-    fetchDbCount();
-    fetchAutoFixStats();
+    // Parallelisasi fetch untuk lebih cepat
+    Promise.all([fetchDbCount(), fetchAutoFixStats()]).catch(() => { });
+    
     // Refresh counts setiap 30 detik agar sinkron
     const interval = setInterval(() => {
-      fetchDbCount();
-      fetchAutoFixStats();
+      Promise.all([fetchDbCount(), fetchAutoFixStats()]).catch(() => { });
     }, 30_000);
     return () => {
       cancelled = true;
@@ -438,7 +435,7 @@ export default function NotifPage() {
     if (!mounted) return;
 
     const loadData = async () => {
-      // [FIX] Tampilkan cache dulu agar halaman langsung terlihat (instant)
+      // [OPTIMIZATION] Render cache immediately for instant UI display
       const stored = localStorage.getItem("notif-cache");
       if (stored) {
         try {
@@ -446,15 +443,18 @@ export default function NotifPage() {
           const cleaned = cleanOldNotifications(parsed);
           setNotifications(cleaned);
           setStats(calculateStats(cleaned));
+          setCacheHydrated(true);
+          setLoading(false); // Show UI instantly from cache
         } catch (_) { }
       }
-      // Baru set loading false supaya UI langsung muncul dari cache
-      // [FIX] Fetch fresh data di background tanpa memblokir render
+      
+      // [OPTIMIZATION] Fetch fresh data in background without blocking render
       try {
         await fetchNotifications();
       } catch (error) {
         componentLogger.error("Error loading notifications:", error);
       } finally {
+        // Ensure loading is false even if no cache exists
         setLoading(false);
         setCacheHydrated(true);
       }

@@ -289,6 +289,7 @@ export default function QosPage() {
   const [labelFilter, setLabelFilter] = useState<"all" | "Good" | "Fair" | "Poor" | "Very Poor">("all");
   const [sortKey, setSortKey] = useState<keyof QoSRow>("category");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
 
   const categoryCache = useRef<Map<string, string | null>>(new Map());
 
@@ -331,6 +332,37 @@ export default function QosPage() {
     window.addEventListener('notificationsCacheUpdated', handleCacheUpdated);
     return () => window.removeEventListener('notificationsCacheUpdated', handleCacheUpdated);
   }, [load]);
+
+  // ── Fetch DB total count (synced with NotifPage) ────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDbCount = async () => {
+      try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const resp = await fetch("/api/notifications/stats/count/total", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+        if (!resp.ok || cancelled) return;
+        const data = await resp.json();
+        if (data.success && typeof data.data?.total === 'number') {
+          setDbTotalCount(data.data.total);
+        }
+      } catch (_) { }
+    };
+
+    fetchDbCount();
+    // Refresh count setiap 30 detik untuk sinkronisasi
+    const interval = setInterval(fetchDbCount, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   // ── QoS rows ──────────────────────────────────────────────────────────────
 
@@ -527,7 +559,7 @@ export default function QosPage() {
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ExclamationTriangleIcon className="w-4 h-4 text-white" />
                       <span className="text-white font-semibold">
-                        {!freshLoaded ? "Loading…" : summary.totalIssues}
+                        {!freshLoaded ? "Loading…" : (dbTotalCount ?? summary.totalIssues ?? 0)}
                       </span>
                       <span className="text-blue-100 text-sm">Total Issues</span>
                     </div>
@@ -574,7 +606,7 @@ export default function QosPage() {
         {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <SummaryCard
             label="Total Issues"
-            value={summary.totalIssues}
+            value={dbTotalCount ?? summary.totalIssues ?? 0}
             sub="across all categories"
             color="border-blue-200 bg-blue-50"
           />
