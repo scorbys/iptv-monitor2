@@ -272,6 +272,7 @@ export default function NotifPage() {
   );
   // Authoritative total count fetched directly from MongoDB (avoids cache inflation)
   const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
+  const [countsLoading, setCountsLoading] = useState(true); // Track API counts loading state
   // Cache for FAQ categories to avoid recalculation
   const faqCategoryCache = useRef<Map<string, string>>(new Map());
 
@@ -300,6 +301,7 @@ export default function NotifPage() {
 
   useEffect(() => {
     let cancelled = false;
+    
     const fetchDbCount = async () => {
       try {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
@@ -315,7 +317,9 @@ export default function NotifPage() {
         if (data.success && typeof data.data?.total === 'number') {
           setDbTotalCount(data.data.total);
         }
-      } catch (_) { }
+      } catch (_) { 
+        componentLogger.error("[Stats] Failed to fetch total count", _);
+      }
     };
 
     const fetchAutoFixStats = async () => {
@@ -333,16 +337,29 @@ export default function NotifPage() {
         if (data.success && data.data) {
           setAutoFixStats(data.data);
         }
-      } catch (_) { }
+      } catch (_) { 
+        componentLogger.error("[Stats] Failed to fetch auto-fix stats", _);
+      }
     };
 
-    // Parallelisasi fetch untuk lebih cepat
-    Promise.all([fetchDbCount(), fetchAutoFixStats()]).catch(() => { });
+    // Parallelisasi fetch dan tandai selesai setelah kedua API call selesai
+    const initialFetch = async () => {
+      try {
+        await Promise.all([fetchDbCount(), fetchAutoFixStats()]);
+      } finally {
+        if (!cancelled) {
+          setCountsLoading(false); // Mark initial counts fetch as complete
+        }
+      }
+    };
     
-    // Refresh counts setiap 30 detik agar sinkron
+    initialFetch();
+    
+    // Refresh counts setiap 30 detik agar sinkron (tanpa update loading state)
     const interval = setInterval(() => {
       Promise.all([fetchDbCount(), fetchAutoFixStats()]).catch(() => { });
     }, 30_000);
+    
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -1152,7 +1169,7 @@ export default function NotifPage() {
   return (
     <div className="p-6 bg-blue-50 min-h-screen">
       {/* Header Stats */}
-      {stats && (
+      {stats && !countsLoading && (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-6">
           {/* Total Notifications Card */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-300 transform hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm group">
@@ -1162,7 +1179,7 @@ export default function NotifPage() {
                   Total
                 </p>
                 <p className="text-3xl font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
-                  {dbTotalCount ?? stats.totalNotifications}
+                  {dbTotalCount !== null ? dbTotalCount : stats.totalNotifications}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">All notifications</p>
               </div>
@@ -1239,6 +1256,26 @@ export default function NotifPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Stats Loading Skeleton (saat counts masih loading) */}
+      {stats && countsLoading && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 backdrop-blur-sm">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 w-full">
+                  <div className="h-3 bg-gray-200 rounded w-16 mb-3 animate-pulse"></div>
+                  <div className="h-8 bg-gray-300 rounded w-20 mb-2 animate-pulse"></div>
+                  <div className="h-3 bg-gray-100 rounded w-28 animate-pulse"></div>
+                </div>
+                <div className="flex-shrink-0">
+                  <div className="p-3 bg-gray-200 rounded-xl animate-pulse w-12 h-12"></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
