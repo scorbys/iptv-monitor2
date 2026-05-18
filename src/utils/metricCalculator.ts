@@ -247,6 +247,39 @@ export function getQualityLabelText(score: number): string {
   }
 }
 
+const LABELS: Record<number, MetricLabel> = {
+  5: {
+    label: 5,
+    category: 'Excellent',
+    color: 'green',
+    description: 'Performance is optimal',
+  },
+  4: {
+    label: 4,
+    category: 'Good',
+    color: 'blue',
+    description: 'Performance is acceptable',
+  },
+  3: {
+    label: 3,
+    category: 'Fair',
+    color: 'yellow',
+    description: 'Performance needs attention',
+  },
+  2: {
+    label: 2,
+    category: 'Poor',
+    color: 'orange',
+    description: 'Performance is degraded',
+  },
+  1: {
+    label: 1,
+    category: 'Very Poor',
+    color: 'red',
+    description: 'Performance is critical',
+  },
+};
+
 export function getPoorMetricSummary(
   metrics: ChannelMetrics,
   labeledMetrics?: LabeledMetrics
