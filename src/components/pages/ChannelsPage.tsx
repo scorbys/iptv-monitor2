@@ -22,8 +22,10 @@ import {
   type MetricLabel,
   type ChannelMetrics,
   type LabeledMetrics,
+  type PoorMetricSummary,
   calculateOverallQualityScore,
   getQualityLabelText,
+  getPoorMetricSummary,
   calculateMetricScore
 } from "@/utils/metricCalculator";
 
@@ -91,6 +93,35 @@ export default function ChannelsPage() {
     },
     [router]
   );
+
+  const getChannelHealthSummary = useCallback((channel: Channel) => {
+    const metrics: ChannelMetrics = {
+      packetLoss: channel.metrics?.packetLoss ?? 0,
+      latency: channel.metrics?.latency ?? 0,
+      jitter: channel.metrics?.jitter ?? 0,
+      error: channel.metrics?.error ?? 0,
+      recoveryTime: channel.metrics?.recoveryTime ?? 0,
+    };
+
+    const poorMetrics = getPoorMetricSummary(metrics, channel.labeledMetrics);
+    if (poorMetrics.length === 0) {
+      return {
+        text: "Healthy",
+        variant: "good",
+      };
+    }
+
+    return {
+      text: `${poorMetrics.length} metric ${poorMetrics.length === 1 ? "poor" : "poor"}: ${poorMetrics
+        .map((item) => item.metric === "packetLoss"
+          ? "Packet Loss"
+          : item.metric === "recoveryTime"
+            ? "Recovery Time"
+            : item.metric.charAt(0).toUpperCase() + item.metric.slice(1))
+        .join(", ")}`,
+      variant: "warning",
+    };
+  }, []);
 
   // Effect untuk mounted state
   useEffect(() => {
@@ -821,6 +852,9 @@ export default function ChannelsPage() {
                 <th className="px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="hidden sm:table-cell px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Health
+                </th>
                 <th className="hidden md:table-cell px-4 sm:px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Last Checked
                 </th>
@@ -889,6 +923,16 @@ export default function ChannelsPage() {
                   </td>
                   <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <StatusBadge status={channel.status} isMobile={false} />
+                  </td>
+                  <td className="hidden sm:table-cell px-4 sm:px-4 py-4 whitespace-nowrap text-sm">
+                    {(() => {
+                      const health = getChannelHealthSummary(channel);
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${health.variant === "good" ? "bg-green-100 text-green-800 border border-green-200" : "bg-orange-100 text-orange-800 border border-orange-200"}`}>
+                          {health.text}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="hidden md:table-cell px-4 sm:px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter

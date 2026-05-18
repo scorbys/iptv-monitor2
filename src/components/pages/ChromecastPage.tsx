@@ -18,7 +18,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
-import { ChannelMetrics, LabeledMetrics, calculateMetricScore } from "@/utils/metricCalculator";
+import { ChannelMetrics, LabeledMetrics, PoorMetricSummary, getPoorMetricSummary, calculateMetricScore } from "@/utils/metricCalculator";
 
 interface Chromecast {
   idCast: number;
@@ -67,6 +67,34 @@ export default function ChromecastPage() {
     // Gunakan deviceName untuk consistency, fallback ke idCast
     const deviceId = device.deviceName || device.idCast.toString();
     router.push(`/chromecast/${deviceId}`); // TANPA encodeURIComponent
+  };
+
+  const getChromecastHealthSummary = (device: Chromecast) => {
+    const metrics: ChannelMetrics = {
+      packetLoss: device.metrics?.packetLoss ?? 0,
+      latency: device.metrics?.latency ?? 0,
+      jitter: device.metrics?.jitter ?? 0,
+      error: device.metrics?.error ?? 0,
+      recoveryTime: device.metrics?.recoveryTime ?? 0,
+    };
+
+    const poorMetrics = getPoorMetricSummary(metrics, device.labeledMetrics);
+    if (poorMetrics.length === 0) {
+      return { text: "Healthy", variant: "good" };
+    }
+
+    return {
+      text: `${poorMetrics.length} metric${poorMetrics.length > 1 ? "s" : ""} poor: ${poorMetrics
+        .map((item) =>
+          item.metric === "packetLoss"
+            ? "Packet Loss"
+            : item.metric === "recoveryTime"
+            ? "Recovery Time"
+            : item.metric.charAt(0).toUpperCase() + item.metric.slice(1)
+        )
+        .join(", ")}`,
+      variant: "warning",
+    };
   };
 
   // Effect untuk mounted state
@@ -899,6 +927,14 @@ export default function ChromecastPage() {
                           Response: {device.responseTime}ms
                         </div>
                       )}
+                      {(() => {
+                        const health = getChromecastHealthSummary(device);
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${health.variant === "good" ? "bg-green-100 text-green-800 border border-green-200" : "bg-orange-100 text-orange-800 border border-orange-200"}`}>
+                            {health.text}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </td>
 

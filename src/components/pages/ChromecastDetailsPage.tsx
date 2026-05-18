@@ -20,7 +20,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
-import { calculateMetricScore } from "@/utils/metricCalculator";
+import { calculateMetricScore, getPoorMetricSummary, type ChannelMetrics } from "@/utils/metricCalculator";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
   XAxis,
@@ -350,6 +350,26 @@ export default function ChromecastDetailPage({
   const [networkHistory, setNetworkHistory] = useState<NetworkHistory[]>([]);
   const [activeTab, setActiveTab] = useState("24h");
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  const chromecastPoorMetrics = useMemo(() => {
+    if (!networkMetrics) return [];
+    return getPoorMetricSummary(networkMetrics as ChannelMetrics);
+  }, [networkMetrics]);
+
+  const chromecastPoorMetricsText = chromecastPoorMetrics.length
+    ? chromecastPoorMetrics
+        .map((entry) => {
+          const metricNames: Record<string, string> = {
+            packetLoss: "Packet Loss",
+            latency: "Latency",
+            jitter: "Jitter",
+            error: "Error Rate",
+            recoveryTime: "Recovery Time",
+          };
+          return `${metricNames[entry.metric] ?? entry.metric} ${entry.category}`;
+        })
+        .join(", ")
+    : "Good";
 
   // Auto-fix log state
   const [autoFixLogs, setAutoFixLogs] = useState<AutoFixLog[]>([]);
@@ -1985,6 +2005,9 @@ export default function ChromecastDetailPage({
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Health
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Performance
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2045,15 +2068,15 @@ export default function ChromecastDetailPage({
                         ></div>
                         {device.isOnline ? "Online" : "Offline"}
                       </span>
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${device.isPingable
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
-                          }`}
-                      >
-                        {device.isPingable ? "Pingable" : "Disconnect"}
-                      </span>
                     </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${chromecastPoorMetrics.length > 0
+                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                      : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    }`}>
+                      {chromecastPoorMetricsText}
+                    </span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
@@ -2160,6 +2183,16 @@ export default function ChromecastDetailPage({
                       }`}
                   >
                     {device.isPingable ? "Pingable" : "Disconnect"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Health</p>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${chromecastPoorMetrics.length > 0
+                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                  }`}>
+                    {chromecastPoorMetricsText}
                   </span>
                 </div>
 

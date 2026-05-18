@@ -18,7 +18,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
-import { calculateMetricScore } from "@/utils/metricCalculator";
+import { calculateMetricScore, getPoorMetricSummary, type ChannelMetrics } from "@/utils/metricCalculator";
 import IPTVPreview from '../IPTVPreview';
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
@@ -330,6 +330,26 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   const [networkHistory, setNetworkHistory] = useState<NetworkHistory[]>([]);
   const [activeTab, setActiveTab] = useState("24h");
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  const tvPoorMetrics = useMemo(() => {
+    if (!networkMetrics) return [];
+    return getPoorMetricSummary(networkMetrics as ChannelMetrics);
+  }, [networkMetrics]);
+
+  const tvPoorMetricsText = tvPoorMetrics.length
+    ? tvPoorMetrics
+        .map((entry) => {
+          const metricNames: Record<string, string> = {
+            packetLoss: "Packet Loss",
+            latency: "Latency",
+            jitter: "Jitter",
+            error: "Error Rate",
+            recoveryTime: "Recovery Time",
+          };
+          return `${metricNames[entry.metric] ?? entry.metric} ${entry.category}`;
+        })
+        .join(", ")
+    : "Good";
 
   // Auto-fix log state
   const [autoFixLogs, setAutoFixLogs] = useState<AutoFixLog[]>([]);
@@ -1818,6 +1838,9 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Health
+                  </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Model
                   </th>
@@ -1873,6 +1896,14 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                         ? tvs.status.charAt(0).toUpperCase() +
                         tvs.status.slice(1)
                         : "Unknown"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tvPoorMetrics.length > 0
+                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                      : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    }`}>
+                      {tvPoorMetricsText}
                     </span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
@@ -1968,6 +1999,16 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                         }`}
                     ></div>
                     {tvs.isOnline ? "Online" : "Offline"}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Health</p>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tvPoorMetrics.length > 0
+                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                  }`}>
+                    {tvPoorMetricsText}
                   </span>
                 </div>
 

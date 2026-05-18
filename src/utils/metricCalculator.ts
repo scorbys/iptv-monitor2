@@ -25,6 +25,15 @@ export interface LabeledMetrics extends ChannelMetrics {
   overallLabel: MetricLabel;
 }
 
+export interface PoorMetricSummary {
+  metric: keyof ChannelMetrics;
+  label: MetricLabel;
+  value: number;
+  category: string;
+  unit: string;
+  message: string;
+}
+
 /**
  * Get Tailwind CSS color classes for metric labels
  * Used for styling metric displays in the UI
@@ -236,6 +245,41 @@ export function getQualityLabelText(score: number): string {
     case 1: return 'Very Poor';
     default: return 'Unknown';
   }
+}
+
+export function getPoorMetricSummary(
+  metrics: ChannelMetrics,
+  labeledMetrics?: LabeledMetrics
+): PoorMetricSummary[] {
+  const metricDefinitions: Array<{
+    key: keyof ChannelMetrics;
+    name: string;
+    unit: string;
+  }> = [
+    { key: 'packetLoss', name: 'Packet Loss', unit: '%' },
+    { key: 'latency', name: 'Latency', unit: 'ms' },
+    { key: 'jitter', name: 'Jitter', unit: 'ms' },
+    { key: 'error', name: 'Error Rate', unit: '%' },
+    { key: 'recoveryTime', name: 'Recovery Time', unit: 's' },
+  ];
+
+  return metricDefinitions
+    .map(({ key, name, unit }) => {
+      const value = metrics[key] ?? 0;
+      const label =
+        labeledMetrics?.[`${key}Label` as keyof LabeledMetrics] as MetricLabel | undefined ??
+        LABELS[calculateMetricScore(value, key) as keyof typeof LABELS];
+      const category = getQualityLabelText(label.label);
+      return {
+        metric: key,
+        label,
+        value,
+        category,
+        unit,
+        message: `${name} ${value}${unit} masuk kategori ${category}.`,
+      };
+    })
+    .filter((entry) => entry.label.label <= 2);
 }
 
 /**

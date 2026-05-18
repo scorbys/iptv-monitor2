@@ -16,7 +16,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
 import { useRouter } from "next/navigation";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
-import { ChannelMetrics, LabeledMetrics, calculateMetricScore } from "@/utils/metricCalculator";
+import { ChannelMetrics, LabeledMetrics, PoorMetricSummary, getPoorMetricSummary, calculateMetricScore } from "@/utils/metricCalculator";
 
 interface TV {
   id: number;
@@ -60,6 +60,34 @@ export default function TvPage() {
   const handleTvClick = (tv: TV) => {
     const tvId = tv.roomNo || tv.id;
     router.push(`/hospitality/${encodeURIComponent(tvId)}`);
+  };
+
+  const getTvHealthSummary = (tv: TV) => {
+    const metrics: ChannelMetrics = {
+      packetLoss: tv.metrics?.packetLoss ?? 0,
+      latency: tv.metrics?.latency ?? 0,
+      jitter: tv.metrics?.jitter ?? 0,
+      error: tv.metrics?.error ?? 0,
+      recoveryTime: tv.metrics?.recoveryTime ?? 0,
+    };
+
+    const poorMetrics = getPoorMetricSummary(metrics, tv.labeledMetrics);
+    if (poorMetrics.length === 0) {
+      return { text: "Healthy", variant: "good" };
+    }
+
+    return {
+      text: `${poorMetrics.length} metric${poorMetrics.length > 1 ? "s" : ""} poor: ${poorMetrics
+        .map((item) =>
+          item.metric === "packetLoss"
+            ? "Packet Loss"
+            : item.metric === "recoveryTime"
+            ? "Recovery Time"
+            : item.metric.charAt(0).toUpperCase() + item.metric.slice(1)
+        )
+        .join(", ")}`,
+      variant: "warning",
+    };
   };
 
   useEffect(() => {
@@ -720,6 +748,9 @@ export default function TvPage() {
                   Status
                 </th>
                 <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Health
+                </th>
+                <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Last Checked
                 </th>
                 <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -760,6 +791,16 @@ export default function TvPage() {
                       status={tv.status}
                       responseTime={tv.responseTime}
                     />
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    {(() => {
+                      const health = getTvHealthSummary(tv);
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${health.variant === "good" ? "bg-green-100 text-green-800 border border-green-200" : "bg-orange-100 text-orange-800 border border-orange-200"}`}>
+                          {health.text}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     <DateFormatter
