@@ -749,9 +749,8 @@ export default function ChannelDetailsPage({
       setLoadingLogs(true);
       const channelId = channel.slug || channel.channelNumber || channel.id;
       const encodedChannelId = encodeURIComponent(channelId.toString());
-
-      // Call backend API directly (not through frontend route)
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/channels/${encodedChannelId}/auto-fix?history=true`;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const apiUrl = `${apiBaseUrl.replace(/\/$/, "")}/api/channels/${encodedChannelId}/auto-fix?history=true`;
 
       const response = await fetch(apiUrl, {
         credentials: 'include',
@@ -826,8 +825,8 @@ export default function ChannelDetailsPage({
 
       const channelId = channel.slug || channel.channelNumber || channel.id;
       const encodedChannelId = encodeURIComponent(channelId.toString());
-
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/channels/${encodedChannelId}/auto-fix`;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const apiUrl = `${apiBaseUrl.replace(/\/$/, "")}/api/channels/${encodedChannelId}/auto-fix`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -875,9 +874,10 @@ export default function ChannelDetailsPage({
       // Prepare issue description from channel status
       const issueDescription = channel.error || 'Channel offline';
       const category = !channel.isOnline ? 'Kategori-5' : 'Unknown';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
       // Call backend API directly
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/channels/${encodedChannelId}/auto-fix`;
+      const apiUrl = `${apiBaseUrl.replace(/\/$/, "")}/api/channels/${encodedChannelId}/auto-fix`;
 
       const response = await fetch(apiUrl, {
         method: 'POST',

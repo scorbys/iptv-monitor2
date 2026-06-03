@@ -88,8 +88,8 @@ export default function ChannelsPage() {
 
   const handleChannelClick = useCallback(
     (channel: Channel) => {
-      const channelId = channel.channelName || channel.id;
-      router.push(`/channels/${channelId}`);
+      const channelRouteId = channel.slug || channel.channelName || String(channel.id);
+      router.push(`/channels/${encodeURIComponent(channelRouteId)}`);
     },
     [router]
   );
