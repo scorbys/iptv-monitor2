@@ -281,9 +281,17 @@ const LABELS: Record<number, MetricLabel> = {
 };
 
 export function getPoorMetricSummary(
-  metrics: ChannelMetrics,
+  metrics?: ChannelMetrics,
   labeledMetrics?: LabeledMetrics
 ): PoorMetricSummary[] {
+  const safeMetrics: ChannelMetrics = metrics ?? {
+    packetLoss: 0,
+    latency: 0,
+    jitter: 0,
+    error: 0,
+    recoveryTime: 0,
+  };
+
   const metricDefinitions: Array<{
     key: keyof ChannelMetrics;
     name: string;
@@ -298,13 +306,13 @@ export function getPoorMetricSummary(
 
   return metricDefinitions
     .map(({ key, name, unit }) => {
-      const value = metrics[key] ?? 0;
+      const value = safeMetrics[key] ?? 0;
       const defaultLabel = LABELS[calculateMetricScore(value, key) as keyof typeof LABELS];
       const label =
         (labeledMetrics?.[`${key}Label` as keyof LabeledMetrics] as MetricLabel | undefined) ??
         defaultLabel ??
         LABELS[3]; // Fallback to Fair if somehow defaultLabel is undefined
-      const category = getQualityLabelText(label?.label ?? 3);
+      const category = getQualityLabelText(label.label);
       return {
         metric: key,
         label,
@@ -314,7 +322,7 @@ export function getPoorMetricSummary(
         message: `${name} ${value}${unit} masuk kategori ${category}.`,
       };
     })
-    .filter((entry) => entry.label?.label <= 2);
+    .filter((entry) => entry.label.label <= 2);
 }
 
 /**

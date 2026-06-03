@@ -381,7 +381,13 @@ export default function ChannelDetailsPage({
     if (!channel) {
       return [];
     }
-    return getPoorMetricSummary(channel.metrics, channel.labeledMetrics);
+    return getPoorMetricSummary(channel.metrics ?? {
+      packetLoss: 0,
+      latency: 0,
+      jitter: 0,
+      error: 0,
+      recoveryTime: 0,
+    }, channel.labeledMetrics);
   }, [channel]);
 
   const channelPoorMetricsText = channelPoorMetrics.length
