@@ -60,8 +60,8 @@ const nextConfig: NextConfig = {
 
     // Production: Gunakan backend URL atau fallback ke Railway
     if (process.env.NODE_ENV === "production") {
-      // Fallback ke Railway URL jika backend URL tidak diset
-      const productionBackendUrl = backendUrl || "https://iptv-monitor-backend-production.up.railway.app";
+      // Fallback ke backend domain produksi jika backend URL tidak diset
+      const productionBackendUrl = backendUrl || "https://be.radissonuluwatu.my.id";
 
       // Validasi HTTPS hanya jika backendUrl diset secara manual
       if (backendUrl) {
@@ -72,7 +72,7 @@ const nextConfig: NextConfig = {
           }
         } catch (error) {
           // Invalid URL, use fallback
-          console.warn(`Warning: Invalid backend URL, using fallback Railway URL`);
+          console.warn(`Warning: Invalid backend URL, using fallback production backend URL`);
         }
       }
 
@@ -114,9 +114,9 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
-        "https://iptv-monitor.vercel.app",
-        "https://iptv-monitor-backend-production.up.railway.app",
-        "https://iptv.adolin.id"
+        "https://monitoring.radissonuluwatu.my.id",
+        "https://be.radissonuluwatu.my.id",
+        "https://localhost:3000",
       ],
     },
   },
