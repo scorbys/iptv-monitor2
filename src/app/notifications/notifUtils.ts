@@ -799,11 +799,11 @@ export async function fetchAllNotifications(): Promise<Notification[]> {
 
     if (deviceData) {
       const metrics = deviceData.metrics || deviceData.networkStats || {};
-      notification.packetLoss = metrics.packetLoss || deviceData.packetLoss;
-      notification.jitter = metrics.jitter || deviceData.jitter;
-      notification.latency = metrics.latency || deviceData.latency || deviceData.responseTime;
-      notification.errorRate = metrics.errorRate || deviceData.errorRate;
-      notification.recoveryTime = metrics.recoveryTime || deviceData.recoveryTime;
+      notification.packetLoss = metrics.packetLoss ?? deviceData.packetLoss ?? 0;
+      notification.jitter = metrics.jitter ?? deviceData.jitter ?? 0;
+      notification.latency = metrics.latency ?? deviceData.latency ?? deviceData.responseTime ?? 0;
+      notification.errorRate = metrics.errorRate ?? deviceData.errorRate ?? 0;
+      notification.recoveryTime = metrics.recoveryTime ?? deviceData.recoveryTime ?? 0;
       notification.responseTime = deviceData.responseTime;
       notification.signalLevel = deviceData.signalLevel;
       // [FIX] Also carry networkStats (sent/received/bandwidth) from device data

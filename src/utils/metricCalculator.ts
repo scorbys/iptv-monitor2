@@ -299,10 +299,12 @@ export function getPoorMetricSummary(
   return metricDefinitions
     .map(({ key, name, unit }) => {
       const value = metrics[key] ?? 0;
+      const defaultLabel = LABELS[calculateMetricScore(value, key) as keyof typeof LABELS];
       const label =
-        labeledMetrics?.[`${key}Label` as keyof LabeledMetrics] as MetricLabel | undefined ??
-        LABELS[calculateMetricScore(value, key) as keyof typeof LABELS];
-      const category = getQualityLabelText(label.label);
+        (labeledMetrics?.[`${key}Label` as keyof LabeledMetrics] as MetricLabel | undefined) ??
+        defaultLabel ??
+        LABELS[3]; // Fallback to Fair if somehow defaultLabel is undefined
+      const category = getQualityLabelText(label?.label ?? 3);
       return {
         metric: key,
         label,
@@ -312,7 +314,7 @@ export function getPoorMetricSummary(
         message: `${name} ${value}${unit} masuk kategori ${category}.`,
       };
     })
-    .filter((entry) => entry.label.label <= 2);
+    .filter((entry) => entry.label?.label <= 2);
 }
 
 /**
