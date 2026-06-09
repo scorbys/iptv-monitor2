@@ -254,7 +254,7 @@ export default function MLDashboardPage() {
   const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'staff' | 'analytics'>('overview');
 
   useEffect(() => {
     const persisted = getPersistedTrainingState();
@@ -1145,6 +1145,14 @@ export default function MLDashboardPage() {
     return autoFixStats.byCategory; // format {_id, count, success}
   }, [autoFixStats]);
 
+  const pendingQueue = useMemo(
+    () => autoFixStats?.pendingDetails ?? [],
+    [autoFixStats]
+  );
+
+  const pendingCount = autoFixStats?.byStatus.pending ?? 0;
+  const executingCount = autoFixStats?.byStatus.executing ?? 0;
+
   // Update auto-refresh to include notifications
   useEffect(() => {
     if (autoRefreshInterval > 0) {
@@ -1421,6 +1429,24 @@ export default function MLDashboardPage() {
             <span>Overview</span>
           </button>
           <button
+            onClick={() => setActiveTab('pending')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'pending'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
+          >
+            <ClockIcon className="w-5 h-5" />
+            <span>Pending Queue</span>
+            {(pendingCount + executingCount) > 0 && (
+              <span className={`min-w-6 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'pending'
+                ? 'bg-white text-blue-700'
+                : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                {pendingCount + executingCount}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab('staff')}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'staff'
               ? 'bg-blue-600 text-white shadow-md'
@@ -1508,64 +1534,6 @@ export default function MLDashboardPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {(autoFixStats?.byStatus.pending ?? 0) > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-yellow-200 p-5">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Pending Auto-Fix Queue</h2>
-                  <p className="text-sm text-gray-500">
-                    Device, kategori, tanggal, dan action yang masih menunggu proses.
-                  </p>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
-                  {autoFixStats?.byStatus.pending ?? 0} pending
-                </span>
-              </div>
-
-              {autoFixStats?.pendingDetails && autoFixStats.pendingDetails.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {autoFixStats.pendingDetails.map((item) => (
-                    <div key={item.fixId} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">
-                            {item.deviceName || item.deviceId || "Unknown device"}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {item.roomNo ? `Room ${item.roomNo} • ` : ""}
-                            {deviceTypeLabel(item.deviceType) || item.source || "Unknown type"}
-                          </p>
-                        </div>
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                          {item.status}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {item.category && (
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
-                            {formatCategoryLabel(item.category)}
-                          </span>
-                        )}
-                        {item.action && (
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                            {item.action}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {new Date(item.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
-                  Ada pending count, tetapi detail pending belum tersedia dari backend untuk periode ini.
-                </div>
-              )}
             </div>
           )}
 
@@ -1785,6 +1753,106 @@ export default function MLDashboardPage() {
                   </div>
                 );
               })()}
+        </div>
+      )}
+
+      {activeTab === 'pending' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-yellow-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending</p>
+              <p className="text-3xl font-bold text-yellow-600">{pendingCount}</p>
+              <p className="text-xs text-gray-400 mt-1">Waiting to be processed</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Executing</p>
+              <p className="text-3xl font-bold text-blue-600">{executingCount}</p>
+              <p className="text-xs text-gray-400 mt-1">Currently running</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Visible Queue</p>
+              <p className="text-3xl font-bold text-gray-900">{pendingQueue.length}</p>
+              <p className="text-xs text-gray-400 mt-1">Latest queue items in this period</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Pending Auto-Fix Queue</h2>
+                <p className="text-sm text-gray-500">
+                  Device, kategori, action, status, dan tanggal untuk auto-fix yang belum selesai.
+                </p>
+              </div>
+              <span className="inline-flex w-fit px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
+                {pendingCount + executingCount} open
+              </span>
+            </div>
+
+            {pendingQueue.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Device</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {pendingQueue.map((item) => {
+                      const deviceName = item.deviceName || item.deviceId || "Unknown device";
+                      const typeLabel = deviceTypeLabel(item.deviceType) || item.source || "Unknown type";
+                      return (
+                        <tr key={item.fixId} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate max-w-[240px]" title={deviceName}>
+                                {deviceName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.roomNo ? `Room ${item.roomNo} • ` : ""}
+                                {typeLabel}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                              {formatCategoryLabel(item.category)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {item.action || "No action"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${item.status === 'executing'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-8 text-center">
+                <ClockIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-sm font-semibold text-gray-700">No pending auto-fix items</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Queue kosong untuk periode {dateRange} hari terakhir.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
