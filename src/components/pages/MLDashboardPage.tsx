@@ -1149,10 +1149,12 @@ export default function MLDashboardPage() {
   useEffect(() => {
     if (autoRefreshInterval > 0) {
       const interval = setInterval(() => {
-        fetchAutoFixStats();
-        fetchRecentAutoFixes();
-        fetchTimeSeriesData();
-        //fetchAllNotificationsForDashboard();
+        if (document.visibilityState === "visible") {
+          fetchAutoFixStats();
+          fetchRecentAutoFixes();
+          fetchTimeSeriesData();
+          //fetchAllNotificationsForDashboard();
+        }
       }, autoRefreshInterval * 1000);
 
       return () => clearInterval(interval);

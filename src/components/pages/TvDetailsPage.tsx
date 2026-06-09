@@ -499,7 +499,11 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     };
 
     fetchNetworkMetrics();
-    const interval = setInterval(fetchNetworkMetrics, 30000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchNetworkMetrics();
+      }
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [tvs, mounted]);
@@ -1017,7 +1021,9 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
     setPollingActive(true);
     const interval = setInterval(() => {
-      fetchAutoFixLogs();
+      if (document.visibilityState === "visible") {
+        fetchAutoFixLogs();
+      }
     }, 10000);
     return () => {
       clearInterval(interval);

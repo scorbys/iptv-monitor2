@@ -520,7 +520,11 @@ export default function ChannelDetailsPage({
     };
 
     fetchNetworkMetrics();
-    const interval = setInterval(fetchNetworkMetrics, 30000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchNetworkMetrics();
+      }
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [channel, mounted]);
@@ -1131,7 +1135,9 @@ export default function ChannelDetailsPage({
     }
     setPollingActive(true);
     const interval = setInterval(() => {
-      fetchAutoFixLogs();
+      if (document.visibilityState === "visible") {
+        fetchAutoFixLogs();
+      }
     }, 10000);
     return () => {
       clearInterval(interval);
