@@ -859,7 +859,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       // Prepare issue description from TV status
       const issueDescription = tvs.error || 'TV offline';
-      const category = !tvs.isOnline ? 'Kategori-2' : 'Unknown';
+      const category = !tvs.isOnline ? 'Kategori-3' : 'Unknown';
 
       // Call backend API directly
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix`;

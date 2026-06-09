@@ -141,6 +141,7 @@ interface AutoFixStats {
     success: number;
     failed: number;
     cancelled: number;
+    manual_required?: number;
   };
   byCategory: Array<{
     _id: string;
@@ -167,13 +168,25 @@ interface AutoFixStats {
     status: string;
     category?: string | null;
     action?: string | null;
+    description?: string | null;
+    confidence?: number | null;
     deviceType?: string | null;
     deviceId?: string | null;
     deviceName?: string | null;
     roomNo?: string | number | null;
     source?: string | null;
+    isStale?: boolean;
+    needsReview?: boolean;
+    staleReason?: string | null;
     createdAt: string;
   }>;
+  pendingSummary?: {
+    totalOpen: number;
+    active: number;
+    needsReview: number;
+    stale: number;
+    staleAfterHours: number;
+  };
   period: string;
 }
 
@@ -234,6 +247,7 @@ export default function MLDashboardPage() {
   const [trainingInProgress, setTrainingInProgress] = useState(false);
   const [trainingJobId, setTrainingJobId] = useState<string | null>(null);
   const [trainingStatusMessage, setTrainingStatusMessage] = useState<string | null>(null);
+  const [reviewingFixId, setReviewingFixId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -714,6 +728,51 @@ export default function MLDashboardPage() {
     }
   };
 
+  const handleReviewAutoFix = async (fixId: string, decision: "approve" | "reject") => {
+    const confirmed = window.confirm(
+      decision === "approve"
+        ? "Approve this item for manual/on-site review?"
+        : "Reject and cancel this pending auto-fix item?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setReviewingFixId(fixId);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/auto-fix/${encodeURIComponent(fixId)}/review`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          decision,
+          note: decision === "approve"
+            ? "Approved from ML Dashboard pending queue"
+            : "Rejected from ML Dashboard pending queue",
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || `Failed to ${decision} auto-fix item`);
+      }
+
+      await Promise.all([
+        fetchAutoFixStats(),
+        fetchRecentAutoFixes(),
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to review auto-fix item";
+      setError(message);
+      alert(message);
+    } finally {
+      setReviewingFixId(null);
+    }
+  };
+
   const handleTrain = async (file: File, sheetName: string): Promise<TrainingResult> => {
     try {
       setError(null);
@@ -1152,6 +1211,8 @@ export default function MLDashboardPage() {
 
   const pendingCount = autoFixStats?.byStatus.pending ?? 0;
   const executingCount = autoFixStats?.byStatus.executing ?? 0;
+  const pendingReviewCount = autoFixStats?.pendingSummary?.needsReview ?? pendingQueue.filter(item => item.needsReview).length;
+  const stalePendingCount = autoFixStats?.pendingSummary?.stale ?? pendingQueue.filter(item => item.isStale).length;
 
   // Update auto-refresh to include notifications
   useEffect(() => {
@@ -1770,9 +1831,9 @@ export default function MLDashboardPage() {
               <p className="text-xs text-gray-400 mt-1">Currently running</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Visible Queue</p>
-              <p className="text-3xl font-bold text-gray-900">{pendingQueue.length}</p>
-              <p className="text-xs text-gray-400 mt-1">Latest queue items in this period</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Needs Review</p>
+              <p className="text-3xl font-bold text-orange-600">{pendingReviewCount}</p>
+              <p className="text-xs text-gray-400 mt-1">{stalePendingCount} stale item(s)</p>
             </div>
           </div>
 
@@ -1798,6 +1859,8 @@ export default function MLDashboardPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Review</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Decision</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
                     </tr>
                   </thead>
@@ -1824,7 +1887,14 @@ export default function MLDashboardPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">
-                            {item.action || "No action"}
+                            <div>
+                              <p>{item.action || "No action"}</p>
+                              {item.confidence != null && (
+                                <p className="text-xs text-gray-400">
+                                  Confidence {(item.confidence * 100).toFixed(1)}%
+                                </p>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${item.status === 'executing'
@@ -1833,6 +1903,47 @@ export default function MLDashboardPage() {
                               }`}>
                               {item.status}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {item.needsReview ? (
+                              <span
+                                className="inline-flex max-w-[280px] px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200"
+                                title={item.staleReason || "Needs review"}
+                              >
+                                {item.isStale ? "Stale / review" : "Review needed"}
+                              </span>
+                            ) : (
+                              <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                Actionable
+                              </span>
+                            )}
+                            {item.staleReason && (
+                              <p className="mt-1 max-w-[280px] truncate text-xs text-gray-500" title={item.staleReason}>
+                                {item.staleReason}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleReviewAutoFix(item.fixId, "approve")}
+                                disabled={reviewingFixId === item.fixId}
+                                className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Approve this queue item for manual/on-site handling"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReviewAutoFix(item.fixId, "reject")}
+                                disabled={reviewingFixId === item.fixId}
+                                className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Reject and cancel this pending auto-fix item"
+                              >
+                                Reject
+                              </button>
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                             {new Date(item.createdAt).toLocaleString()}
