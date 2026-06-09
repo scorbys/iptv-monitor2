@@ -123,7 +123,7 @@ interface TrainingStatusResponse {
   success: boolean;
   data: {
     job_id: string;
-    status: 'running' | 'completed' | 'failed';
+    status: 'pending' | 'running' | 'completed' | 'failed';
     created_at: number;
     completed_at: number | null;
     error: string | null;
@@ -161,6 +161,18 @@ interface AutoFixStats {
     roomNo: string | number | null;
     count: number;
     success: number;
+  }>;
+  pendingDetails?: Array<{
+    fixId: string;
+    status: string;
+    category?: string | null;
+    action?: string | null;
+    deviceType?: string | null;
+    deviceId?: string | null;
+    deviceName?: string | null;
+    roomNo?: string | number | null;
+    source?: string | null;
+    createdAt: string;
   }>;
   period: string;
 }
@@ -681,7 +693,9 @@ export default function MLDashboardPage() {
       }
 
       const status = data.data.status;
+      const elapsedSeconds = Math.floor((Date.now() - start) / 1000);
       if (status === 'completed') {
+        setTrainingStatusMessage(`Training job ${jobId} completed. Refreshing model info...`);
         return data.data.result || { job_id: jobId, message: 'Training completed' };
       }
 
@@ -693,6 +707,9 @@ export default function MLDashboardPage() {
         throw new Error('Training status polling timed out. Please check back later.');
       }
 
+      setTrainingStatusMessage(
+        `Training job ${jobId} is ${status}. Elapsed ${elapsedSeconds}s. Checking again in 5s...`
+      );
       await delay(5000);
     }
   };
@@ -1489,6 +1506,64 @@ export default function MLDashboardPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {(autoFixStats?.byStatus.pending ?? 0) > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-yellow-200 p-5">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Pending Auto-Fix Queue</h2>
+                  <p className="text-sm text-gray-500">
+                    Device, kategori, tanggal, dan action yang masih menunggu proses.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
+                  {autoFixStats?.byStatus.pending ?? 0} pending
+                </span>
+              </div>
+
+              {autoFixStats?.pendingDetails && autoFixStats.pendingDetails.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {autoFixStats.pendingDetails.map((item) => (
+                    <div key={item.fixId} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">
+                            {item.deviceName || item.deviceId || "Unknown device"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {item.roomNo ? `Room ${item.roomNo} • ` : ""}
+                            {deviceTypeLabel(item.deviceType) || item.source || "Unknown type"}
+                          </p>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                          {item.status}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {item.category && (
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                            {formatCategoryLabel(item.category)}
+                          </span>
+                        )}
+                        {item.action && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                            {item.action}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {new Date(item.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
+                  Ada pending count, tetapi detail pending belum tersedia dari backend untuk periode ini.
+                </div>
+              )}
             </div>
           )}
 

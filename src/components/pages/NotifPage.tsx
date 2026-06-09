@@ -559,9 +559,7 @@ export default function NotifPage() {
     window.dispatchEvent(chatEvent);
   };
 
-  const activeIssuesDisplay = autoFixStats
-    ? Math.max(0, autoFixStats.total - (autoFixStats.byStatus.pending ?? 0))
-    : stats?.activeIssues ?? 0;
+  const activeIssuesDisplay = stats?.activeIssues ?? 0;
 
   // Helper function to normalize category names
   const normalizeCategoryName = (category: string): string => {
