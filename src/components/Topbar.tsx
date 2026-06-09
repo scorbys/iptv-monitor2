@@ -219,11 +219,13 @@ export default function Topbar() {
   const fetchUserData = useCallback(async () => {
     try {
       setUserLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch("/api/auth/verify", {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
@@ -286,9 +288,13 @@ export default function Topbar() {
 
       // Fetch real total from backend stats endpoint for accurate count
       try {
+        const statsToken = localStorage.getItem("authToken") || localStorage.getItem("token");
         const statsRes = await fetch("/api/notifications/stats", {
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(statsToken ? { Authorization: `Bearer ${statsToken}` } : {}),
+          },
         });
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
@@ -719,7 +725,7 @@ export default function Topbar() {
                         {user.avatar ? (
                           <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
                             <img
-                              src={user.avatar}
+                              src={getBackendUrl(user.avatar)}
                               alt={user.username}
                               width={48}
                               height={48}
@@ -756,7 +762,7 @@ export default function Topbar() {
                         <p className="text-sm text-slate-600">{user.email}</p>
                         {user.provider === "google" && (
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100text-blue-700 rounded-full">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
                               <svg
                                 className="w-3 h-3"
                                 viewBox="0 0 24 24"

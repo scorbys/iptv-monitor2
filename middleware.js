@@ -15,9 +15,14 @@ const ROUTE_CONFIG = {
   // Protected routes that require authentication
   protected: [
     "/dashboard",
-    "/channel",
-    "/hospitality",
+    "/channels",
     "/chromecast",
+    "/hospitality",
+    "/ml-dashboard",
+    "/qos",
+    "/notifications",
+    "/account",
+    "/help",
     "/users",
     "/staff",
   ],
@@ -83,7 +88,7 @@ async function verifyAuthToken(token) {
 
     // Validasi payload
     if (!payload || !payload.userId || !payload.username) {
-      console.error("Invalid token payload:", payload);
+      console.error("Invalid token payload");
       return { isValid: false, user: null };
     }
 
@@ -218,7 +223,7 @@ export async function middleware(request) {
 
         const { payload } = await Promise.race([verifyPromise, timeoutPromise]);
 
-        console.log("[MIDDLEWARE] Query token verified successfully:", payload);
+        console.log("[MIDDLEWARE] Query token verified successfully");
 
         // Token is valid, set cookie and continue to the page (NOT redirect)
         const response = NextResponse.next();
@@ -230,13 +235,13 @@ export async function middleware(request) {
               httpOnly: false,
               secure: true,
               sameSite: "none",
-              maxAge: 7 * 24 * 60 * 60, // 7 days
+              maxAge: 60 * 60, // 1 hour
               path: "/"
             }
           : {
               httpOnly: false,
               sameSite: "lax",
-              maxAge: 7 * 24 * 60 * 60,
+              maxAge: 60 * 60, // 1 hour
               path: "/"
             };
 
@@ -348,8 +353,17 @@ export async function middleware(request) {
       );
     }
 
-    // Check for admin-only routes
-    const adminOnlyRoutes = ["/users", "/staff"];
+    // Check for admin-only routes (guest may only access:
+    // /dashboard, /notifications, /help, /account)
+    const adminOnlyRoutes = [
+      "/channels",
+      "/chromecast",
+      "/hospitality",
+      "/ml-dashboard",
+      "/qos",
+      "/users",
+      "/staff",
+    ];
     const isAdminOnlyRoute = adminOnlyRoutes.some(route =>
       pathname === route || pathname.startsWith(route + "/")
     );

@@ -1329,7 +1329,7 @@ export default function NetworkTrafficDashboard() {
               <div className="text-2xl font-bold text-green-600">
                 {totalAutoResolved}
               </div>
-              <div className="text-sm text-gray-600">Auto-Resolved</div>
+              <div className="text-sm text-gray-600">Resolved Automatically</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <div className="text-2xl font-bold text-blue-600">

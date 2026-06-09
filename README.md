@@ -1,36 +1,132 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IPTV Monitoring Frontend
 
-## Getting Started
+Frontend untuk sistem monitoring IPTV hospitality. Aplikasi ini dibangun dengan Next.js App Router dan menyediakan dashboard operasional untuk channel IPTV, Chromecast, TV kamar, notifikasi, QoS, ML dashboard, auto-fix history, user management, staff management, dan AI chat.
 
-First, run the development server:
+Backend Express berada di folder `backend/` sebagai repository Git terpisah, sedangkan ML service Python berada di `backend/ml-service/`.
+
+## Stack
+
+- Next.js 16 + React 19
+- TypeScript
+- Tailwind CSS
+- Mantine/Radix UI components
+- JWT auth via backend Express
+- MongoDB-backed operational data through backend API
+
+## Struktur Penting
+
+```text
+src/app/                         App Router pages
+src/components/                  Shared layout and UI components
+src/components/pages/            Main feature pages
+src/components/AuthContext.tsx   Auth state, login, logout, token verification
+middleware.js                    Frontend route guard for deployed Next runtime
+backend/                         Express backend repository
+backend/ml-service/              FastAPI ML service
+```
+
+## Prasyarat
+
+- Node.js 20 atau lebih baru
+- npm
+- Python 3.11 atau 3.12 untuk ML service
+- Akses MongoDB Atlas atau MongoDB compatible database
+- Environment variables lokal untuk frontend, backend, dan ML service
+
+> Catatan: Python 3.14 tidak direkomendasikan untuk ML service karena beberapa dependency ML seperti NumPy/scikit-learn dapat belum menyediakan wheel yang stabil.
+
+## Environment Frontend
+
+Buat file `.env.local` di root project. Contoh:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+NEXT_PUBLIC_ML_API_URL=http://localhost:3001
+JWT_SECRET=change-me-for-local-development
+```
+
+Untuk production/Vercel, gunakan `.env.production` atau environment variables di dashboard Vercel. Jangan commit secret asli ke repository.
+
+## Menjalankan Lokal
+
+Install dependency root:
+
+```bash
+npm install
+```
+
+Jalankan frontend saja:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Jalankan frontend, backend, dan ML service sekaligus:
 
-## Learn More
+```bash
+npm run dev:all
+```
 
-To learn more about Next.js, take a look at the following resources:
+Command `dev:all` membaca:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `./.env.local` untuk frontend
+- `./backend/.env.local` untuk backend
+- `./backend/ml-service/.env.local` untuk ML service
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Jika ML service belum siap, frontend dan backend tetap bisa berjalan, tetapi fitur training/predict di ML dashboard akan masuk mode error/degraded.
 
-## Deploy on Vercel
+## Command Umum
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev          # Next.js development server
+npm run dev:all      # Frontend + backend + ML service lokal
+npm run build        # Production build
+npm run start        # Start hasil build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Flow Aplikasi
+
+1. User login melalui email/password atau Google OAuth.
+2. Token JWT disimpan oleh frontend untuk request API berikutnya.
+3. Middleware dan AuthContext menjaga akses halaman berdasarkan role.
+4. Halaman monitoring mengambil data dari backend Express.
+5. Backend membaca data MongoDB dan, untuk fitur tertentu, memanggil ML service.
+6. Auto-fix dan notifikasi disimpan sebagai riwayat agar muncul di ML dashboard, notifications, QoS, dan halaman detail device.
+
+## Halaman Utama
+
+- `/dashboard` - ringkasan status sistem dan monitoring.
+- `/channels` - monitoring channel IPTV.
+- `/chromecast` - monitoring Chromecast.
+- `/hospitality` - monitoring TV kamar.
+- `/ml-dashboard` - model status, training, prediction, dan auto-fix analytics.
+- `/notifications` - daftar notifikasi dan insiden.
+- `/qos` - ringkasan QoS per kategori.
+- `/users` - manajemen user admin.
+- `/staff` - manajemen staff.
+- `/account` - profil user.
+
+## Deploy
+
+Frontend disiapkan untuk Vercel. Untuk branch development:
+
+```bash
+git switch dev
+git push origin dev
+```
+
+Pastikan Vercel project sudah diarahkan untuk membuat preview deployment dari branch `dev`, dan environment variables production/preview sudah diisi di Vercel.
+
+## Troubleshooting
+
+- Login gagal setelah 1 jam: ini sesuai konfigurasi keamanan JWT 1 jam.
+- ML dashboard error 502/500: pastikan backend dapat menjangkau ML service.
+- API 401/403: cek token, cookie, role user, dan `NEXT_PUBLIC_API_URL`.
+- `npm run dev:all` gagal di ML service: gunakan Python 3.11/3.12 dan install dependency ML service.

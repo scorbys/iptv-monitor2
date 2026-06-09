@@ -743,10 +743,12 @@ export default function ChromecastDetailPage({
       // Call backend API directly (not through frontend route)
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/chromecast/${encodedDeviceId}/auto-fix?history=true`;
 
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch(apiUrl, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
@@ -758,7 +760,13 @@ export default function ChromecastDetailPage({
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
-          setAutoFixLogs(result.data.autoFixHistory || []);
+          // Accept multiple backend shapes for forward-compatibility
+          const logs =
+            result.data.autoFixHistory ||
+            result.data.logs ||
+            result.data.data ||
+            [];
+          setAutoFixLogs(Array.isArray(logs) ? logs : []);
         }
       } else {
         apiLogger.warn('Failed to fetch auto-fix logs');
@@ -789,11 +797,13 @@ export default function ChromecastDetailPage({
       // Call backend API directly
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/chromecast/${encodedDeviceId}/auto-fix`;
 
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           text: `${device.deviceName} ${issueDescription}`,
@@ -807,38 +817,37 @@ export default function ChromecastDetailPage({
         return;
       }
 
-      if (response.ok) {
-        const result = await response.json();
+      const result = await response.json().catch(() => null);
+      if (!result) {
+        alert('Error: Invalid response from server');
+        return;
+      }
 
-        if (result.success && result.data) {
-          componentLogger.log('[AutoFix] Automatic fix executed:', result.data);
-
-          // Show notification to user
-          if (result.data.autoFixExecuted) {
-            const { mlPrediction, executedFix, fixResult } = result.data;
-
-            alert(
-              `🔧 Auto-Fix Otomatis Berhasil!\n\n` +
-              `Device: ${device.deviceName}\n` +
-              `Issue: ${issueDescription}\n` +
-              `ML Category: ${mlPrediction.category}\n` +
-              `Confidence: ${(mlPrediction.confidence * 100).toFixed(1)}%\n` +
-              `Action: ${executedFix.description}\n` +
-              `Status: ${fixResult.success ? '✅ Berhasil' : '❌ Gagal'}\n\n` +
-              `Device akan di-refresh untuk update status.`
-            );
-          } else if (result.data.reason) {
-            componentLogger.log('[AutoFix] No auto-fix executed:', result.data.reason);
-          }
-
-          // Refresh device status and logs
-          await handleCheckDevice();
-          await fetchAutoFixLogs();
+      if (response.ok && result.success) {
+        // autoFixExecuted is top-level in the backend response (not under data)
+        if (result.autoFixExecuted) {
+          const { mlPrediction, executedFix, fixResult } = result.data || {};
+          alert(
+            `🔧 Auto-Fix Otomatis Berhasil!\n\n` +
+            `Device: ${device.deviceName}\n` +
+            `Issue: ${issueDescription}\n` +
+            `ML Category: ${mlPrediction?.category ?? 'N/A'}\n` +
+            `Confidence: ${mlPrediction?.confidence != null ? (mlPrediction.confidence * 100).toFixed(1) + '%' : 'N/A'}\n` +
+            `Action: ${executedFix?.action ?? executedFix?.description ?? 'N/A'}\n` +
+            `Status: ${fixResult?.success ? '✅ Berhasil' : '❌ Gagal'}`
+          );
+        } else {
+          const reason = result.reason || 'Manual intervention required';
+          const rec = result.recommendedFix?.description || result.recommendedFix?.action;
+          alert(`ℹ️ Auto-Fix tidak dijalankan\n\nAlasan: ${reason}${rec ? `\nRekomendasi: ${rec}` : ''}`);
         }
+
+        // Refresh device status and logs
+        await handleCheckDevice();
+        await fetchAutoFixLogs();
       } else {
-        const errorResult = await response.json();
-        apiLogger.error('[AutoFix] API error:', errorResult.error);
-        alert(`Error: ${errorResult.error || 'Failed to execute auto-fix'}`);
+        apiLogger.error('[AutoFix] API error:', result.error);
+        alert(`Error: ${result.error || 'Failed to execute auto-fix'}`);
       }
     } catch (error) {
       apiLogger.error('[AutoFix] Error triggering auto-fix:', error);
@@ -1423,11 +1432,13 @@ export default function ChromecastDetailPage({
 
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/chromecast/${encodedDeviceId}/auto-fix`;
 
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           text: `${device.deviceName} ${log.issue}`,
@@ -1441,23 +1452,20 @@ export default function ChromecastDetailPage({
         return;
       }
 
-      if (response.ok) {
-        const result = await response.json();
-
-        if (result.success && result.data) {
-          alert(
-            `🔄 Auto-Fix Retry Berhasil!\n\n` +
-            `Device: ${device.deviceName}\n` +
-            `Issue: ${log.issue}\n` +
-            `Status: ${result.data.success ? '✅ Berhasil' : '❌ Masih Gagal'}\n\n` +
-            `Log akan di-refresh.`
-          );
-
-          await fetchAutoFixLogs();
-        }
+      const result = await response.json().catch(() => null);
+      if (response.ok && result?.success) {
+        // fixResult.success lives under data, not result.data.success
+        const fixOk = result.data?.fixResult?.success;
+        alert(
+          `🔄 Auto-Fix Retry\n\n` +
+          `Device: ${device.deviceName}\n` +
+          `Issue: ${log.issue}\n` +
+          `Status: ${fixOk ? '✅ Berhasil' : '❌ Masih Gagal'}\n\n` +
+          `Log akan di-refresh.`
+        );
+        await fetchAutoFixLogs();
       } else {
-        const errorResult = await response.json();
-        alert(`Error: ${errorResult.error || 'Failed to retry auto-fix'}`);
+        alert(`Error: ${result?.error || 'Failed to retry auto-fix'}`);
       }
     } catch (error) {
       alert(`Error: ${error instanceof Error ? error.message : 'Failed to retry auto-fix'}`);
@@ -2750,7 +2758,7 @@ export default function ChromecastDetailPage({
               ) : autoFixLogs.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg">
                   <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600">Belum ada riwayat auto-fix</p>
+                  <p className="text-sm text-gray-600">No auto-fix history for this device</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Auto-fix akan otomatis berjalan saat device mengalami issue
                   </p>

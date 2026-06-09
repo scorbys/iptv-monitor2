@@ -151,6 +151,17 @@ interface AutoFixStats {
     _id: string;
     count: number;
   }>;
+  byDeviceType?: Array<{
+    _id: string | null; // 'channel' | 'tv' | 'chromecast' | null
+    count: number;
+  }>;
+  byDevice?: Array<{
+    _id: { deviceType: string | null; deviceId: string };
+    deviceName: string | null;
+    roomNo: string | number | null;
+    count: number;
+    success: number;
+  }>;
   period: string;
 }
 
@@ -163,12 +174,19 @@ interface AutoFixStatsResponse {
 interface AutoFixLog {
   fixId: string;
   notificationId: string;
+  // Device metadata from the new backend contract (auto_fix_logs)
+  deviceType?: string | null; // 'channel' | 'tv' | 'chromecast'
+  deviceId?: string | null;
+  deviceName?: string | null;
+  roomNo?: string | number | null;
+  source?: string | null;
   category: string;
   action: string;
   description: string;
   status: string;
   confidence: number;
   createdAt: string;
+  completedAt?: string | null;
   notification?: {
     id: string;
     title: string;
@@ -295,7 +313,7 @@ export default function MLDashboardPage() {
       // Fetch timeseries data directly from backend API
       const response = await fetch(`/api/auto-fix/stats?period=${days}&timeseries=true`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -333,7 +351,7 @@ export default function MLDashboardPage() {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch(`/api/auto-fix/stats?period=${dateRange}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -359,7 +377,7 @@ export default function MLDashboardPage() {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch('/api/auto-fix/history?limit=50&skip=0', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -386,8 +404,11 @@ export default function MLDashboardPage() {
       const limit = 100;
       let hasMore = true;
 
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       while (hasMore) {
-        const response = await fetch(`/api/auto-fix/history?limit=${limit}&skip=${skip}`);
+        const response = await fetch(`/api/auto-fix/history?limit=${limit}&skip=${skip}`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -414,7 +435,10 @@ export default function MLDashboardPage() {
 
   const fetchTrainingJobStatus = async () => {
     try {
-      const response = await fetch('/api/ml/model/train/status');
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/model/train/status', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
       if (!response.ok) return;
       const data = await response.json();
       if (data.success) {
@@ -458,7 +482,10 @@ export default function MLDashboardPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/ml/model/info');
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/model/info', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -490,7 +517,7 @@ export default function MLDashboardPage() {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch('/api/staff', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -525,7 +552,7 @@ export default function MLDashboardPage() {
 
       const response = await fetch(`/api/notifications/stats?analytics=true&period=${days}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -639,7 +666,10 @@ export default function MLDashboardPage() {
     const timeoutMs = 1000 * 60 * 12; // 12 minutes polling limit
 
     while (true) {
-      const response = await fetch(`/api/ml/model/train/status/${jobId}`);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/ml/model/train/status/${jobId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Training status error! status: ${response.status}. ${errorText.substring(0, 200)}`);
@@ -679,10 +709,12 @@ export default function MLDashboardPage() {
       const timeoutId = setTimeout(() => controller.abort(), 300000);
 
       try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const response = await fetch('/api/ml/model/train', {
           method: 'POST',
           body: formData,
           signal: controller.signal,
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         });
 
         clearTimeout(timeoutId);
@@ -758,8 +790,10 @@ export default function MLDashboardPage() {
     try {
       setError(null);
 
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch('/api/ml/model', {
         method: 'DELETE',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
 
       if (!response.ok) {
@@ -803,7 +837,10 @@ export default function MLDashboardPage() {
       // Fetch chromecast devices to enrich room numbers
       const chromecastRoomMap: Record<string, string> = {};
       try {
-        const chromecastResponse = await fetch('/api/chromecast?limit=1000');
+        const ccToken = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const chromecastResponse = await fetch('/api/chromecast?limit=1000', {
+          headers: { ...(ccToken ? { Authorization: `Bearer ${ccToken}` } : {}) },
+        });
         if (chromecastResponse.ok) {
           const chromecastData = await chromecastResponse.json();
           if (chromecastData.success && chromecastData.data) {
@@ -1064,10 +1101,31 @@ export default function MLDashboardPage() {
     return result;
   };
 
-  // Calculate category breakdown from notifications using FAQ categories
+  // Map a deviceType to a human-readable label (null when unknown)
+  const deviceTypeLabel = (t?: string | null): string | null => {
+    switch ((t || "").toLowerCase()) {
+      case "chromecast": return "Chromecast";
+      case "tv": return "TV";
+      case "channel": return "Channel";
+      default: return null;
+    }
+  };
+
+  // Format a model category for display. "Kategori-X" stays as-is; any other
+  // label (e.g. "External") is a model output class, NOT a device issue, so it
+  // is prefixed to avoid confusing it with an operational auto-fix category.
+  const formatCategoryLabel = (cat?: string | null): string => {
+    if (!cat) return "Uncategorized";
+    const norm = cat.replace(/Katagori-/gi, "Kategori-");
+    if (/^Kategori-\d+$/i.test(norm)) return norm;
+    return `Model Class: ${norm}`;
+  };
+
+  // Category breakdown comes straight from /api/auto-fix/stats byCategory,
+  // which the backend computes from auto_fix_logs.category (no frontend inference).
   const categoryBreakdown = useMemo(() => {
     if (!autoFixStats?.byCategory) return [];
-    return autoFixStats.byCategory; // sudah dalam format {_id, count, success}
+    return autoFixStats.byCategory; // format {_id, count, success}
   }, [autoFixStats]);
 
   // Update auto-refresh to include notifications
@@ -1158,7 +1216,7 @@ export default function MLDashboardPage() {
   };
 
   const doughnutChartData = {
-    labels: categoryBreakdown.slice(0, 6).map(c => c._id) || [],
+    labels: categoryBreakdown.slice(0, 6).map(c => formatCategoryLabel(c._id)) || [],
     datasets: [
       {
         data: categoryBreakdown.slice(0, 6).map(c => c.count) || [],
@@ -1578,8 +1636,11 @@ export default function MLDashboardPage() {
                       {/* ── Per-class bars (2-column grid on wider screens) ── */}
                       <div className="grid grid-cols-1 gap-y-2">
                         {sorted.map(([rawLabel, acc], idx) => {
-                          const displayLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
                           const isNonNumeric = isNaN(parseInt(rawLabel.replace(/[^0-9]/g, ""), 10));
+                          const normLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
+                          // Non-numeric classes (e.g. "External") are model output classes,
+                          // labelled clearly so they are not mistaken for device issue categories.
+                          const displayLabel = isNonNumeric ? `Model Class: ${normLabel}` : normLabel;
                           const { bar, badge } = getBarColor(acc);
                           // Bar width: use actual percentage (0-100 scale) for honest representation
                           const barWidth = Math.max(1, acc);
@@ -1595,7 +1656,7 @@ export default function MLDashboardPage() {
                               </span>
 
                               {/* Label */}
-                              <span className={`flex-shrink-0 w-24 text-xs font-semibold truncate ${isNonNumeric ? "text-gray-400 italic" : "text-gray-700"}`}>
+                              <span title={displayLabel} className={`flex-shrink-0 w-32 text-xs font-semibold truncate ${isNonNumeric ? "text-gray-400 italic" : "text-gray-700"}`}>
                                 {displayLabel}
                               </span>
 
@@ -1749,19 +1810,42 @@ export default function MLDashboardPage() {
                         {fix.status}
                       </span>
                     </div>
-                    <div className="text-base font-semibold text-gray-900 mb-2">{fix.category}</div>
-                    <div className="text-sm text-gray-600 mb-3">{fix.description}</div>
-                    {fix.notification && (
-                      <div className="flex items-center gap-3 text-sm text-gray-500 bg-white p-2 rounded-lg">
-                        <ComputerDesktopIcon className="w-4 h-4" />
-                        <span className="font-medium">{fix.notification.deviceName}</span>
-                        {fix.notification.roomNo && (
-                          <>
-                            <span>•</span>
-                            <span>Room {fix.notification.roomNo}</span>
-                          </>
-                        )}
-                      </div>
+                    {/* Category + device type + action badges (fast scan) */}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                        {formatCategoryLabel(fix.category)}
+                      </span>
+                      {deviceTypeLabel(fix.deviceType) && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                          {deviceTypeLabel(fix.deviceType)}
+                        </span>
+                      )}
+                      {fix.action && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
+                          {fix.action}
+                        </span>
+                      )}
+                    </div>
+                    {/* Device + room line (uses log device fields, falls back to notification) */}
+                    {(() => {
+                      const dName = fix.deviceName || fix.notification?.deviceName || null;
+                      const rNo = (fix.roomNo ?? fix.notification?.roomNo) || null;
+                      if (!dName && !rNo) return null;
+                      return (
+                        <div className="flex items-center gap-3 text-sm text-gray-600 bg-white p-2 rounded-lg">
+                          <ComputerDesktopIcon className="w-4 h-4 text-gray-400" />
+                          {dName && <span className="font-medium text-gray-900">{dName}</span>}
+                          {rNo && (
+                            <>
+                              <span>•</span>
+                              <span>Room {rNo}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {fix.description && (
+                      <div className="text-xs text-gray-500 mt-2">{fix.description}</div>
                     )}
                   </div>
                 ))
@@ -1823,12 +1907,11 @@ export default function MLDashboardPage() {
                 <SignalIcon className="w-6 h-6 text-purple-500" />
               </div>
               <div className="h-80">
-                {loadingNotifications ? (
+                {loadingAutoFix ? (
                   <div className="flex flex-col items-center justify-center h-full space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <div className="text-center">
-                      <p className="text-sm text-gray-600">Analyzing notification patterns...</p>
-                      <p className="text-xs text-gray-400 mt-1">Processing {allNotifications.length} notifications</p>
+                      <p className="text-sm text-gray-600">Loading auto-fix categories...</p>
                     </div>
                   </div>
                 ) : Chart && categoryBreakdown.length > 0 ? (
@@ -1845,12 +1928,11 @@ export default function MLDashboardPage() {
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Top Issue Categories</h3>
               <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                {loadingNotifications ? (
+                {loadingAutoFix ? (
                   <div className="flex flex-col items-center justify-center py-12 space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <div className="text-center">
-                      <p className="text-sm text-gray-600">Categorizing issues...</p>
-                      <p className="text-xs text-gray-400 mt-1">This may take a moment for large datasets</p>
+                      <p className="text-sm text-gray-600">Loading auto-fix categories...</p>
                     </div>
                   </div>
                 ) : categoryBreakdown.length > 0 ? (
@@ -1866,7 +1948,7 @@ export default function MLDashboardPage() {
                           }`}>
                           {index + 1}
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">{category._id}</span>
+                        <span className="text-sm font-semibold text-gray-900">{formatCategoryLabel(category._id)}</span>
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-bold text-gray-900">{category.count}</div>
@@ -1938,6 +2020,54 @@ export default function MLDashboardPage() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Top Auto-Fix Devices (from auto_fix_logs: byDevice / byDeviceType) */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Top Auto-Fix Devices</h3>
+              <div className="flex flex-wrap gap-2">
+                {(autoFixStats?.byDeviceType || []).map((dt) => (
+                  <span key={String(dt._id)} className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                    {deviceTypeLabel(dt._id) || "Other"}: {dt.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+              {(autoFixStats?.byDevice || []).length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">No auto-fix device data available</div>
+              ) : (
+                autoFixStats!.byDevice!.map((item, index) => {
+                  const typeLabel = deviceTypeLabel(item._id?.deviceType);
+                  const name =
+                    item.deviceName ||
+                    (item.roomNo != null ? `Room ${item.roomNo}` : item._id?.deviceId) ||
+                    "Unknown device";
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'}`}>
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate max-w-[200px]" title={name}>{name}</div>
+                          {typeLabel && (
+                            <div className="text-xs text-gray-500">
+                              {typeLabel}{item.roomNo != null ? ` • Room ${item.roomNo}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold">{item.count}</div>
+                        <div className="text-[11px] text-gray-500 mt-0.5">{item.success} ok</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
