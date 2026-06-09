@@ -3,6 +3,9 @@
 Frontend untuk sistem monitoring IPTV hospitality. Aplikasi ini dibangun dengan Next.js App Router dan menyediakan dashboard operasional untuk channel IPTV, Chromecast, TV kamar, notifikasi, QoS, ML dashboard, auto-fix history, user management, staff management, dan AI chat.
 
 Backend Express berada di folder `backend/` sebagai repository Git terpisah, sedangkan ML service Python berada di `backend/ml-service/`.
+MongoDB Atlas adalah database utama. Integrasi Supabase, bila diaktifkan di backend,
+hanya berfungsi sebagai optional mirror legacy dan tidak dipakai sebagai backup
+utama production.
 
 ## Stack
 
