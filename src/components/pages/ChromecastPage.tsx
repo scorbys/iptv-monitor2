@@ -52,6 +52,7 @@ export default function ChromecastPage() {
   const [stats, setStats] = useState<ChromecastStats | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [healthFilter, setHealthFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +71,10 @@ export default function ChromecastPage() {
   };
 
   const getChromecastHealthSummary = (device: Chromecast) => {
+    if (!device.isOnline) {
+      return { text: "Offline / Very Poor", variant: "critical", level: "Offline" };
+    }
+
     const metrics: ChannelMetrics = {
       packetLoss: device.metrics?.packetLoss ?? 0,
       latency: device.metrics?.latency ?? 0,
@@ -79,8 +84,13 @@ export default function ChromecastPage() {
     };
 
     const poorMetrics = getPoorMetricSummary(metrics, device.labeledMetrics);
+    const overallLabel = device.labeledMetrics?.overallLabel?.label;
+    if (overallLabel === 3 && poorMetrics.length === 0) {
+      return { text: "Fair", variant: "fair", level: "Fair" };
+    }
+
     if (poorMetrics.length === 0) {
-      return { text: "Healthy", variant: "good" };
+      return { text: "Healthy", variant: "good", level: "Healthy" };
     }
 
     return {
@@ -94,6 +104,7 @@ export default function ChromecastPage() {
         )
         .join(", ")}`,
       variant: "warning",
+      level: "Poor",
     };
   };
 
@@ -360,9 +371,12 @@ export default function ChromecastPage() {
         matchesStatus = !device.isOnline;
       }
 
-      return matchesSearch && matchesStatus;
+      const matchesHealth =
+        healthFilter === "All" || getChromecastHealthSummary(device).level === healthFilter;
+
+      return matchesSearch && matchesStatus && matchesHealth;
     });
-  }, [chromecasts, searchTerm, statusFilter]);
+  }, [chromecasts, searchTerm, statusFilter, healthFilter]);
 
   // Pagination
   const paginationData = useMemo(() => {
@@ -391,7 +405,7 @@ export default function ChromecastPage() {
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, healthFilter]);
 
   // Status badge component
   const StatusBadge = useCallback(
@@ -804,6 +818,47 @@ export default function ChromecastPage() {
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
 
+            {/* Health Filter */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg sm:rounded-xl hover:from-amber-100 hover:to-orange-100 hover:border-amber-300 transition-all duration-200 shadow-sm hover:shadow-md group flex-1 sm:flex-initial min-w-0">
+                  <span className="text-xs sm:text-sm text-amber-700 font-medium truncate">
+                    {healthFilter === "All"
+                      ? screenSize === "mobile"
+                        ? "Health"
+                        : "All Health"
+                      : healthFilter}
+                  </span>
+                  <ChevronDownIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 group-hover:text-amber-600 transition-colors flex-shrink-0" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="min-w-[130px] sm:min-w-36 bg-white rounded-xl shadow-xl border border-gray-200 p-2 z-50 backdrop-blur-sm">
+                  {["All", "Healthy", "Fair", "Poor", "Offline"].map((health) => (
+                    <DropdownMenu.Item
+                      key={`health-${health}`}
+                      className="flex items-center px-3 py-2.5 text-xs sm:text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 rounded-lg cursor-pointer outline-none transition-all duration-150 group"
+                      onClick={() => setHealthFilter(health)}
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full mr-3 ${health === "Healthy"
+                          ? "bg-green-500"
+                          : health === "Fair"
+                            ? "bg-yellow-500"
+                          : health === "Offline"
+                            ? "bg-red-500"
+                            : health === "Poor"
+                              ? "bg-orange-500"
+                              : "bg-gray-400"
+                          } opacity-0 group-hover:opacity-100 transition-opacity`}
+                      ></div>
+                      {health === "All" ? "All Health" : health}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+
             {/* Export Button */}
             <button
               onClick={exportToCSV}
@@ -930,7 +985,15 @@ export default function ChromecastPage() {
                       {(() => {
                         const health = getChromecastHealthSummary(device);
                         return (
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${health.variant === "good" ? "bg-green-100 text-green-800 border border-green-200" : "bg-orange-100 text-orange-800 border border-orange-200"}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                            health.variant === "good"
+                              ? "bg-green-100 text-green-800 border border-green-200"
+                              : health.variant === "fair"
+                                ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                              : health.variant === "critical"
+                                ? "bg-red-100 text-red-800 border border-red-200"
+                                : "bg-orange-100 text-orange-800 border border-orange-200"
+                          }`}>
                             {health.text}
                           </span>
                         );
@@ -1033,6 +1096,25 @@ export default function ChromecastPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-500">Health:</span>
+                    {(() => {
+                      const health = getChromecastHealthSummary(device);
+                      return (
+                        <span className={`text-xs font-medium ${
+                          health.variant === "good"
+                            ? "text-green-700"
+                            : health.variant === "fair"
+                              ? "text-yellow-700"
+                            : health.variant === "critical"
+                              ? "text-red-700"
+                              : "text-orange-700"
+                        }`}>
+                          {health.text}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-500">Last Seen:</span>
                     <DateFormatter
                       date={device.lastSeen}
@@ -1092,11 +1174,12 @@ export default function ChromecastPage() {
                 ? `No devices match "${searchTerm}" with current filters`
                 : "No devices available with current filters"}
             </p>
-            {(searchTerm || statusFilter !== "All") && (
+            {(searchTerm || statusFilter !== "All" || healthFilter !== "All") && (
               <button
                 onClick={() => {
                   setSearchTerm("");
                   setStatusFilter("All");
+                  setHealthFilter("All");
                 }}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all hover:scale-105 active:scale-95"
               >

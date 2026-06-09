@@ -729,6 +729,7 @@ export default function ChromecastDetailPage({
   };
 
   const detectedIssues = useMemo(() => detectIssues(), [device]);
+  const canRunAutoFix = detectedIssues.some((issue) => issue.actionType === "System");
 
   // Fetch Auto-Fix Logs
   const fetchAutoFixLogs = async () => {
@@ -2528,6 +2529,22 @@ export default function ChromecastDetailPage({
                   )}
                 </button>
 
+                {canRunAutoFix && (
+                  <button
+                    onClick={triggerAutoFix}
+                    disabled={checking}
+                    className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200 rounded-xl hover:from-red-100 hover:to-rose-100 hover:border-red-300 transition-all duration-200 disabled:opacity-50"
+                  >
+                    <div className="flex items-center">
+                      <WrenchScrewdriverIcon className="w-4 h-4 mr-3" />
+                      <span className="font-medium">{checking ? "Running Auto Fix..." : "Run Auto Fix"}</span>
+                    </div>
+                    <div className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                      Manual
+                    </div>
+                  </button>
+                )}
+
                 <button
                   onClick={() => router.push("/help")}
                   className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200 rounded-xl hover:from-gray-100 hover:to-slate-100 hover:border-gray-300 transition-all duration-200"
@@ -2638,7 +2655,7 @@ export default function ChromecastDetailPage({
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {issue.actionType === "System" && (
+                        {issue.actionType === "System" ? (
                           <button
                             onClick={() => handleRepairAction(issue)}
                             disabled={checking}
@@ -2646,6 +2663,10 @@ export default function ChromecastDetailPage({
                           >
                             {checking ? "Fixing..." : "Auto Fix"}
                           </button>
+                        ) : (
+                          <span className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-medium text-center border border-gray-200">
+                            On Site Required
+                          </span>
                         )}
                       </div>
                     </div>
