@@ -16,6 +16,21 @@ utama production.
 - JWT auth via backend Express
 - MongoDB-backed operational data through backend API
 
+## Arsitektur Singkat
+
+```text
+Browser
+  -> Next.js frontend
+  -> Express backend API
+  -> MongoDB Atlas
+  -> FastAPI ML service
+  -> Telegram / Gemini / optional Supabase mirror
+```
+
+Frontend adalah UI utama. Backend adalah gateway data, auth, auto-fix, AI chat,
+notifikasi, dan proxy ke ML service. ML service bertugas klasifikasi keluhan
+berdasarkan model yang sudah dilatih dari dataset XLSX/feedback.
+
 ## Struktur Penting
 
 ```text
@@ -50,6 +65,9 @@ JWT_SECRET=change-me-for-local-development
 ```
 
 Untuk production/Vercel, gunakan `.env.production` atau environment variables di dashboard Vercel. Jangan commit secret asli ke repository.
+
+Environment production yang sensitif seperti `JWT_SECRET`, API key, token bot,
+dan database URL harus dikelola di dashboard platform/deployment, bukan di Git.
 
 ## Menjalankan Lokal
 
@@ -98,10 +116,11 @@ npm run start        # Start hasil build
 
 1. User login melalui email/password atau Google OAuth.
 2. Token JWT disimpan oleh frontend untuk request API berikutnya.
-3. Middleware dan AuthContext menjaga akses halaman berdasarkan role.
-4. Halaman monitoring mengambil data dari backend Express.
-5. Backend membaca data MongoDB dan, untuk fitur tertentu, memanggil ML service.
-6. Auto-fix dan notifikasi disimpan sebagai riwayat agar muncul di ML dashboard, notifications, QoS, dan halaman detail device.
+3. JWT berlaku 1 jam. Ini disengaja agar sesi tidak terlalu panjang.
+4. Middleware dan AuthContext menjaga akses halaman berdasarkan role.
+5. Halaman monitoring mengambil data dari backend Express.
+6. Backend membaca data MongoDB dan, untuk fitur tertentu, memanggil ML service.
+7. Auto-fix dan notifikasi disimpan sebagai riwayat agar muncul di ML dashboard, notifications, QoS, dan halaman detail device.
 
 ## Halaman Utama
 
@@ -127,9 +146,26 @@ git push origin dev
 
 Pastikan Vercel project sudah diarahkan untuk membuat preview deployment dari branch `dev`, dan environment variables production/preview sudah diisi di Vercel.
 
+Backend production saat ini berjalan di VPS/Docker Compose dan diakses lewat
+Cloudflare Tunnel. Untuk mencegah tunnel stale, VPS memakai systemd timer:
+
+- `cloudflared-watchdog.timer` mengecek health tunnel lokal.
+- `cloudflared-refresh.timer` menyegarkan connector berkala.
+
+Konfigurasi ini berada di VPS, bukan di repository frontend.
+
+## Security Notes
+
+- Route halaman frontend dilindungi berdasarkan role `admin` dan `guest`.
+- Endpoint backend sensitif seperti ML model, ML feedback, backup/sync, monitoring consistency, dan auto-fix admin dikunci dengan JWT admin.
+- Endpoint health/metrics tertentu tetap sengaja public/internal untuk Docker, Prometheus, dan reverse proxy.
+- Token masih tersedia di storage frontend untuk kebutuhan cross-domain lama; hindari memasukkan script pihak ketiga yang tidak dipercaya.
+- MongoDB Atlas adalah source of truth. Supabase hanya optional mirror legacy, bukan backup production.
+
 ## Troubleshooting
 
 - Login gagal setelah 1 jam: ini sesuai konfigurasi keamanan JWT 1 jam.
 - ML dashboard error 502/500: pastikan backend dapat menjangkau ML service.
 - API 401/403: cek token, cookie, role user, dan `NEXT_PUBLIC_API_URL`.
 - `npm run dev:all` gagal di ML service: gunakan Python 3.11/3.12 dan install dependency ML service.
+- Cloudflare `Error 1033`: cek `cloudflared` di VPS dan timer watchdog/refresh.

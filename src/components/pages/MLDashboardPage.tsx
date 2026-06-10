@@ -808,11 +808,13 @@ export default function MLDashboardPage() {
   const handlePredict = async (text: string) => {
     try {
       setError(null);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
 
       const response = await fetch('/api/ml/predict', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ text }),
       });
