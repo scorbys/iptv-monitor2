@@ -190,6 +190,36 @@ interface AutoFixStats {
   period: string;
 }
 
+interface MLFeedbackItem {
+  feedbackId: string;
+  text: string;
+  predictedCategory?: string | null;
+  correctedCategory: string;
+  confidence?: number | null;
+  recommendedFix?: string | null;
+  fixOutcome: 'unknown' | 'worked' | 'failed' | 'manual_required';
+  source: string;
+  sourceId?: string | null;
+  deviceType?: string | null;
+  deviceId?: string | null;
+  deviceName?: string | null;
+  roomNo?: string | number | null;
+  notes?: string | null;
+  status: 'pending_review' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+interface MLFeedbackStats {
+  total: number;
+  approved: number;
+  readyForRetrain: boolean;
+  minimumRecommendedFeedback: number;
+  byStatus: Array<{ _id: string; count: number }>;
+  byCorrectedCategory: Array<{ _id: string; count: number }>;
+  byFixOutcome: Array<{ _id: string; count: number }>;
+  latest: MLFeedbackItem[];
+}
+
 interface AutoFixStatsResponse {
   success: boolean;
   data: AutoFixStats;
@@ -263,12 +293,23 @@ export default function MLDashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [staffPerformance, setStaffPerformance] = useState<StaffPerformance[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const [mlFeedback, setMlFeedback] = useState<MLFeedbackItem[]>([]);
+  const [mlFeedbackStats, setMlFeedbackStats] = useState<MLFeedbackStats | null>(null);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({
+    text: '',
+    predictedCategory: '',
+    correctedCategory: 'Kategori-1',
+    fixOutcome: 'unknown' as MLFeedbackItem['fixOutcome'],
+    source: 'manual',
+    notes: '',
+  });
 
   // Advanced filters
   const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'staff' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'feedback' | 'staff' | 'analytics'>('overview');
 
   useEffect(() => {
     const persisted = getPersistedTrainingState();
@@ -302,6 +343,8 @@ export default function MLDashboardPage() {
     fetchTimeSeriesData();
     fetchStaffPerformance();
     fetchTopDevicesAndRooms();
+    fetchMLFeedback();
+    fetchMLFeedbackStats();
     //fetchAllNotificationsForDashboard();
   }, [dateRange]);
 
@@ -419,6 +462,157 @@ export default function MLDashboardPage() {
       }
     } catch (err) {
       console.error('Error fetching recent auto-fixes:', err);
+    }
+  };
+
+  const fetchMLFeedback = async () => {
+    try {
+      setLoadingFeedback(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback?limit=50&skip=0', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to fetch ML feedback');
+      }
+
+      setMlFeedback(Array.isArray(data.data) ? data.data : []);
+    } catch (err) {
+      console.error('Error fetching ML feedback:', err);
+      setMlFeedback([]);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const fetchMLFeedbackStats = async () => {
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback/stats', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to fetch ML feedback stats');
+      }
+
+      setMlFeedbackStats(data.data);
+    } catch (err) {
+      console.error('Error fetching ML feedback stats:', err);
+      setMlFeedbackStats(null);
+    }
+  };
+
+  const submitMLFeedback = async () => {
+    if (!feedbackForm.text.trim()) {
+      alert('Issue text is required');
+      return;
+    }
+
+    try {
+      setLoadingFeedback(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback', {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...feedbackForm,
+          predictedCategory: feedbackForm.predictedCategory || null,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to submit ML feedback');
+      }
+
+      setFeedbackForm({
+        text: '',
+        predictedCategory: '',
+        correctedCategory: 'Kategori-1',
+        fixOutcome: 'unknown',
+        source: 'manual',
+        notes: '',
+      });
+      await Promise.all([fetchMLFeedback(), fetchMLFeedbackStats()]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit ML feedback';
+      setError(message);
+      alert(message);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const updateMLFeedbackStatus = async (feedbackId: string, status: MLFeedbackItem['status']) => {
+    try {
+      setLoadingFeedback(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/ml/feedback/${encodeURIComponent(feedbackId)}`, {
+        method: 'PATCH',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to update ML feedback');
+      }
+
+      await Promise.all([fetchMLFeedback(), fetchMLFeedbackStats()]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update ML feedback';
+      setError(message);
+      alert(message);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const exportMLFeedback = async () => {
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback/export?status=approved', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to export feedback dataset');
+      }
+
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ml_feedback_approved_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (link.parentNode === document.body) document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export feedback dataset';
+      setError(message);
+      alert(message);
     }
   };
 
@@ -1008,6 +1202,8 @@ export default function MLDashboardPage() {
       fetchRecentAutoFixes(),
       fetchTimeSeriesData(),
       fetchStaffPerformance(),
+      fetchMLFeedback(),
+      fetchMLFeedbackStats(),
       //fetchAllNotificationsForDashboard(),
     ]);
   };
@@ -1213,6 +1409,8 @@ export default function MLDashboardPage() {
   const executingCount = autoFixStats?.byStatus.executing ?? 0;
   const pendingReviewCount = autoFixStats?.pendingSummary?.needsReview ?? pendingQueue.filter(item => item.needsReview).length;
   const stalePendingCount = autoFixStats?.pendingSummary?.stale ?? pendingQueue.filter(item => item.isStale).length;
+  const categoryOptions = Array.from({ length: 14 }, (_, index) => `Kategori-${index + 1}`);
+  const feedbackPendingCount = mlFeedbackStats?.byStatus.find(item => item._id === 'pending_review')?.count ?? 0;
 
   // Update auto-refresh to include notifications
   useEffect(() => {
@@ -1516,6 +1714,24 @@ export default function MLDashboardPage() {
           >
             <ShieldCheckIcon className="w-5 h-5" />
             <span>Staff Performance</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('feedback')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'feedback'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
+          >
+            <CheckCircleIcon className="w-5 h-5" />
+            <span>Feedback Dataset</span>
+            {feedbackPendingCount > 0 && (
+              <span className={`min-w-6 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'feedback'
+                ? 'bg-white text-blue-700'
+                : 'bg-orange-100 text-orange-700'
+                }`}>
+                {feedbackPendingCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -1963,6 +2179,222 @@ export default function MLDashboardPage() {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'feedback' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Total Feedback</p>
+              <p className="text-3xl font-bold text-gray-900">{mlFeedbackStats?.total ?? 0}</p>
+              <p className="text-xs text-gray-400 mt-1">Admin corrections collected</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-emerald-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Approved</p>
+              <p className="text-3xl font-bold text-emerald-600">{mlFeedbackStats?.approved ?? 0}</p>
+              <p className="text-xs text-gray-400 mt-1">Ready for dataset export</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-orange-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending Review</p>
+              <p className="text-3xl font-bold text-orange-600">{feedbackPendingCount}</p>
+              <p className="text-xs text-gray-400 mt-1">Needs admin approval</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Retrain Status</p>
+              <p className={`text-2xl font-bold ${mlFeedbackStats?.readyForRetrain ? 'text-emerald-600' : 'text-blue-600'}`}>
+                {mlFeedbackStats?.readyForRetrain ? 'Ready' : `${mlFeedbackStats?.approved ?? 0}/${mlFeedbackStats?.minimumRecommendedFeedback ?? 50}`}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Approved feedback threshold</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 xl:col-span-1">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Submit Correction</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Issue Text</label>
+                  <textarea
+                    value={feedbackForm.text}
+                    onChange={(event) => setFeedbackForm(prev => ({ ...prev, text: event.target.value }))}
+                    rows={5}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="Contoh: Room 211 TV offline karena LAN cable disconnected"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Predicted</label>
+                    <select
+                      value={feedbackForm.predictedCategory}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, predictedCategory: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="">Unknown</option>
+                      {categoryOptions.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Corrected</label>
+                    <select
+                      value={feedbackForm.correctedCategory}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, correctedCategory: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      {categoryOptions.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Fix Outcome</label>
+                    <select
+                      value={feedbackForm.fixOutcome}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, fixOutcome: event.target.value as MLFeedbackItem['fixOutcome'] }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="unknown">Unknown</option>
+                      <option value="worked">Worked</option>
+                      <option value="failed">Failed</option>
+                      <option value="manual_required">Manual Required</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Source</label>
+                    <select
+                      value={feedbackForm.source}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, source: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="manual">Manual</option>
+                      <option value="notification">Notification</option>
+                      <option value="auto_fix">Auto Fix</option>
+                      <option value="chat">Live Chat</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Notes</label>
+                  <input
+                    value={feedbackForm.notes}
+                    onChange={(event) => setFeedbackForm(prev => ({ ...prev, notes: event.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    placeholder="Catatan admin"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={submitMLFeedback}
+                  disabled={loadingFeedback}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Submit Feedback
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 xl:col-span-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Feedback Dataset</h2>
+                  <p className="text-sm text-gray-500">Approved feedback becomes the candidate dataset for future model retraining.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={exportMLFeedback}
+                  className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  Export Approved JSON
+                </button>
+              </div>
+
+              {loadingFeedback ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                </div>
+              ) : mlFeedback.length === 0 ? (
+                <div className="rounded-lg bg-gray-50 border border-gray-200 p-8 text-center text-sm text-gray-500">
+                  No ML feedback collected yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Text</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Correction</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Outcome</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {mlFeedback.map(item => (
+                        <tr key={item.feedbackId} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <p className="max-w-[360px] truncate text-sm font-medium text-gray-900" title={item.text}>{item.text}</p>
+                            <p className="text-xs text-gray-500">{new Date(item.createdAt).toLocaleString()} • {item.source}</p>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex flex-wrap gap-1">
+                              {item.predictedCategory && (
+                                <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                                  Pred: {item.predictedCategory}
+                                </span>
+                              )}
+                              <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">
+                                Correct: {item.correctedCategory}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                              {item.fixOutcome}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${item.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : item.status === 'rejected'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-orange-100 text-orange-700'
+                              }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateMLFeedbackStatus(item.feedbackId, 'approved')}
+                                disabled={item.status === 'approved' || loadingFeedback}
+                                className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateMLFeedbackStatus(item.feedbackId, 'rejected')}
+                                disabled={item.status === 'rejected' || loadingFeedback}
+                                className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
