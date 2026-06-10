@@ -765,18 +765,23 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   const exportToCSV = () => {
     if (autoFixLogs.length === 0) return;
 
+    const escapeCsv = (value: unknown) => {
+      const stringValue = value == null || value === '' ? 'N/A' : String(value);
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
     const headers = ['Timestamp', 'Category', 'Issue', 'Action', 'Status', 'Confidence', 'Success Rate', 'Staff'];
     const csvContent = [
       headers.join(','),
       ...autoFixLogs.map(log => [
-        `"${log.timestamp}"`,
-        `"${log.mlCategory}"`,
-        `"${log.issue}"`,
-        `"${log.action}"`,
-        log.status,
+        escapeCsv(log.timestamp),
+        escapeCsv(log.mlCategory),
+        escapeCsv(log.issue),
+        escapeCsv(log.action),
+        escapeCsv(log.status),
         log.confidence ? `${(log.confidence * 100).toFixed(1)}%` : 'N/A',
         log.successRate !== undefined ? `${log.successRate.toFixed(1)}%` : 'N/A',
-        log.staffName || 'N/A'
+        escapeCsv(log.staffName)
       ].join(','))
     ].join('\n');
 
@@ -2499,12 +2504,12 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     onClick={exportToCSV}
                     disabled={autoFixLogs.length === 0}
                     className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Export to CSV"
+                    title="Export TV auto-fix history CSV"
                   >
                     <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Export
+                    Export Auto-Fix CSV
                   </button>
                   <button
                     onClick={fetchAutoFixLogs}

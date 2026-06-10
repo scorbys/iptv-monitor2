@@ -1,22 +1,10 @@
 # IPTV Monitoring Frontend
 
-Frontend untuk sistem monitoring IPTV hospitality. Aplikasi ini dibangun dengan Next.js App Router dan menyediakan dashboard operasional untuk channel IPTV, Chromecast, TV kamar, notifikasi, QoS, ML dashboard, auto-fix history, user management, staff management, dan AI chat.
+Frontend application for a hospitality IPTV monitoring system. The UI provides operational dashboards for IPTV channels, Chromecast devices, in-room TVs, notifications, QoS summaries, ML training/feedback, auto-fix history, user management, staff management, and the IPTV Support Assistant chat widget.
 
-Backend Express berada di folder `backend/` sebagai repository Git terpisah, sedangkan ML service Python berada di `backend/ml-service/`.
-MongoDB Atlas adalah database utama. Integrasi Supabase, bila diaktifkan di backend,
-hanya berfungsi sebagai optional mirror legacy dan tidak dipakai sebagai backup
-utama production.
+The Express backend lives in `backend/` as a separate Git working tree. The Python ML service lives in `backend/ml-service/`.
 
-## Stack
-
-- Next.js 16 + React 19
-- TypeScript
-- Tailwind CSS
-- Mantine/Radix UI components
-- JWT auth via backend Express
-- MongoDB-backed operational data through backend API
-
-## Arsitektur Singkat
+## Architecture
 
 ```text
 Browser
@@ -27,11 +15,19 @@ Browser
   -> Telegram / Gemini / optional Supabase mirror
 ```
 
-Frontend adalah UI utama. Backend adalah gateway data, auth, auto-fix, AI chat,
-notifikasi, dan proxy ke ML service. ML service bertugas klasifikasi keluhan
-berdasarkan model yang sudah dilatih dari dataset XLSX/feedback.
+MongoDB Atlas is the source of truth for operational data. Supabase integration, when enabled, is only an optional legacy mirror and should not be treated as the production backup database.
 
-## Struktur Penting
+## Tech Stack
+
+- Next.js 16 with App Router
+- React 19
+- TypeScript
+- Tailwind CSS
+- Mantine/Radix UI components
+- JWT authentication through the Express backend
+- MongoDB-backed operational data through backend APIs
+
+## Important Paths
 
 ```text
 src/app/                         App Router pages
@@ -43,19 +39,19 @@ backend/                         Express backend repository
 backend/ml-service/              FastAPI ML service
 ```
 
-## Prasyarat
+## Requirements
 
-- Node.js 20 atau lebih baru
+- Node.js 20 or newer
 - npm
-- Python 3.11 atau 3.12 untuk ML service
-- Akses MongoDB Atlas atau MongoDB compatible database
-- Environment variables lokal untuk frontend, backend, dan ML service
+- Python 3.11 or 3.12 for the ML service
+- Access to MongoDB Atlas or a MongoDB-compatible database
+- Local environment files for the frontend, backend, and ML service
 
-> Catatan: Python 3.14 tidak direkomendasikan untuk ML service karena beberapa dependency ML seperti NumPy/scikit-learn dapat belum menyediakan wheel yang stabil.
+Python 3.14 is not recommended for the ML service because some ML dependencies such as NumPy and scikit-learn may not provide stable wheels for it.
 
-## Environment Frontend
+## Frontend Environment
 
-Buat file `.env.local` di root project. Contoh:
+Create `.env.local` in the project root:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
@@ -64,108 +60,121 @@ NEXT_PUBLIC_ML_API_URL=http://localhost:3001
 JWT_SECRET=change-me-for-local-development
 ```
 
-Untuk production/Vercel, gunakan `.env.production` atau environment variables di dashboard Vercel. Jangan commit secret asli ke repository.
+For production or Vercel previews, configure environment variables in the deployment platform. Do not commit real secrets such as JWT secrets, API keys, bot tokens, OAuth credentials, or database URLs.
 
-Environment production yang sensitif seperti `JWT_SECRET`, API key, token bot,
-dan database URL harus dikelola di dashboard platform/deployment, bukan di Git.
+## Local Development
 
-## Menjalankan Lokal
-
-Install dependency root:
+Install dependencies from the root project:
 
 ```bash
 npm install
 ```
 
-Jalankan frontend saja:
+Run only the frontend:
 
 ```bash
 npm run dev
 ```
 
-Buka:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-Jalankan frontend, backend, dan ML service sekaligus:
+Run frontend, backend, and ML service together:
 
 ```bash
 npm run dev:all
 ```
 
-Command `dev:all` membaca:
+`dev:all` expects:
 
-- `./.env.local` untuk frontend
-- `./backend/.env.local` untuk backend
-- `./backend/ml-service/.env.local` untuk ML service
+- `./.env.local` for the frontend
+- `./backend/.env.local` for the backend
+- `./backend/ml-service/.env.local` for the ML service
 
-Jika ML service belum siap, frontend dan backend tetap bisa berjalan, tetapi fitur training/predict di ML dashboard akan masuk mode error/degraded.
+If the ML service is not running, the frontend and backend can still run, but ML model info, training, and prediction features will show degraded/error states.
 
-## Command Umum
+## Common Commands
 
 ```bash
-npm run dev          # Next.js development server
-npm run dev:all      # Frontend + backend + ML service lokal
-npm run build        # Production build
-npm run start        # Start hasil build
+npm run dev             # Next.js development server
+npm run dev:turbo       # Next.js development server with Turbopack
+npm run dev:all         # Frontend + backend + ML service
+npm run build           # Production build
+npm run start           # Start the built frontend
 ```
 
-## Flow Aplikasi
+## Application Flow
 
-1. User login melalui email/password atau Google OAuth.
-2. Token JWT disimpan oleh frontend untuk request API berikutnya.
-3. JWT berlaku 1 jam. Ini disengaja agar sesi tidak terlalu panjang.
-4. Middleware dan AuthContext menjaga akses halaman berdasarkan role.
-5. Halaman monitoring mengambil data dari backend Express.
-6. Backend membaca data MongoDB dan, untuk fitur tertentu, memanggil ML service.
-7. Auto-fix dan notifikasi disimpan sebagai riwayat agar muncul di ML dashboard, notifications, QoS, dan halaman detail device.
+1. Users log in through email/password or Google OAuth.
+2. The frontend stores the JWT for subsequent API calls.
+3. JWT sessions are intentionally limited to 1 hour.
+4. AuthContext and route guards restrict pages by role.
+5. Monitoring pages read data from the Express backend.
+6. The backend reads MongoDB and calls the ML service for ML-specific features.
+7. Auto-fix and notification records are stored as history and displayed in ML Dashboard, Notifications, QoS, and device detail pages.
 
-## Halaman Utama
+## Main Pages
 
-- `/dashboard` - ringkasan status sistem dan monitoring.
-- `/channels` - monitoring channel IPTV.
-- `/chromecast` - monitoring Chromecast.
-- `/hospitality` - monitoring TV kamar.
-- `/ml-dashboard` - model status, training, prediction, dan auto-fix analytics.
-- `/notifications` - daftar notifikasi dan insiden.
-- `/qos` - ringkasan QoS per kategori.
-- `/users` - manajemen user admin.
-- `/staff` - manajemen staff.
-- `/account` - profil user.
+- `/dashboard` - operational system overview.
+- `/channels` - IPTV channel monitoring and channel CSV export.
+- `/chromecast` - Chromecast inventory, health, metrics, and CSV export.
+- `/hospitality` - in-room TV monitoring and CSV export.
+- `/ml-dashboard` - model status, training, prediction, feedback review, pending auto-fix review, and auto-fix analytics.
+- `/notifications` - notification and incident list with filtered CSV export.
+- `/qos` - QoS summary by FAQ/category, exported as a QoS report.
+- `/users` - admin user management.
+- `/staff` - staff management and performance.
+- `/account` - user profile, password, and avatar settings.
+- `/help` - troubleshooting documentation by category.
 
-## Deploy
+## Export Behavior
 
-Frontend disiapkan untuk Vercel. Untuk branch development:
+CSV export buttons are scoped to the page or section where they appear:
+
+- Channels export channel rows and channel network metrics.
+- Chromecast exports Chromecast rows and backend-provided metrics.
+- Hospitality exports in-room TV rows and backend-provided metrics.
+- Notifications exports the current notification data using the active filters.
+- QoS exports the QoS category summary, including all configured categories for reporting.
+- ML Dashboard exports auto-fix analytics from the dashboard header and approved feedback JSON from the feedback section.
+- Device detail pages export only that device's auto-fix history.
+
+Exported metrics should reflect backend data. The frontend should not generate random CSV-only metric values.
+
+## ML Training and QoS
+
+Uploading an XLSX training file trains the complaint classification model and recommended-fix mapping in the ML service. It does not directly rewrite the QoS dashboard.
+
+QoS is built from notification records and device/network metrics stored by the backend. A newly trained model can affect future classifications, future recommended fixes, and future notification/auto-fix categories after the backend uses the updated model. Historical QoS rows do not automatically change unless historical notifications are explicitly regenerated or reclassified.
+
+## Deployment
+
+The frontend is prepared for Vercel. For development branch previews:
 
 ```bash
 git switch dev
 git push origin dev
 ```
 
-Pastikan Vercel project sudah diarahkan untuk membuat preview deployment dari branch `dev`, dan environment variables production/preview sudah diisi di Vercel.
+Make sure the Vercel project is configured to build preview deployments from `dev`, and that preview/production environment variables are set in Vercel.
 
-Backend production saat ini berjalan di VPS/Docker Compose dan diakses lewat
-Cloudflare Tunnel. Untuk mencegah tunnel stale, VPS memakai systemd timer:
-
-- `cloudflared-watchdog.timer` mengecek health tunnel lokal.
-- `cloudflared-refresh.timer` menyegarkan connector berkala.
-
-Konfigurasi ini berada di VPS, bukan di repository frontend.
+The production backend is deployed on a VPS through Docker Compose and Cloudflare Tunnel. The public backend URL is expected through the tunnel/reverse proxy.
 
 ## Security Notes
 
-- Route halaman frontend dilindungi berdasarkan role `admin` dan `guest`.
-- Endpoint backend sensitif seperti ML model, ML feedback, backup/sync, monitoring consistency, dan auto-fix admin dikunci dengan JWT admin.
-- Endpoint health/metrics tertentu tetap sengaja public/internal untuk Docker, Prometheus, dan reverse proxy.
-- Token masih tersedia di storage frontend untuk kebutuhan cross-domain lama; hindari memasukkan script pihak ketiga yang tidak dipercaya.
-- MongoDB Atlas adalah source of truth. Supabase hanya optional mirror legacy, bukan backup production.
+- Frontend pages are role-gated for `admin` and `guest`.
+- Sensitive backend endpoints such as ML model management, ML feedback, backup/sync, monitoring consistency, and admin auto-fix routes require an admin JWT.
+- Some health/metrics endpoints are intentionally open for Docker, Prometheus, and reverse proxy checks.
+- Tokens are still available to frontend JavaScript for legacy cross-domain compatibility, so avoid untrusted third-party scripts.
+- MongoDB Atlas is the source of truth. Supabase is an optional legacy mirror, not a production backup.
 
 ## Troubleshooting
 
-- Login gagal setelah 1 jam: ini sesuai konfigurasi keamanan JWT 1 jam.
-- ML dashboard error 502/500: pastikan backend dapat menjangkau ML service.
-- API 401/403: cek token, cookie, role user, dan `NEXT_PUBLIC_API_URL`.
-- `npm run dev:all` gagal di ML service: gunakan Python 3.11/3.12 dan install dependency ML service.
-- Cloudflare `Error 1033`: cek `cloudflared` di VPS dan timer watchdog/refresh.
+- Login expires after 1 hour: this is expected by the JWT security policy.
+- ML Dashboard shows 500/502: ensure the backend can reach the ML service.
+- API returns 401/403: check token, cookie, user role, and `NEXT_PUBLIC_API_URL`.
+- `npm run dev:all` fails on ML service: use Python 3.11/3.12 and install ML dependencies.
+- Cloudflare `Error 1033`: check the VPS `cloudflared` service and the watchdog/refresh timers.

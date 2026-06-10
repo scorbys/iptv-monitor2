@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
     ],
   },
 
@@ -116,7 +120,7 @@ const nextConfig: NextConfig = {
       allowedOrigins: [
         "https://monitoring.radissonuluwatu.my.id",
         "https://be.radissonuluwatu.my.id",
-        "https://localhost:3000",
+        "http://localhost:3000",
       ],
     },
   },

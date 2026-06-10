@@ -412,13 +412,11 @@ export default function TvPage() {
       const csvData = filteredTVs.map((tv) => {
         const isOffline = tv.status === "offline";
 
-        // Use backend metrics if available, otherwise generate placeholder values
-        // For now, generate realistic random values for demonstration
-        const packetLoss = tv.metrics?.packetLoss ?? (isOffline ? 0 : parseFloat((Math.random() * 5).toFixed(2)));
-        const latency = tv.responseTime ?? (isOffline ? 0 : Math.floor(Math.random() * 150 + 10));
-        const jitter = tv.metrics?.jitter ?? (isOffline ? 0 : parseFloat((Math.random() * 15).toFixed(2)));
-        const error = tv.metrics?.error ?? (isOffline ? 0 : parseFloat((Math.random() * 8).toFixed(2)));
-        const recoveryTime = tv.metrics?.recoveryTime ?? (isOffline ? 0 : parseFloat((Math.random() * 40 + 5).toFixed(1)));
+        const packetLoss = tv.metrics?.packetLoss ?? 0;
+        const latency = tv.metrics?.latency ?? tv.responseTime ?? 0;
+        const jitter = tv.metrics?.jitter ?? 0;
+        const error = tv.metrics?.error ?? 0;
+        const recoveryTime = tv.metrics?.recoveryTime ?? 0;
 
         // Use labeledMetrics from backend if available, otherwise calculate scores
         const labeledMetrics = tv.labeledMetrics;
@@ -760,7 +758,7 @@ export default function TvPage() {
             >
               <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium hidden sm:inline">
-                {exportLoading ? "Exporting..." : "Export"}
+                {exportLoading ? "Exporting..." : "Export CSV"}
               </span>
             </button>
 

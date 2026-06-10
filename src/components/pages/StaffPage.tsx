@@ -49,6 +49,16 @@ interface StaffPageProps {
 
 const ITEMS_PER_PAGE = 10;
 
+const normalizeStaff = (member: Staff): Staff => ({
+  ...member,
+  stats: {
+    totalAssigned: member.stats?.totalAssigned ?? 0,
+    totalResolved: member.stats?.totalResolved ?? 0,
+    avgResolutionTime: member.stats?.avgResolutionTime ?? 0,
+    successRate: member.stats?.successRate ?? 0,
+  },
+});
+
 export default function StaffPage({ user }: StaffPageProps) {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +78,11 @@ export default function StaffPage({ user }: StaffPageProps) {
   const [createLoading, setCreateLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
 
+  const getAuthHeader = (): Record<string, string> => {
+    const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // Sorting state
   const [sortConfig, setSortConfig] = useState<{
     key: 'name' | 'department' | 'position';
@@ -83,25 +98,29 @@ export default function StaffPage({ user }: StaffPageProps) {
       setError(null);
       setLoading(true); // Show loading state
 
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/staff`, {
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      setStaff(data.staff || []);
+      setStaff((data.staff || []).map(normalizeStaff));
 
-      // Reset to page 1 after refresh
-      setCurrentPage(1);
     } catch (err) {
       apiLogger.error("Failed to fetch staff:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch staff");
@@ -151,19 +170,25 @@ export default function StaffPage({ user }: StaffPageProps) {
     if (!deleteModal) return;
 
     try {
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/staff/${deleteModal.staffId}`, {
         method: "DELETE",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       setDeleteModal(null);
@@ -183,20 +208,26 @@ export default function StaffPage({ user }: StaffPageProps) {
     if (!toggleModal) return;
 
     try {
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/staff/${toggleModal.staffId}`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ isActive: !toggleModal.currentStatus }),
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       setToggleModal(null);
@@ -223,21 +254,26 @@ export default function StaffPage({ user }: StaffPageProps) {
 
     try {
       setCreateLoading(true);
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/staff`, {
         method: "POST",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify(createStaffForm),
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       setCreateModal(false);
@@ -266,13 +302,13 @@ export default function StaffPage({ user }: StaffPageProps) {
 
     try {
       setEditLoading(true);
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/staff/${editStaffForm.id}`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -284,9 +320,14 @@ export default function StaffPage({ user }: StaffPageProps) {
         }),
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       setEditModal(false);
@@ -318,12 +359,12 @@ export default function StaffPage({ user }: StaffPageProps) {
 
   // Filter and sort staff
   const filteredStaff = useMemo(() => {
-    let filtered = staff.filter((member) => {
+    const filtered = staff.filter((member) => {
       const matchesSearch =
         searchQuery === "" ||
-        member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.phone.includes(searchQuery);
+        (member.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (member.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (member.phone || "").includes(searchQuery);
 
       const matchesDepartment = departmentFilter === "All" || member.department === departmentFilter;
       const matchesStatus = statusFilter === "All" ||
@@ -628,8 +669,11 @@ export default function StaffPage({ user }: StaffPageProps) {
                   </tr>
                 ) : (
                   paginatedStaff.map((member) => {
-                    const deptConfig = getDepartmentConfig(member.department);
+                    const deptConfig = getDepartmentConfig(member.department || "Other");
                     const DeptIcon = deptConfig.icon;
+                    const assigned = Number(member.stats.totalAssigned || 0);
+                    const resolved = Number(member.stats.totalResolved || 0);
+                    const successRate = Number(member.stats.successRate ?? (assigned > 0 ? (resolved / assigned) * 100 : 0));
 
                     return (
                       <tr
@@ -640,12 +684,12 @@ export default function StaffPage({ user }: StaffPageProps) {
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
                               <span className="text-sm font-bold text-white">
-                                {member.name.charAt(0).toUpperCase()}
+                                {(member.name || "?").charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-gray-900 truncate">
-                                {member.name}
+                                {member.name || "Unnamed staff"}
                               </p>
                               <p className="text-xs text-gray-500 truncate">
                                 ID: {member.employeeId || member._id.slice(-6)}
@@ -670,12 +714,12 @@ export default function StaffPage({ user }: StaffPageProps) {
                         <td className="px-4 sm:px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${deptConfig.color}`}>
                             <DeptIcon className="w-3 h-3" />
-                            {member.department}
+                            {member.department || "Other"}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4">
                           <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                            {member.position}
+                            {member.position || "Unassigned"}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4">
@@ -696,30 +740,26 @@ export default function StaffPage({ user }: StaffPageProps) {
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Assigned:</span>
-                              <span className="text-xs font-semibold text-gray-900">{member.stats.totalAssigned}</span>
+                              <span className="text-xs font-semibold text-gray-900">{assigned}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Resolved:</span>
                               <span className="text-xs font-semibold text-gray-900">
-                                {typeof member.stats.totalResolved === 'number'
-                                  ? member.stats.totalResolved.toFixed(1)
-                                  : member.stats.totalResolved}
+                                {resolved}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">Success:</span>
                               <span className={`text-xs font-semibold ${
-                                member.stats.totalAssigned > 0
-                                  ? (member.stats.totalResolved / member.stats.totalAssigned * 100) >= 80
+                                assigned > 0
+                                  ? successRate >= 80
                                     ? "text-green-600"
-                                    : (member.stats.totalResolved / member.stats.totalAssigned * 100) >= 50
+                                    : successRate >= 50
                                     ? "text-yellow-600"
                                     : "text-red-600"
                                   : "text-gray-600"
                               }`}>
-                                {member.stats.totalAssigned > 0
-                                  ? ((member.stats.totalResolved / member.stats.totalAssigned) * 100).toFixed(0)
-                                  : 0}%
+                                {assigned > 0 ? successRate.toFixed(0) : 0}%
                               </span>
                             </div>
                           </div>
@@ -730,6 +770,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                               onClick={() => openEditModal(member)}
                               className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all duration-200"
                               title="Edit"
+                              aria-label={`Edit ${member.name || "staff member"}`}
                             >
                               <PencilIcon className="w-4 h-4" />
                             </button>
@@ -741,6 +782,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                                   : "bg-green-50 text-green-600 hover:bg-green-100"
                               }`}
                               title={member.isActive ? "Deactivate" : "Activate"}
+                              aria-label={`${member.isActive ? "Deactivate" : "Activate"} ${member.name || "staff member"}`}
                             >
                               {member.isActive ? (
                                 <XMarkIcon className="w-4 h-4" />
@@ -751,7 +793,8 @@ export default function StaffPage({ user }: StaffPageProps) {
                             <button
                               onClick={() => setDeleteModal({ staffId: member._id, name: member.name })}
                               className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200"
-                              title="Delete"
+                              title="Deactivate"
+                              aria-label={`Deactivate ${member.name || "staff member"}`}
                             >
                               <TrashIcon className="w-4 h-4" />
                             </button>
@@ -822,13 +865,13 @@ export default function StaffPage({ user }: StaffPageProps) {
               <div className="p-2 bg-red-100 rounded-lg">
                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete Staff</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Deactivate Staff</h3>
             </div>
             <p className="text-sm text-gray-600 mb-2">
-              Are you sure you want to delete staff member <b>{deleteModal.name}</b>?
+              Are you sure you want to deactivate staff member <b>{deleteModal.name}</b>?
             </p>
             <p className="text-xs text-red-600 mb-6">
-              This action cannot be undone and will permanently remove the staff member from the system.
+              The staff record is kept for history and can be activated again from this page.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -841,7 +884,7 @@ export default function StaffPage({ user }: StaffPageProps) {
                 onClick={confirmDeleteStaff}
                 className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200"
               >
-                Delete
+                Deactivate
               </button>
             </div>
           </div>

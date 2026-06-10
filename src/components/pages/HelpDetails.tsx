@@ -360,7 +360,7 @@ const faqData: FAQ[] = [
     issue: "Reset Configuration",
     solutions: [
       "Restart Chromecast",
-      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 Detik",
+      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 detik",
     ],
     detailedSteps: [
       "Identifikasi masalah yang memerlukan reset",
@@ -600,7 +600,7 @@ const faqData: FAQ[] = [
       "Check if other devices can discover the Chromecast",
     ],
     hasImage: false,
-    slug: "no-device-found-chromecast-logined",
+    slug: "no-device-found-logined",
     images: [],
     visualGuideImages: [],
     quickInfoImages: [],

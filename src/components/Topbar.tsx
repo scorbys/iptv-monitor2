@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { IconBell, IconSettings } from "@tabler/icons-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Button } from "@radix-ui/themes";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { componentLogger } from "@/utils/debugLogger";
@@ -96,6 +95,10 @@ const faqData = [
 
 // Local FAQ category function
 const getSpecificFAQCategory = (notification: Notification): string | null => {
+  if (/^Kategori-\d+$/i.test(notification.errorCategory || "")) {
+    return notification.errorCategory || null;
+  }
+
   const notifText = [
     notification.title?.toLowerCase() || "",
     notification.message?.toLowerCase() || "",
@@ -136,15 +139,20 @@ const getSpecificFAQCategory = (notification: Notification): string | null => {
 };
 
 const getReadIds = (): string[] => {
+  if (typeof window === "undefined") return [];
+
   try {
-    return JSON.parse(localStorage.getItem("read-notif-ids") || "[]");
+    const parsed = JSON.parse(localStorage.getItem("read-notif-ids") || "[]");
+    return Array.isArray(parsed) ? parsed.map(String) : [];
   } catch {
     return [];
   }
 };
 
 const setReadIds = (ids: string[]) => {
-  localStorage.setItem("read-notif-ids", JSON.stringify(ids));
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem("read-notif-ids", JSON.stringify(Array.from(new Set(ids))));
 };
 
 export default function Topbar() {
@@ -172,6 +180,33 @@ export default function Topbar() {
 
     return `${baseUrl}${cleanPath}`;
   };
+
+  const isValidAvatarUrl = (url?: string | null) => {
+    if (!url) return false;
+
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return url.startsWith("/");
+    }
+  };
+
+  const getInitials = (name?: string, username?: string, email?: string) => {
+    const preferred = name?.trim();
+    if (preferred) {
+      return preferred
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+
+    const fallback = username?.trim() || email?.trim() || "US";
+    return fallback.slice(0, 2).toUpperCase();
+  };
+
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -186,7 +221,13 @@ export default function Topbar() {
     name: undefined as string | undefined,
   });
   const [userLoading, setUserLoading] = useState(true);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const router = useRouter();
+  const avatarSrc =
+    user.avatar && isValidAvatarUrl(user.avatar) && !avatarLoadFailed
+      ? getBackendUrl(user.avatar)
+      : "";
+  const userInitials = getInitials(user.name, user.username, user.email);
 
   // Calculate stats dari notifications
   const calculateStats = useCallback(
@@ -241,6 +282,7 @@ export default function Topbar() {
             provider: result.user.provider,
             name: result.user.name, // Pastikan name dari Google ditampilkan
           });
+          setAvatarLoadFailed(false);
         } else {
           componentLogger.warn('User not authenticated or invalid response');
           setUser({
@@ -273,6 +315,27 @@ export default function Topbar() {
     } finally {
       setUserLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [user.avatar]);
+
+  useEffect(() => {
+    const handleAvatarUpdated = (event: Event) => {
+      const avatar = (event as CustomEvent<{ avatar?: string }>).detail?.avatar;
+      if (!avatar) return;
+
+      setUser((prev) => ({ ...prev, avatar }));
+      setAvatarLoadFailed(false);
+    };
+
+    window.addEventListener("iptv:user-avatar-updated", handleAvatarUpdated);
+    return () =>
+      window.removeEventListener(
+        "iptv:user-avatar-updated",
+        handleAvatarUpdated
+      );
   }, []);
 
   const fetchNotifications = useCallback(async () => {
@@ -338,6 +401,30 @@ export default function Topbar() {
   const handleViewAllNotifications = () => {
     setNotificationOpen(false);
     router.push("/notifications");
+  };
+
+  const markNotificationsAsRead = useCallback((ids: string[]) => {
+    setReadIds([...getReadIds(), ...ids.map(String)]);
+  }, []);
+
+  const handleNotificationClick = (notification: Notification) => {
+    const notificationId = (notification.notificationId || notification.id)?.toString();
+    if (notificationId) {
+      markNotificationsAsRead([notificationId]);
+    }
+
+    setNotificationOpen(false);
+    const searchValue =
+      notificationId ||
+      notification.deviceName ||
+      notification.roomNo ||
+      notification.title ||
+      "";
+    router.push(
+      searchValue
+        ? `/notifications?search=${encodeURIComponent(searchValue)}`
+        : "/notifications"
+    );
   };
 
   const handleAccountClick = () => {
@@ -408,7 +495,7 @@ export default function Topbar() {
             setNotificationOpen(open);
             if (!open) {
               const readIds = notifications.map((n) => n.id.toString());
-              setReadIds(readIds);
+              markNotificationsAsRead(readIds);
             }
           }}
         >
@@ -454,6 +541,9 @@ export default function Topbar() {
 
                   {stats && (
                     <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-500 font-medium">
+                        {totalNotifCount || stats.totalNotifications} total
+                      </span>
                       {stats.activeIssues > 0 && (
                         <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 bg-red-500 rounded-full" />
@@ -508,81 +598,92 @@ export default function Topbar() {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {notifications.map((notification) => (
-                      <DropdownMenu.Item key={notification.id} asChild>
-                        <div className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors">
-                          <div className="flex items-start gap-3">
-                            {/* Status Indicator */}
-                            <div className="flex-shrink-0 mt-1">
-                              <div
-                                className={`w-3 h-3 rounded-full ${notification.currentStatus === "offline"
-                                    ? "bg-red-500"
-                                    : "bg-green-500"
-                                  }`}
-                              />
-                            </div>
+                    {notifications.map((notification) => {
+                      const status = notification.currentStatus || "unknown";
+                      const isOffline = status === "offline";
+                      const isOnline = status === "online";
+                      const faqCategory = getSpecificFAQCategory(notification);
+                      const shouldShowErrorCategory =
+                        notification.errorCategory &&
+                        notification.errorCategory !== faqCategory;
 
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              {/* Header with Title and Time */}
-                              <div className="flex items-start justify-between gap-3 mb-2">
-                                <div className="flex-1">
-                                  <h4
-                                    className={`text-sm font-medium ${notification.currentStatus === "offline"
-                                        ? "text-red-700"
-                                        : "text-gray-900"
+                      return (
+                        <DropdownMenu.Item key={notification.id} asChild>
+                          <button
+                            type="button"
+                            onClick={() => handleNotificationClick(notification)}
+                            className="w-full text-left px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus:bg-blue-50"
+                          >
+                            <div className="flex items-start gap-3">
+                              {/* Status Indicator */}
+                              <div className="flex-shrink-0 mt-1">
+                                <div
+                                  className={`w-3 h-3 rounded-full ${isOffline
+                                      ? "bg-red-500"
+                                      : isOnline
+                                        ? "bg-green-500"
+                                        : "bg-gray-400"
+                                    }`}
+                                />
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                {/* Header with Title and Time */}
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <div className="flex-1">
+                                    <h4
+                                      className={`text-sm font-medium ${isOffline
+                                          ? "text-red-700"
+                                          : "text-gray-900"
+                                        }`}
+                                    >
+                                      {notification.title}
+                                    </h4>
+                                    <p className="text-sm text-gray-600 mt-0.5 truncate">
+                                      {notification.message}
+                                    </p>
+                                  </div>
+                                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                                    {notification.time}
+                                  </span>
+                                </div>
+
+                                {/* Tags */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {/* Status */}
+                                  <span
+                                    className={`px-2 py-1 text-xs rounded font-medium ${isOnline
+                                        ? "bg-green-100 text-green-800"
+                                        : isOffline
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-gray-100 text-gray-700"
                                       }`}
                                   >
-                                    {notification.title}
-                                  </h4>
-                                  <p className="text-sm text-gray-600 mt-0.5 truncate">
-                                    {notification.message}
-                                  </p>
-                                </div>
-                                <span className="text-xs text-gray-400 whitespace-nowrap">
-                                  {notification.time}
-                                </span>
-                              </div>
-
-                              {/* Tags */}
-                              <div className="flex flex-wrap items-center gap-2">
-                                {/* Status */}
-                                <span
-                                  className={`px-2 py-1 text-xs rounded font-medium ${notification.currentStatus === "online"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                    }`}
-                                >
-                                  {notification.currentStatus}
-                                </span>
-
-                                {/* FAQ Category */}
-                                {(() => {
-                                  const faqCategory =
-                                    getSpecificFAQCategory(notification);
-                                  if (faqCategory) {
-                                    return (
-                                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                        {faqCategory.replace("Kategori-", "K-")}
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-
-                                {/* Error Category (jika ada) */}
-                                {notification.errorCategory && (
-                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded font-medium">
-                                    {notification.errorCategory}
+                                    {status}
                                   </span>
-                                )}
+
+                                  {/* FAQ Category */}
+                                  {faqCategory && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                      {faqCategory.replace("Kategori-", "K-")}
+                                    </span>
+                                  )}
+
+                                  {/* Error Category (jika ada) */}
+                                  {shouldShowErrorCategory && (
+                                    <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded font-medium">
+                                      {notification.errorCategory}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      </DropdownMenu.Item>
-                    ))}
+                          </button>
+                        </DropdownMenu.Item>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -635,33 +736,20 @@ export default function Topbar() {
                 {/* Desktop Profile */}
                 <div className="hidden sm:flex items-center gap-2 px-3 py-2 transition-all duration-300 group rounded-xl hover:bg-white/10 backdrop-blur-sm border border-transparent hover:border-white/10">
                   <div className="relative">
-                    {user?.avatar ? (
+                    {avatarSrc ? (
                       <img
-                        src={getBackendUrl(user.avatar)}
+                        src={avatarSrc}
                         alt="User Avatar"
                         width={32}
                         height={32}
+                        referrerPolicy="no-referrer"
                         className="w-8 h-8 rounded-full border-2 border-white/30 shadow-lg object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const initials = user.username
-                              .slice(0, 2)
-                              .toUpperCase();
-                            parent.innerHTML = `
-                              <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30">
-                                <span class="text-white text-xs font-medium">${initials}</span>
-                              </div>
-                            `;
-                          }
-                        }}
+                        onError={() => setAvatarLoadFailed(true)}
                       />
                     ) : (
                       <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30">
                         <span className="text-white text-xs font-medium">
-                          {user?.username.slice(0, 2).toUpperCase() || "US"}
+                          {userInitials}
                         </span>
                       </div>
                     )}
@@ -676,34 +764,21 @@ export default function Topbar() {
 
                 {/* Mobile Profile */}
                 <div className="block sm:hidden relative p-1 rounded-xl hover:bg-white/10 transition-colors">
-                  {user?.avatar ? (
+                  {avatarSrc ? (
                     <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/30">
                       <img
-                        src={getBackendUrl(user.avatar)}
-                        alt={user.username}
+                        src={avatarSrc}
+                        alt={user.username || "User avatar"}
                         width={32}
                         height={32}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const initials = user.username
-                              .slice(0, 2)
-                              .toUpperCase();
-                            parent.innerHTML = `
-                              <div class="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-medium">
-                                ${initials}
-                              </div>
-                            `;
-                          }
-                        }}
+                        onError={() => setAvatarLoadFailed(true)}
                       />
                     </div>
                   ) : (
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium border border-white/30 relative">
-                      {user?.username.slice(0, 2).toUpperCase() || "US"}
+                      {userInitials}
                     </div>
                   )}
                 </div>
@@ -722,34 +797,21 @@ export default function Topbar() {
                   <div className="px-4 py-4 border-b border-slate-100/50">
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        {user.avatar ? (
+                        {avatarSrc ? (
                           <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
                             <img
-                              src={getBackendUrl(user.avatar)}
-                              alt={user.username}
+                              src={avatarSrc}
+                              alt={user.username || "User avatar"}
                               width={48}
                               height={48}
+                              referrerPolicy="no-referrer"
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = "none";
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  const initials = user.username
-                                    .slice(0, 2)
-                                    .toUpperCase();
-                                  parent.innerHTML = `
-                                    <div class="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-medium">
-                                      ${initials}
-                                    </div>
-                                  `;
-                                }
-                              }}
+                              onError={() => setAvatarLoadFailed(true)}
                             />
                           </div>
                         ) : (
                           <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-medium border-2 border-white/30 shadow-lg">
-                            {user.username.slice(0, 2).toUpperCase()}
+                            {userInitials}
                           </div>
                         )}
                         {/* Online indicator */}

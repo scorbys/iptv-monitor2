@@ -40,6 +40,12 @@ const ROUTE_CONFIG = {
     "/api/chromecast",
     "/api/config",
     "/api/users",
+    "/api/user",
+    "/api/staff",
+    "/api/ml",
+    "/api/auto-fix",
+    "/api/notifications",
+    "/api/dashboard",
   ],
 
   // Public API routes (bypass auth, still proxy to Railway)

@@ -158,7 +158,7 @@ const faqData = [
     issue: "Reset Configuration",
     solutions: [
       "Restart Chromecast",
-      "Reset Chromecast dibawa ke ruang server pencet tombol poer 10 Detik",
+      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 detik",
     ],
     hasImage: false,
     actionType: "On Site",
@@ -247,7 +247,7 @@ const faqData = [
     hasImage: false,
     actionType: "System",
     priority: "High",
-    slug: "no-device-found-chromecast-logined",
+    slug: "no-device-found-logined",
   },
 ];
 
@@ -284,6 +284,16 @@ export default function NotifPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const search = params.get("search");
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [mounted]);
+
+  useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       if (width < 640) {
@@ -310,8 +320,8 @@ export default function NotifPage() {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const resp = await fetch("/api/notifications/stats/count/total", {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
         });
@@ -335,8 +345,8 @@ export default function NotifPage() {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const resp = await fetch("/api/auto-fix/stats", {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
         });
@@ -912,16 +922,6 @@ export default function NotifPage() {
         const labeledMetrics = (notification as any).labeledMetrics || {};
         const netStats = (notification as any).networkStats || {};
 
-        // DEBUG: Log metrics data to understand what we're getting
-        console.log('[CSV Export] Notification:', notification.notificationId, {
-          hasMetrics: !!notification.metrics,
-          hasLabeledMetrics: !!notification.labeledMetrics,
-          metricsKeys: Object.keys(metrics),
-          labeledMetricsKeys: Object.keys(labeledMetrics),
-          packetLoss: metrics.packetLoss,
-          latency: metrics.latency
-        });
-
         // Determine if device is offline (for score calculation)
         // Match the logic from ChannelsPage.tsx
         const isOffline = notification.currentStatus === 'offline' ||
@@ -1463,7 +1463,7 @@ export default function NotifPage() {
                   }`}
               />
               <span className="text-xs sm:text-sm font-medium">
-                {exportLoading ? "Exporting..." : "Export"}
+                {exportLoading ? "Exporting..." : "Export CSV"}
               </span>
             </button>
           </div>

@@ -358,8 +358,8 @@ export default function QosPage() {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const resp = await fetch("/api/notifications/stats/count/total", {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
         });

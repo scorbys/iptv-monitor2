@@ -13,7 +13,7 @@
     "dev:ml:local": "cd backend/ml-service && set -a && . ./.env.local && set +a && python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@eslint/eslintrc": "^3",

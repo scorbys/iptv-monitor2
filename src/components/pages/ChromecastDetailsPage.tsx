@@ -205,7 +205,7 @@ const faqData: FAQ[] = [
     issue: "Reset Configuration",
     solutions: [
       "Restart Chromecast",
-      "Reset Chromecast dibawa ke ruang server pencet tombol poer 10 Detik",
+      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 detik",
       "Factory reset melalui aplikasi Google Home",
       "Cabut kabel power selama 30 detik lalu hubungkan kembali",
     ],
@@ -1372,7 +1372,7 @@ export default function ChromecastDetailPage({
   // Export auto-fix logs to CSV
   const exportAutoFixLogsToCSV = useCallback(() => {
     if (autoFixLogs.length === 0) {
-      alert('Tidak ada data untuk diexport');
+      alert('No auto-fix history to export');
       return;
     }
 
@@ -1389,17 +1389,22 @@ export default function ChromecastDetailPage({
       'Error Message'
     ];
 
+    const escapeCsv = (value: unknown) => {
+      const stringValue = value == null || value === '' ? 'N/A' : String(value);
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
     const rows = autoFixLogs.map(log => [
-      log.timestamp,
-      log.mlCategory,
-      `"${log.issue.replace(/"/g, '""')}"`,
-      `"${log.action.replace(/"/g, '""')}"`,
-      log.status,
-      (log.confidence * 100).toFixed(1),
-      log.staffName || 'N/A',
-      log.successRate?.toFixed(1) || 'N/A',
-      `"${log.description.replace(/"/g, '""')}"`,
-      log.errorMessage ? `"${log.errorMessage.replace(/"/g, '""')}"` : ''
+      escapeCsv(log.timestamp),
+      escapeCsv(log.mlCategory),
+      escapeCsv(log.issue),
+      escapeCsv(log.action),
+      escapeCsv(log.status),
+      typeof log.confidence === 'number' ? (log.confidence * 100).toFixed(1) : 'N/A',
+      escapeCsv(log.staffName),
+      typeof log.successRate === 'number' ? log.successRate.toFixed(1) : 'N/A',
+      escapeCsv(log.description),
+      escapeCsv(log.errorMessage)
     ]);
 
     const csvContent = [
@@ -2729,7 +2734,7 @@ export default function ChromecastDetailPage({
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
                     >
                       <ArrowDownTrayIcon className="w-3 h-3 mr-1.5" />
-                      Export CSV
+                      Export Auto-Fix CSV
                     </button>
                   )}
                   <button

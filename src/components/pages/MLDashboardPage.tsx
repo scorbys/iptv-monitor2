@@ -1104,8 +1104,6 @@ export default function MLDashboardPage() {
         return;
       }
 
-      console.log(`Exporting ${allFixes.length} records...`);
-
       // Fetch chromecast devices to enrich room numbers
       const chromecastRoomMap: Record<string, string> = {};
       try {
@@ -1177,7 +1175,7 @@ export default function MLDashboardPage() {
       const url = URL.createObjectURL(blob);
 
       link.setAttribute('href', url);
-      link.setAttribute('download', `autofix_export_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
+      link.setAttribute('download', `ml_dashboard_autofix_export_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -1670,7 +1668,7 @@ export default function MLDashboardPage() {
               className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${isExporting ? "animate-pulse" : ""}`}
             >
               <DocumentArrowDownIcon className="w-4 h-4" />
-              <span className="text-sm font-medium">{isExporting ? "Exporting..." : "Export CSV"}</span>
+              <span className="text-sm font-medium">{isExporting ? "Exporting..." : "Export Auto-Fix CSV"}</span>
             </button>
           </div>
         </div>

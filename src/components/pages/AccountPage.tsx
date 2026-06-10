@@ -13,7 +13,6 @@ import {
   IconEdit,
   IconArrowLeft,
 } from "@tabler/icons-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { componentLogger } from "@/utils/debugLogger";
 
@@ -36,6 +35,11 @@ interface ValidationResult {
 
 export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
+
+  const getAuthHeader = (): Record<string, string> => {
+    const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   // Helper function to get backend URL for avatar
   const getBackendUrl = (path: string) => {
@@ -62,6 +66,7 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -87,6 +92,14 @@ export default function AccountPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const readJson = async (response: Response) => {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -96,6 +109,7 @@ export default function AccountPage() {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
+            ...getAuthHeader(),
           },
         });
 
@@ -103,6 +117,7 @@ export default function AccountPage() {
           const result = await response.json();
           if (result.success && result.user) {
             setUser(result.user);
+            setAvatarLoadFailed(false);
             setFormData({
               username: result.user.username || "",
               name: result.user.name || "",
@@ -123,9 +138,14 @@ export default function AccountPage() {
     fetchUserData();
   }, [router]);
 
-  const getInitials = (name: string, username: string) => {
-    if (name && name.trim()) {
-      return name
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [user?.avatar]);
+
+  const getInitials = (name?: string, username?: string, email?: string) => {
+    const preferred = name?.trim();
+    if (preferred) {
+      return preferred
         .trim()
         .split(" ")
         .map((word) => word[0])
@@ -133,7 +153,9 @@ export default function AccountPage() {
         .toUpperCase()
         .slice(0, 2);
     }
-    return username.slice(0, 2).toUpperCase();
+
+    const fallback = username?.trim() || email?.trim() || "US";
+    return fallback.slice(0, 2).toUpperCase();
   };
 
   const validateUsername = (username: string): ValidationResult => {
@@ -168,6 +190,14 @@ export default function AccountPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (isGoogleUser) {
+      setMessage({
+        type: "error",
+        text: "Google account profile pictures are managed by Google",
+      });
+      return;
+    }
+
     if (!file.type.startsWith("image/")) {
       setMessage({ type: "error", text: "Please select a valid image file" });
       return;
@@ -186,18 +216,35 @@ export default function AccountPage() {
       const response = await fetch("/api/user/avatar", {
         method: "POST",
         credentials: "include",
+        headers: {
+          ...getAuthHeader(),
+        },
         body: formData,
       });
 
-      const result = await response.json();
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
 
-      if (result.success) {
-        setUser((prev) => (prev ? { ...prev, avatar: result.avatar } : null));
+      const result = await readJson(response);
+
+      if (response.ok && result?.success) {
+        const avatar = result.avatar || result.user?.avatar;
+        setUser((prev) => (prev && avatar ? { ...prev, avatar } : prev));
+        setAvatarLoadFailed(false);
+        if (avatar) {
+          window.dispatchEvent(
+            new CustomEvent("iptv:user-avatar-updated", {
+              detail: { avatar },
+            })
+          );
+        }
         setMessage({ type: "success", text: "Avatar updated successfully" });
       } else {
         setMessage({
           type: "error",
-          text: result.error || "Failed to update avatar",
+          text: result?.error || "Failed to update avatar",
         });
       }
     } catch (error) {
@@ -229,12 +276,18 @@ export default function AccountPage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           username: formData.username,
           name: formData.name,
         }),
       });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
 
       const result = await response.json();
 
@@ -258,8 +311,6 @@ export default function AccountPage() {
 
   const isValidImageUrl = (url: string): boolean => {
     if (!url) return false;
-
-    if (url.startsWith("data:image/")) return true;
 
     // Check if it's a valid URL or relative path
     try {
@@ -293,12 +344,18 @@ export default function AccountPage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeader(),
         },
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
         }),
       });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
 
       const result = await response.json();
 
@@ -327,11 +384,9 @@ export default function AccountPage() {
     if (saving) return true;
     if (!passwordData.newPassword || !passwordData.confirmPassword) return true;
 
-    const isLocalUser = !user?.provider || user?.provider === "local";
-
     // Check if user has existing password with better validation
     const hasExistingPassword = user?.password === "exists";
-    const requiresCurrentPassword = isLocalUser && hasExistingPassword;
+    const requiresCurrentPassword = hasExistingPassword;
 
   
     if (requiresCurrentPassword && !passwordData.currentPassword) return true;
@@ -342,24 +397,15 @@ export default function AccountPage() {
   const canChangePassword = () => {
     if (!user) return false;
 
-    if (!user.provider || user.provider === "local") {
-      return true;
-    }
-
-    if (user.provider === "google") {
-      return true;
-    }
-
-    return false;
+    return !user.provider || user.provider === "local";
   };
 
   const shouldShowCurrentPasswordField = (): boolean => {
     if (!user) return false;
 
-    const isLocalUser = !user?.provider || user?.provider === "local";
     const hasExistingPassword = user?.password === "exists";
 
-    return isLocalUser && hasExistingPassword;
+    return hasExistingPassword;
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -384,8 +430,13 @@ export default function AccountPage() {
 
   
   const isGoogleUser = user?.provider === "google";
-  const canEditProfile = !isGoogleUser || (isGoogleUser && !user?.googleId);
+  const canEditProfile = !isGoogleUser;
+  const canEditUsername = !isGoogleUser || !user?.googleId;
   const passwordChangeAllowed = canChangePassword();
+  const avatarSrc =
+    user?.avatar && isValidImageUrl(user.avatar) && !avatarLoadFailed
+      ? getBackendUrl(user.avatar)
+      : "";
 
   if (loading) {
     return (
@@ -473,32 +524,22 @@ export default function AccountPage() {
               </h2>
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                 <div className="relative flex-shrink-0">
-                  {user?.avatar && isValidImageUrl(user.avatar) ? (
+                  {avatarSrc ? (
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-gray-200">
                       <img
-                        src={getBackendUrl(user.avatar)}
-                        alt={user.name || user.username}
+                        src={avatarSrc}
+                        alt={user?.name || user?.username || "User avatar"}
                         width={80}
                         height={80}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = `
-                <div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm sm:text-lg font-medium">
-                  ${getInitials(user.name || "", user.username)}
-                </div>
-              `;
-                          }
-                        }}
+                        onError={() => setAvatarLoadFailed(true)}
                       />
                     </div>
                   ) : (
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm sm:text-lg font-medium border-2 border-gray-200">
                       {user ? (
-                        getInitials(user.name || "", user.username)
+                        getInitials(user.name, user.username, user.email)
                       ) : (
                         <IconUser className="w-6 h-6 sm:w-8 sm:h-8" />
                       )}
@@ -527,6 +568,11 @@ export default function AccountPage() {
                     <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
                       Google Account
                     </span>
+                  )}
+                  {isGoogleUser && (
+                    <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                      Profile data is managed by Google and cannot be changed here.
+                    </p>
                   )}
                   {!isGoogleUser && (
                     <p className="text-xs text-gray-500 mt-1">
@@ -600,8 +646,8 @@ export default function AccountPage() {
                       onChange={(e) =>
                         handleInputChange("username", e.target.value)
                       }
-                      disabled={!canEditProfile || !editMode}
-                      className={`w-full px-4 py-2 pl-10 border rounded-md ${!canEditProfile || !editMode
+                      disabled={!canEditUsername || !editMode}
+                      className={`w-full px-4 py-2 pl-10 border rounded-md ${!canEditUsername || !editMode
                           ? "border-gray-300 bg-gray-50 text-gray-500 cursor-not-allowed"
                           : "border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         }`}
@@ -815,9 +861,9 @@ export default function AccountPage() {
                             Google Account
                           </p>
                           <p className="text-xs text-blue-600 mt-1">
-                            {user?.password !== "exists"
-                              ? "You can set a password to enable local login in addition to Google sign-in."
-                              : "You have set a password for local login. Your Google sign-in will continue to work."}
+                            Password and profile changes are managed by Google.
+                            Use your Google account settings for account
+                            security updates.
                           </p>
                         </div>
                       </div>

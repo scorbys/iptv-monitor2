@@ -11,9 +11,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import Image from "next/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { DateFormatter } from "../DateFormatter";
+import ChannelLogo from "../ChannelLogo";
 import { useRouter } from "next/navigation";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
@@ -58,15 +58,6 @@ interface ChannelStats {
 }
 
 const ITEMS_PER_PAGE = 12;
-
-const isValidUrl = (string: string) => {
-  try {
-    new URL(string);
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 export default function ChannelsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -872,7 +863,7 @@ export default function ChannelsPage() {
             >
               <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium hidden sm:inline">
-                {exportLoading ? "Exporting..." : "Export"}
+                {exportLoading ? "Exporting..." : "Export CSV"}
               </span>
             </button>
 
@@ -945,26 +936,12 @@ export default function ChannelsPage() {
                   </td>
                   <td className="px-4 sm:px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      {channel.logo && (
-                        <div className="h-10 w-20 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-200">
-                          {channel.logo && isValidUrl(channel.logo) ? (
-                            <Image
-                              src={channel.logo}
-                              alt={channel.channelName || "Channel logo"}
-                              fill
-                              className="object-contain p-1"
-                              sizes="80px"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
-                              <span className="text-xs text-gray-500">
-                                No Logo
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <ChannelLogo
+                        logo={channel.logo}
+                        name={channel.channelName}
+                        className="h-10 w-20 group-hover:shadow-md transition-all duration-200"
+                        sizes="80px"
+                      />
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-gray-900 truncate">
                           {channel.channelName || "Unknown Channel"}
@@ -1045,29 +1022,13 @@ export default function ChannelsPage() {
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm">
-                    {channel.logo && (
-                      <div className="h-8 w-16 relative bg-gray-50 rounded-lg overflow-hidden shadow-sm">
-                        {channel.logo && isValidUrl(channel.logo) ? (
-                          <Image
-                            src={channel.logo}
-                            alt={channel.channelName || "Channel logo"}
-                            fill
-                            className="object-contain p-1"
-                            sizes="64px"
-                            unoptimized
-                            priority={index < 4}
-                          />
-                        ) : (
-                          <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
-                            <span className="text-xs text-gray-500">
-                              No Logo
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <ChannelLogo
+                    logo={channel.logo}
+                    name={channel.channelName}
+                    className="h-8 w-16 rounded-lg"
+                    sizes="64px"
+                    priority={index < 4}
+                  />
                   <div>
                     <h3 className="font-medium text-gray-900">
                       {channel.channelName || "Unknown Channel"}

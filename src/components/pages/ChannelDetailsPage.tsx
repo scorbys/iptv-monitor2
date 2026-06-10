@@ -18,8 +18,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { DateFormatter } from "../DateFormatter";
+import ChannelLogo from "../ChannelLogo";
 import { calculateMetricScore } from "@/utils/metricCalculator";
-import Image from "next/image";
 import { componentLogger, apiLogger } from "@/utils/debugLogger";
 import {
   XAxis,
@@ -336,15 +336,6 @@ const generateHistoricalData = (
   }
 
   return data;
-};
-
-const isValidUrl = (string: string) => {
-  try {
-    new URL(string);
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 export default function ChannelDetailsPage({
@@ -802,18 +793,23 @@ export default function ChannelDetailsPage({
   const exportToCSV = () => {
     if (autoFixLogs.length === 0) return;
 
+    const escapeCsv = (value: unknown) => {
+      const stringValue = value == null || value === '' ? 'N/A' : String(value);
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
     const headers = ['Timestamp', 'Category', 'Issue', 'Action', 'Status', 'Confidence', 'Success Rate', 'Staff'];
     const csvContent = [
       headers.join(','),
       ...autoFixLogs.map(log => [
-        `"${log.timestamp}"`,
-        `"${log.mlCategory}"`,
-        `"${log.issue}"`,
-        `"${log.action}"`,
-        log.status,
+        escapeCsv(log.timestamp),
+        escapeCsv(log.mlCategory),
+        escapeCsv(log.issue),
+        escapeCsv(log.action),
+        escapeCsv(log.status),
         log.confidence ? `${(log.confidence * 100).toFixed(1)}%` : 'N/A',
         log.successRate !== undefined ? `${log.successRate.toFixed(1)}%` : 'N/A',
-        log.staffName || 'N/A'
+        escapeCsv(log.staffName)
       ].join(','))
     ].join('\n');
 
@@ -1991,26 +1987,12 @@ export default function ChannelDetailsPage({
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      {channel.logo && (
-                        <div className="h-10 w-15 relative bg-gray-50 rounded-xl overflow-hidden shadow-sm">
-                          {channel.logo && isValidUrl(channel.logo) ? (
-                            <Image
-                              src={channel.logo}
-                              alt={channel.channelName || "Channel logo"}
-                              fill
-                              className="object-contain p-1"
-                              sizes="80px"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="h-10 w-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center">
-                              <span className="text-xs text-gray-500">
-                                No Logo
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <ChannelLogo
+                        logo={channel.logo}
+                        name={channel.channelName}
+                        className="h-10 w-20"
+                        sizes="80px"
+                      />
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-gray-900 truncate">
                           {channel.channelName || "Unknown Channel"}
@@ -2120,24 +2102,12 @@ export default function ChannelDetailsPage({
                   </span>
                 </div>
 
-                {channel.logo && (
-                  <div className="h-12 w-24 relative bg-gray-50 rounded-lg overflow-hidden shadow-sm flex-shrink-0">
-                    {channel.logo && isValidUrl(channel.logo) ? (
-                      <Image
-                        src={channel.logo}
-                        alt={channel.channelName || "Channel logo"}
-                        fill
-                        className="object-contain p-1"
-                        sizes="96px"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                        <span className="text-xs text-gray-500">No Logo</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <ChannelLogo
+                  logo={channel.logo}
+                  name={channel.channelName}
+                  className="h-12 w-24 rounded-lg"
+                  sizes="96px"
+                />
 
                 <div className="flex-1 min-w-0">
                   <h1 className="text-base font-bold text-gray-900 truncate">
@@ -2618,12 +2588,12 @@ export default function ChannelDetailsPage({
                     onClick={exportToCSV}
                     disabled={autoFixLogs.length === 0}
                     className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Export to CSV"
+                    title="Export channel auto-fix history CSV"
                   >
                     <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Export
+                    Export Auto-Fix CSV
                   </button>
                   <button
                     onClick={fetchAutoFixLogs}

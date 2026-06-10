@@ -48,6 +48,11 @@ export default function UsersPage({ user }: UsersPageProps) {
   const [modalError, setModalError] = useState<{ title: string; message: string } | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  const getAuthHeader = (): Record<string, string> => {
+    const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // Fetch users from backend
   const fetchUsers = useCallback(async () => {
     if (!mounted) return;
@@ -56,12 +61,12 @@ export default function UsersPage({ user }: UsersPageProps) {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/users`, {
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
       });
@@ -147,19 +152,25 @@ export default function UsersPage({ user }: UsersPageProps) {
     if (!deleteModal) return;
 
     try {
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/users/${deleteModal.userId}`, {
         method: "DELETE",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       setDeleteModal(null);
@@ -183,20 +194,26 @@ export default function UsersPage({ user }: UsersPageProps) {
     if (!roleModal) return;
 
     try {
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
 
       const response = await fetch(`${apiUrl}/api/users/${roleModal.userId}/role`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ role: roleModal.newRole }),
       });
 
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       setRoleModal(null);
@@ -216,11 +233,12 @@ export default function UsersPage({ user }: UsersPageProps) {
     return users.filter((user) => {
       const matchesSearch =
         searchQuery === "" ||
-        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase());
+        (user.username || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.email || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesRole = roleFilter === "All" || user.role === roleFilter;
-      const matchesProvider = providerFilter === "All" || user.provider === providerFilter;
+      const provider = user.provider || "local";
+      const matchesProvider = providerFilter === "All" || provider === providerFilter;
 
       return matchesSearch && matchesRole && matchesProvider;
     });
@@ -238,7 +256,7 @@ export default function UsersPage({ user }: UsersPageProps) {
   );
 
   const providers = useMemo(
-    () => ["All", ...Array.from(new Set(users.map((u) => u.provider).filter(Boolean)))],
+    () => ["All", ...Array.from(new Set(users.map((u) => u.provider || "local").filter(Boolean)))],
     [users]
   );
 
@@ -468,6 +486,7 @@ export default function UsersPage({ user }: UsersPageProps) {
                 </tr>
               ) : (
                 paginatedUsers.map((userData) => {
+                  const provider = userData.provider || "local";
                   const roleConfig = getRoleBadge(userData.role);
                   const RoleIcon = roleConfig.icon;
 
@@ -480,7 +499,7 @@ export default function UsersPage({ user }: UsersPageProps) {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
                             <span className="text-sm font-bold text-white">
-                              {userData.username.charAt(0).toUpperCase()}
+                              {(userData.username || "?").charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0">
@@ -500,8 +519,8 @@ export default function UsersPage({ user }: UsersPageProps) {
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${getProviderBadge(userData.provider)}`}>
-                          {userData.provider === "google" ? "🔷" : "📧"} {userData.provider}
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${getProviderBadge(provider)}`}>
+                          {provider === "google" ? "🔷" : "📧"} {provider}
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4">
@@ -521,6 +540,7 @@ export default function UsersPage({ user }: UsersPageProps) {
                                 disabled={userData._id === user?._id}
                                 className="inline-flex items-center justify-center p-2 text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                 title="Change role"
+                                aria-label={`Change role for ${userData.username || "user"}`}
                               >
                                 <PencilIcon className="w-4 h-4" />
                               </button>
@@ -548,7 +568,8 @@ export default function UsersPage({ user }: UsersPageProps) {
                             onClick={() => handleDeleteUser(userData._id, userData.username)}
                             disabled={userData._id === user?._id}
                             className="inline-flex items-center justify-center p-2 text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                            title={userData._id === user?._id ? "Cannot delete your own account" : "Delete user"}
+                            title={userData._id === user?._id ? "Cannot deactivate your own account" : "Deactivate user"}
+                            aria-label={`Deactivate ${userData.username || "user"}`}
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>
@@ -634,13 +655,13 @@ export default function UsersPage({ user }: UsersPageProps) {
               <div className="p-2 bg-red-100 rounded-lg">
                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete User</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Deactivate User</h3>
             </div>
             <p className="text-sm text-gray-600 mb-2">
-              Are you sure you want to delete user <b>{deleteModal.username}</b>?
+              Are you sure you want to deactivate user <b>{deleteModal.username}</b>?
             </p>
             <p className="text-xs text-red-600 mb-6">
-              This action cannot be undone and will permanently remove the user account.
+              This user will no longer be able to sign in, but the account record is kept for audit history.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -653,7 +674,7 @@ export default function UsersPage({ user }: UsersPageProps) {
                 onClick={confirmDeleteUser}
                 className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200"
               >
-                Delete
+                Deactivate
               </button>
             </div>
           </div>

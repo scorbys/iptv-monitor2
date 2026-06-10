@@ -349,45 +349,78 @@ const IPTVLiveChat = () => {
     });
   };
 
-  // Simple markdown parser for chat messages
-  const formatMessage = (text: string) => {
-    if (!text) return '';
+  const renderInlineFormatting = (line: string, keyPrefix: string) => {
+    const parts: React.ReactNode[] = [];
+    const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
 
-    // Split by lines and process each line
-    return text.split('\n').map((line, lineIdx) => {
-      let formattedLine = line;
-
-      // Bold **text**
-      formattedLine = formattedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-      // Italic *text*
-      formattedLine = formattedLine.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-      // Code `text`
-      formattedLine = formattedLine.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-xs">$1</code>');
-
-      // Bullet points
-      if (formattedLine.trim().startsWith('•')) {
-        return `<p class="ml-2">• ${formattedLine.trim().substring(1).trim()}</p>`;
+    while ((match = pattern.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(line.slice(lastIndex, match.index));
       }
 
-      // Numbered lists
-      if (/^\d+\./.test(formattedLine.trim())) {
-        return `<p class="ml-2">${formattedLine.trim()}</p>`;
+      const token = match[0];
+      const key = `${keyPrefix}-${match.index}`;
+      if (token.startsWith("**") && token.endsWith("**")) {
+        parts.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+      } else if (token.startsWith("`") && token.endsWith("`")) {
+        parts.push(
+          <code key={key} className="bg-gray-100 px-1 rounded text-xs">
+            {token.slice(1, -1)}
+          </code>
+        );
+      } else if (token.startsWith("*") && token.endsWith("*")) {
+        parts.push(<em key={key}>{token.slice(1, -1)}</em>);
       }
 
-      // Headers with emoji
-      if (formattedLine.includes('**') && formattedLine.includes(':')) {
-        return `<p class="font-semibold text-sm mt-2 mb-1">${formattedLine}</p>`;
+      lastIndex = match.index + token.length;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : line;
+  };
+
+  const renderMessageContent = (text: string) => {
+    if (!text) return null;
+
+    return text.split("\n").map((line, lineIdx) => {
+      const trimmed = line.trim();
+      const key = `line-${lineIdx}`;
+
+      if (!trimmed) {
+        return <br key={key} />;
       }
 
-      // Regular paragraph
-      if (formattedLine.trim() === '') {
-        return '<br />';
+      if (trimmed.startsWith("•")) {
+        return (
+          <p key={key} className="ml-2">
+            • {renderInlineFormatting(trimmed.substring(1).trim(), key)}
+          </p>
+        );
       }
 
-      return `<p>${formattedLine}</p>`;
-    }).join('');
+      if (/^\d+\./.test(trimmed)) {
+        return (
+          <p key={key} className="ml-2">
+            {renderInlineFormatting(trimmed, key)}
+          </p>
+        );
+      }
+
+      if (trimmed.includes("**") && trimmed.includes(":")) {
+        return (
+          <p key={key} className="font-semibold text-sm mt-2 mb-1">
+            {renderInlineFormatting(trimmed, key)}
+          </p>
+        );
+      }
+
+      return <p key={key}>{renderInlineFormatting(line, key)}</p>;
+    });
   };
 
   const toggleDetails = (messageId: number) => {
@@ -471,10 +504,9 @@ const IPTVLiveChat = () => {
                       <span className="text-[10px] md:text-xs font-semibold">Error</span>
                     </div>
                   )}
-                  <div
-                    className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: formatMessage(message.text) }}
-                  />
+                  <div className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed">
+                    {renderMessageContent(message.text)}
+                  </div>
 
                   {/* Detailed Steps (Expandable) */}
                   {message.detailedInfo && (
