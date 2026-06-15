@@ -11,6 +11,12 @@ interface PredictionResult {
     text_len: number;
     word_count: number;
   };
+  recommended_fix?: {
+    action?: string;
+    command?: string | null;
+    description?: string;
+    category?: string;
+  } | null;
 }
 
 interface MLResultsProps {
@@ -147,6 +153,34 @@ export default function MLResults({ predictions, onClear }: MLResultsProps) {
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommended Fix */}
+                {prediction.recommended_fix && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      Recommended Fix
+                    </h4>
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-sm font-semibold text-emerald-800">
+                          {prediction.recommended_fix.action ?? "—"}
+                        </span>
+                        {prediction.recommended_fix.command ? (
+                          <span className="text-[10px] font-mono bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+                            {prediction.recommended_fix.command}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                            manual
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        {prediction.recommended_fix.description ?? "No description available"}
+                      </p>
                     </div>
                   </div>
                 )}
