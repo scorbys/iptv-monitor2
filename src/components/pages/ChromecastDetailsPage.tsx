@@ -852,7 +852,16 @@ export default function ChromecastDetailPage({
         await fetchAutoFixLogs();
       } else {
         apiLogger.error('[AutoFix] API error:', result.error);
-        alert(`Error: ${result.error || 'Failed to execute auto-fix'}`);
+        const errMsg = result.error || 'Failed to execute auto-fix';
+        if (/not trained/i.test(errMsg)) {
+          alert(
+            '⚠️ Model ML belum dilatih\n\n' +
+            'Auto-Fix membutuhkan model ML yang sudah dilatih untuk memprediksi kategori masalah.\n\n' +
+            'Silakan buka halaman ML Dashboard dan latih (train) model terlebih dahulu, lalu coba Auto-Fix lagi.'
+          );
+        } else {
+          alert(`Error: ${errMsg}`);
+        }
       }
     } catch (error) {
       apiLogger.error('[AutoFix] Error triggering auto-fix:', error);

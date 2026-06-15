@@ -34,6 +34,15 @@ export default function MLPredictionForm({ onPredict, disabled }: MLPredictionFo
     'HDMI no signal',
     'wifi connection slow',
     'Chromecast not working',
+    'TV offline cannot ping',
+    'remote control not responding',
+    'LAN cable disconnected',
+    'no audio sound on tv',
+    'screen frozen and buffering',
+    'IPTV app keeps crashing',
+    'weak signal poor quality',
+    'device not found on network',
+    'video lag and stuttering',
   ];
 
   return (
