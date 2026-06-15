@@ -11,12 +11,47 @@ interface PredictionResult {
     text_len: number;
     word_count: number;
   };
+  recommended_fix?: {
+    action?: string;
+    command?: string | null;
+    description?: string;
+    category?: string;
+  } | null;
 }
 
 interface MLResultsProps {
   predictions: PredictionResult[];
   onClear?: () => void;
 }
+
+// Map model category codes to the human-readable issue names used across the app
+// (same definitions as the QoS / Notifications FAQ categories).
+const CATEGORY_LABELS: Record<string, string> = {
+  "Kategori-1": "No Device Found Chromecast",
+  "Kategori-2": "Weak Or No Signal",
+  "Kategori-3": "Unplug LAN TV",
+  "Kategori-4": "Chromecast Setup iOS",
+  "Kategori-5": "Error Playing",
+  "Kategori-6": "Error_Player_Error_Err",
+  "Kategori-7": "Connection_Failure",
+  "Kategori-8": "Reset Configuration",
+  "Kategori-9": "No Device Logged",
+  "Kategori-10": "Chromecast Black Screen",
+  "Kategori-11": "Channel Not Found",
+  "Kategori-12": "Network Connection Failed",
+  "Kategori-13": "System Initialization Error",
+  "Kategori-14": "No Device Found: Logined",
+};
+
+function formatCategory(label?: string | null): { code: string; name: string } {
+  if (!label) return { code: "Uncategorized", name: "Uncategorized" };
+  const norm = label.replace(/Katagori-/gi, "Kategori-").replace(/kategori-/gi, "Kategori-");
+  if (/^Kategori-\d+$/i.test(norm)) {
+    return { code: norm, name: CATEGORY_LABELS[norm] ?? norm };
+  }
+  return { code: norm, name: `Model Class: ${norm}` };
+}
+
 
 export default function MLResults({ predictions, onClear }: MLResultsProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -69,7 +104,10 @@ export default function MLResults({ predictions, onClear }: MLResultsProps) {
                   <div className="text-right">
                     <p className="text-xs text-gray-500 mb-1">Predicted Category</p>
                     <p className="text-lg font-bold text-green-600">
-                      {prediction.predicted_label}
+                      {formatCategory(prediction.predicted_label).name}
+                    </p>
+                    <p className="text-xs font-medium text-gray-400 mt-0.5">
+                      {formatCategory(prediction.predicted_label).code}
                     </p>
                   </div>
 
@@ -98,8 +136,11 @@ export default function MLResults({ predictions, onClear }: MLResultsProps) {
                     <div className="space-y-2">
                       {prediction.probabilities.map((prob, idx) => (
                         <div key={idx} className="flex items-center gap-3">
-                          <span className="text-sm text-gray-600 w-32 flex-shrink-0 font-medium">
-                            {prob.label}
+                          <span className="text-sm text-gray-600 w-40 flex-shrink-0 font-medium">
+                            {formatCategory(prob.label).name}
+                            <span className="block text-[10px] text-gray-400 font-normal">
+                              {formatCategory(prob.label).code}
+                            </span>
                           </span>
                           <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
                             <div
@@ -112,6 +153,34 @@ export default function MLResults({ predictions, onClear }: MLResultsProps) {
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommended Fix */}
+                {prediction.recommended_fix && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                      Recommended Fix
+                    </h4>
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-sm font-semibold text-emerald-800">
+                          {prediction.recommended_fix.action ?? "—"}
+                        </span>
+                        {prediction.recommended_fix.command ? (
+                          <span className="text-[10px] font-mono bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+                            {prediction.recommended_fix.command}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                            manual
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        {prediction.recommended_fix.description ?? "No description available"}
+                      </p>
                     </div>
                   </div>
                 )}

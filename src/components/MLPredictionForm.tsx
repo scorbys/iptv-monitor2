@@ -29,20 +29,20 @@ export default function MLPredictionForm({ onPredict, disabled }: MLPredictionFo
   };
 
   const exampleTexts = [
-    'access point broken',
-    'channel not found',
-    'HDMI no signal',
-    'wifi connection slow',
-    'Chromecast not working',
-    'TV offline cannot ping',
-    'remote control not responding',
-    'LAN cable disconnected',
-    'no audio sound on tv',
-    'screen frozen and buffering',
-    'IPTV app keeps crashing',
-    'weak signal poor quality',
-    'device not found on network',
-    'video lag and stuttering',
+    'No Device Found Chromecast',
+    'Week Or No Signal',
+    'Unplug LAN TV',
+    'Chromecast Setup iOS',
+    'Error Playing Channel',
+    'Error: Playing_Error_Connection_Failed',
+    'Connection Failure',
+    'Reset Configure Chromecast',
+    'No Device Logined',
+    'Chromecast Black Screen',
+    'Channel Not Found',
+    'Undefined Network',
+    'TV Blank',
+    'No Device Found: Logined',
   ];
 
   return (
