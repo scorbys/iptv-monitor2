@@ -32,7 +32,7 @@ function ChromecastDetailError({ deviceId }: { deviceId: string }) {
               Invalid Device ID
             </h3>
             <p className="text-gray-600">
-              Device ID &quot{deviceId}&quot is invalid. Please select a valid
+              Device ID &quot;{deviceId}&quot; is invalid. Please select a valid
               Chromecast device.
             </p>
           </div>
@@ -55,14 +55,17 @@ export default async function ChromecastDetail({ params }: PageProps) {
     return <ChromecastDetailError deviceId={deviceId || "undefined"} />;
   }
 
-  let decodedDeviceId: string;
+  let decodedDeviceId = "";
+  let decodeError = false;
+
   try {
     decodedDeviceId = decodeURIComponent(deviceId);
-    if (!decodedDeviceId || decodedDeviceId.trim() === "") {
-      return <ChromecastDetailError deviceId={deviceId} />;
-    }
   } catch (error) {
     console.error("Error decoding device ID:", error);
+    decodeError = true;
+  }
+
+  if (decodeError || !decodedDeviceId || decodedDeviceId.trim() === "") {
     return <ChromecastDetailError deviceId={deviceId} />;
   }
 

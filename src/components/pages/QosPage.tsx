@@ -24,6 +24,7 @@ interface QoSRow {
   issueLabel: string;
   device: string;
   count: number;
+  offlineCount: number;
   avgPacketLoss: number;
   labelPacketLoss: string;
   avgJitter: number;
@@ -114,6 +115,18 @@ function getFAQCategory(notification: Notification, cache: Map<string, string | 
   const key = `${notification.source}|${(notification.title || "").slice(0, 40)}|${(notification.message || "").slice(0, 40)}|${notification.error || ""}|${notification.errorCategory || ""}`;
   if (cache.has(key)) return cache.get(key)!;
 
+  // Trust an explicit backend/ML category and skip keyword inference — keeps QoS
+  // categorisation identical to the Notifications page (single source of truth).
+  if (notification.errorCategory) {
+    const norm = notification.errorCategory
+      .replace(/katagori-/gi, "Kategori-")
+      .replace(/kategori-/gi, "Kategori-");
+    if (/^Kategori-\d+$/i.test(norm)) {
+      cache.set(key, norm);
+      return norm;
+    }
+  }
+
   const text = [
     notification.title, notification.message,
     notification.error, notification.deviceName, notification.errorCategory,
@@ -176,6 +189,7 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
   const buckets: Record<string, {
     faq: typeof FAQ_DATA[0];
     count: number;
+    offline: number;
     pl: number[]; ji: number[]; la: number[]; er: number[]; rt: number[];
     plS: number[]; jiS: number[]; laS: number[]; erS: number[]; rtS: number[];
     sig: number[]; resp: number[]; bw: number[];
@@ -191,7 +205,7 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
   // initialise all known categories plus uncategorized so they always appear
   [...FAQ_DATA, uncategorizedFaq].forEach((faq) => {
     buckets[faq.category] = {
-      faq, count: 0,
+      faq, count: 0, offline: 0,
       pl: [], ji: [], la: [], er: [], rt: [],
       plS: [], jiS: [], laS: [], erS: [], rtS: [],
       sig: [], resp: [], bw: [],
@@ -204,6 +218,7 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
 
     const b = buckets[bucketKey];
     b.count++;
+    if (n.currentStatus === "offline") b.offline++;
 
     const mx = extractMetrics(n);
     b.pl.push(mx.packetLoss); b.plS.push(mx.plScore);
@@ -226,6 +241,7 @@ function buildQoSRows(notifications: Notification[], cache: Map<string, string |
       issueLabel: b.faq.issue,
       device: b.faq.device,
       count: b.count,
+      offlineCount: b.offline,
       avgPacketLoss: avg(b.pl),
       labelPacketLoss: avgScoreToLabel(b.plS),
       avgJitter: avg(b.ji),
@@ -342,8 +358,8 @@ export default function QosPage() {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const resp = await fetch("/api/notifications/stats/count/total", {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
         });
@@ -444,6 +460,7 @@ export default function QosPage() {
         "Issue Label",
         "Device Type",
         "Count Report",
+        "Offline Devices",
         "Avg Packet Loss (%)",
         "Label Avg Packet Loss",
         "Avg Jitter (ms)",
@@ -461,6 +478,7 @@ export default function QosPage() {
         r.issueLabel,
         r.device,
         r.count,
+        r.offlineCount,
         r.avgPacketLoss.toFixed(2),
         r.labelPacketLoss,
         r.avgJitter.toFixed(2),
@@ -755,7 +773,18 @@ export default function QosPage() {
                     >
                       {/* Category */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-semibold text-gray-900">{row.category}</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-gray-900">{row.category}</span>
+                          {row.offlineCount > 0 && (
+                            <span
+                              title="Devices offline in this category — QoS is critical regardless of metric values"
+                              className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              {row.offlineCount} offline · critical
+                            </span>
+                          )}
+                        </div>
                       </td>
                       {/* Issue */}
                       <td className="px-4 py-3 max-w-[200px]">

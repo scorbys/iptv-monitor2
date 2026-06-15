@@ -143,17 +143,7 @@ export const RegisterComponent: React.FC<RegisterComponentProps> = ({
           "success",
           "Account created successfully! Redirecting..."
         );
-
-        // CRITICAL FIX: Get token from localStorage and include in redirect
-        // This allows Vercel middleware to authenticate the user
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          // Use query parameter to pass token to middleware
-          router.push(`/dashboard?token=${encodeURIComponent(token)}`);
-        } else {
-          // Fallback without token
-          router.push("/dashboard");
-        }
+        router.push("/dashboard");
       } else {
         setErrors({ general: result.error || "Registration failed" });
         showNotification("error", result.error || "Registration failed");

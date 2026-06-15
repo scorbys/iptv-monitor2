@@ -499,7 +499,11 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     };
 
     fetchNetworkMetrics();
-    const interval = setInterval(fetchNetworkMetrics, 30000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchNetworkMetrics();
+      }
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [tvs, mounted]);
@@ -702,6 +706,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   };
 
   const detectedIssues = useMemo(() => detectIssues(), [tvs]);
+  const canRunAutoFix = detectedIssues.some((issue) => issue.actionType === "System");
 
   // Repair Action Function
   const handleRepairAction = async (issue: FAQ) => {
@@ -721,10 +726,12 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       // Call backend API directly (not through frontend route)
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix?history=true`;
 
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch(apiUrl, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
@@ -736,7 +743,13 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
-          setAutoFixLogs(result.data.autoFixHistory || []);
+          // Accept multiple backend shapes for forward-compatibility
+          const logs =
+            result.data.autoFixHistory ||
+            result.data.logs ||
+            result.data.data ||
+            [];
+          setAutoFixLogs(Array.isArray(logs) ? logs : []);
         }
       } else {
         apiLogger.warn('Failed to fetch auto-fix logs');
@@ -752,18 +765,23 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
   const exportToCSV = () => {
     if (autoFixLogs.length === 0) return;
 
+    const escapeCsv = (value: unknown) => {
+      const stringValue = value == null || value === '' ? 'N/A' : String(value);
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
     const headers = ['Timestamp', 'Category', 'Issue', 'Action', 'Status', 'Confidence', 'Success Rate', 'Staff'];
     const csvContent = [
       headers.join(','),
       ...autoFixLogs.map(log => [
-        `"${log.timestamp}"`,
-        `"${log.mlCategory}"`,
-        `"${log.issue}"`,
-        `"${log.action}"`,
-        log.status,
+        escapeCsv(log.timestamp),
+        escapeCsv(log.mlCategory),
+        escapeCsv(log.issue),
+        escapeCsv(log.action),
+        escapeCsv(log.status),
         log.confidence ? `${(log.confidence * 100).toFixed(1)}%` : 'N/A',
         log.successRate !== undefined ? `${log.successRate.toFixed(1)}%` : 'N/A',
-        log.staffName || 'N/A'
+        escapeCsv(log.staffName)
       ].join(','))
     ].join('\n');
 
@@ -797,11 +815,13 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix`;
 
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           text: `Room ${tvs.roomNo} ${log.issue}`,
@@ -815,12 +835,14 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         return;
       }
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          await fetchAutoFixLogs();
-          await handleCheckTV();
-        }
+      const result = await response.json().catch(() => null);
+      if (response.ok && result?.success) {
+        const fixOk = result.data?.fixResult?.success;
+        componentLogger.log(`[AutoFix] Retry ${fixOk ? 'succeeded' : 'completed (see log)'}`);
+        await fetchAutoFixLogs();
+        await handleCheckTV();
+      } else {
+        alert(`Error: ${result?.error || 'Failed to retry auto-fix'}`);
       }
     } catch (error) {
       apiLogger.error('[AutoFix] Error retrying fix:', error);
@@ -842,16 +864,18 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
 
       // Prepare issue description from TV status
       const issueDescription = tvs.error || 'TV offline';
-      const category = !tvs.isOnline ? 'Kategori-2' : 'Unknown';
+      const category = !tvs.isOnline ? 'Kategori-3' : 'Unknown';
 
       // Call backend API directly
       const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/hospitality/tvs/${encodedTvId}/auto-fix`;
 
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const response = await fetch(apiUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           text: `Room ${tvs.roomNo} ${issueDescription}`,
@@ -865,38 +889,37 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
         return;
       }
 
-      if (response.ok) {
-        const result = await response.json();
+      const result = await response.json().catch(() => null);
+      if (!result) {
+        alert('Error: Invalid response from server');
+        return;
+      }
 
-        if (result.success && result.data) {
-          componentLogger.log('[AutoFix] Automatic fix executed:', result.data);
-
-          // Show notification to user
-          if (result.data.autoFixExecuted) {
-            const { mlPrediction, executedFix, fixResult } = result.data;
-
-            alert(
-              `🔧 Auto-Fix Otomatis Berhasil!\n\n` +
-              `TV: Room ${tvs.roomNo}\n` +
-              `Issue: ${issueDescription}\n` +
-              `ML Category: ${mlPrediction.category}\n` +
-              `Confidence: ${(mlPrediction.confidence * 100).toFixed(1)}%\n` +
-              `Action: ${executedFix.description}\n` +
-              `Status: ${fixResult.success ? '✅ Berhasil' : '❌ Gagal'}\n\n` +
-              `TV akan di-refresh untuk update status.`
-            );
-          } else if (result.data.reason) {
-            componentLogger.log('[AutoFix] No auto-fix executed:', result.data.reason);
-          }
-
-          // Refresh TV status and logs
-          await handleCheckTV();
-          await fetchAutoFixLogs();
+      if (response.ok && result.success) {
+        // autoFixExecuted is top-level in the backend response (not under data)
+        if (result.autoFixExecuted) {
+          const { mlPrediction, executedFix, fixResult } = result.data || {};
+          alert(
+            `🔧 Auto-Fix Otomatis Berhasil!\n\n` +
+            `TV: Room ${tvs.roomNo}\n` +
+            `Issue: ${issueDescription}\n` +
+            `ML Category: ${mlPrediction?.category ?? 'N/A'}\n` +
+            `Confidence: ${mlPrediction?.confidence != null ? (mlPrediction.confidence * 100).toFixed(1) + '%' : 'N/A'}\n` +
+            `Action: ${executedFix?.action ?? executedFix?.description ?? 'N/A'}\n` +
+            `Status: ${fixResult?.success ? '✅ Berhasil' : '❌ Gagal'}`
+          );
+        } else {
+          const reason = result.reason || 'Manual intervention required';
+          const rec = result.recommendedFix?.description || result.recommendedFix?.action;
+          alert(`ℹ️ Auto-Fix tidak dijalankan\n\nAlasan: ${reason}${rec ? `\nRekomendasi: ${rec}` : ''}`);
         }
+
+        // Refresh TV status and logs
+        await handleCheckTV();
+        await fetchAutoFixLogs();
       } else {
-        const errorResult = await response.json();
-        apiLogger.error('[AutoFix] API error:', errorResult.error);
-        alert(`Error: ${errorResult.error || 'Failed to execute auto-fix'}`);
+        apiLogger.error('[AutoFix] API error:', result.error);
+        alert(`Error: ${result.error || 'Failed to execute auto-fix'}`);
       }
     } catch (error) {
       apiLogger.error('[AutoFix] Error triggering auto-fix:', error);
@@ -1003,7 +1026,9 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
     }
     setPollingActive(true);
     const interval = setInterval(() => {
-      fetchAutoFixLogs();
+      if (document.visibilityState === "visible") {
+        fetchAutoFixLogs();
+      }
     }, 10000);
     return () => {
       clearInterval(interval);
@@ -2323,6 +2348,22 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                   )}
                 </button>
 
+                {canRunAutoFix && (
+                  <button
+                    onClick={triggerAutoFix}
+                    disabled={checking}
+                    className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200 rounded-xl hover:from-red-100 hover:to-rose-100 hover:border-red-300 transition-all duration-200 disabled:opacity-50"
+                  >
+                    <div className="flex items-center">
+                      <WrenchScrewdriverIcon className="w-4 h-4 mr-3" />
+                      <span className="font-medium">{checking ? "Running Auto Fix..." : "Run Auto Fix"}</span>
+                    </div>
+                    <div className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                      Manual
+                    </div>
+                  </button>
+                )}
+
                 <button
                   onClick={() => router.push("/help")}
                   className="w-full flex items-center justify-between px-4 py-3 text-sm bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200 rounded-xl hover:from-gray-100 hover:to-slate-100 hover:border-gray-300 transition-all duration-200"
@@ -2463,12 +2504,12 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                     onClick={exportToCSV}
                     disabled={autoFixLogs.length === 0}
                     className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Export to CSV"
+                    title="Export TV auto-fix history CSV"
                   >
                     <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Export
+                    Export Auto-Fix CSV
                   </button>
                   <button
                     onClick={fetchAutoFixLogs}
@@ -2519,7 +2560,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
               ) : autoFixLogs.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg">
                   <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600">Belum ada riwayat auto-fix</p>
+                  <p className="text-sm text-gray-600">No auto-fix history for this device</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Auto-fix akan otomatis berjalan saat TV mengalami issue
                   </p>
@@ -2701,7 +2742,7 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {issue.actionType === "System" && (
+                        {issue.actionType === "System" ? (
                           <button
                             onClick={() => handleRepairAction(issue)}
                             disabled={checking}
@@ -2709,6 +2750,10 @@ export default function TvDetailsPage({ tvId }: TVDetailPageProps) {
                           >
                             {checking ? "Fixing..." : "Auto Fix"}
                           </button>
+                        ) : (
+                          <span className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-medium text-center border border-gray-200">
+                            On Site Required
+                          </span>
                         )}
                       </div>
                     </div>

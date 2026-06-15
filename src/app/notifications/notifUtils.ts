@@ -38,7 +38,7 @@ function getAuthToken(): string | null {
         storageLogger.log('Syncing token from localStorage to cookie');
         const isProduction = window.location.protocol === "https:";
         const secure = isProduction ? "secure;" : "";
-        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; ${secure}${isProduction ? " samesite=none" : "samesite=lax"}`;
+        document.cookie = `token=${token}; path=/; max-age=${60 * 60}; ${secure}${isProduction ? " samesite=none" : "samesite=lax"}`;
       }
     } catch (e) {
       storageLogger.warn("Failed to access localStorage:", e);

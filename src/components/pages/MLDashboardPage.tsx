@@ -123,7 +123,7 @@ interface TrainingStatusResponse {
   success: boolean;
   data: {
     job_id: string;
-    status: 'running' | 'completed' | 'failed';
+    status: 'pending' | 'running' | 'completed' | 'failed';
     created_at: number;
     completed_at: number | null;
     error: string | null;
@@ -141,6 +141,7 @@ interface AutoFixStats {
     success: number;
     failed: number;
     cancelled: number;
+    manual_required?: number;
   };
   byCategory: Array<{
     _id: string;
@@ -151,7 +152,72 @@ interface AutoFixStats {
     _id: string;
     count: number;
   }>;
+  byDeviceType?: Array<{
+    _id: string | null; // 'channel' | 'tv' | 'chromecast' | null
+    count: number;
+  }>;
+  byDevice?: Array<{
+    _id: { deviceType: string | null; deviceId: string };
+    deviceName: string | null;
+    roomNo: string | number | null;
+    count: number;
+    success: number;
+  }>;
+  pendingDetails?: Array<{
+    fixId: string;
+    status: string;
+    category?: string | null;
+    action?: string | null;
+    description?: string | null;
+    confidence?: number | null;
+    deviceType?: string | null;
+    deviceId?: string | null;
+    deviceName?: string | null;
+    roomNo?: string | number | null;
+    source?: string | null;
+    isStale?: boolean;
+    needsReview?: boolean;
+    staleReason?: string | null;
+    createdAt: string;
+  }>;
+  pendingSummary?: {
+    totalOpen: number;
+    active: number;
+    needsReview: number;
+    stale: number;
+    staleAfterHours: number;
+  };
   period: string;
+}
+
+interface MLFeedbackItem {
+  feedbackId: string;
+  text: string;
+  predictedCategory?: string | null;
+  correctedCategory: string;
+  confidence?: number | null;
+  recommendedFix?: string | null;
+  fixOutcome: 'unknown' | 'worked' | 'failed' | 'manual_required';
+  source: string;
+  sourceId?: string | null;
+  deviceType?: string | null;
+  deviceId?: string | null;
+  deviceName?: string | null;
+  roomNo?: string | number | null;
+  notes?: string | null;
+  status: 'pending_review' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+interface MLFeedbackStats {
+  total: number;
+  approved: number;
+  readyForRetrain: boolean;
+  minimumRecommendedFeedback: number;
+  byStatus: Array<{ _id: string; count: number }>;
+  byCorrectedCategory: Array<{ _id: string; count: number }>;
+  byFixOutcome: Array<{ _id: string; count: number }>;
+  latest: MLFeedbackItem[];
 }
 
 interface AutoFixStatsResponse {
@@ -163,12 +229,19 @@ interface AutoFixStatsResponse {
 interface AutoFixLog {
   fixId: string;
   notificationId: string;
+  // Device metadata from the new backend contract (auto_fix_logs)
+  deviceType?: string | null; // 'channel' | 'tv' | 'chromecast'
+  deviceId?: string | null;
+  deviceName?: string | null;
+  roomNo?: string | number | null;
+  source?: string | null;
   category: string;
   action: string;
   description: string;
   status: string;
   confidence: number;
   createdAt: string;
+  completedAt?: string | null;
   notification?: {
     id: string;
     title: string;
@@ -204,6 +277,7 @@ export default function MLDashboardPage() {
   const [trainingInProgress, setTrainingInProgress] = useState(false);
   const [trainingJobId, setTrainingJobId] = useState<string | null>(null);
   const [trainingStatusMessage, setTrainingStatusMessage] = useState<string | null>(null);
+  const [reviewingFixId, setReviewingFixId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -219,12 +293,23 @@ export default function MLDashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [staffPerformance, setStaffPerformance] = useState<StaffPerformance[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const [mlFeedback, setMlFeedback] = useState<MLFeedbackItem[]>([]);
+  const [mlFeedbackStats, setMlFeedbackStats] = useState<MLFeedbackStats | null>(null);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({
+    text: '',
+    predictedCategory: '',
+    correctedCategory: 'Kategori-1',
+    fixOutcome: 'unknown' as MLFeedbackItem['fixOutcome'],
+    source: 'manual',
+    notes: '',
+  });
 
   // Advanced filters
   const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'feedback' | 'staff' | 'analytics'>('overview');
 
   useEffect(() => {
     const persisted = getPersistedTrainingState();
@@ -258,6 +343,8 @@ export default function MLDashboardPage() {
     fetchTimeSeriesData();
     fetchStaffPerformance();
     fetchTopDevicesAndRooms();
+    fetchMLFeedback();
+    fetchMLFeedbackStats();
     //fetchAllNotificationsForDashboard();
   }, [dateRange]);
 
@@ -295,7 +382,7 @@ export default function MLDashboardPage() {
       // Fetch timeseries data directly from backend API
       const response = await fetch(`/api/auto-fix/stats?period=${days}&timeseries=true`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -333,7 +420,7 @@ export default function MLDashboardPage() {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch(`/api/auto-fix/stats?period=${dateRange}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -359,7 +446,7 @@ export default function MLDashboardPage() {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch('/api/auto-fix/history?limit=50&skip=0', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -378,6 +465,157 @@ export default function MLDashboardPage() {
     }
   };
 
+  const fetchMLFeedback = async () => {
+    try {
+      setLoadingFeedback(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback?limit=50&skip=0', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to fetch ML feedback');
+      }
+
+      setMlFeedback(Array.isArray(data.data) ? data.data : []);
+    } catch (err) {
+      console.error('Error fetching ML feedback:', err);
+      setMlFeedback([]);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const fetchMLFeedbackStats = async () => {
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback/stats', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to fetch ML feedback stats');
+      }
+
+      setMlFeedbackStats(data.data);
+    } catch (err) {
+      console.error('Error fetching ML feedback stats:', err);
+      setMlFeedbackStats(null);
+    }
+  };
+
+  const submitMLFeedback = async () => {
+    if (!feedbackForm.text.trim()) {
+      alert('Issue text is required');
+      return;
+    }
+
+    try {
+      setLoadingFeedback(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback', {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...feedbackForm,
+          predictedCategory: feedbackForm.predictedCategory || null,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to submit ML feedback');
+      }
+
+      setFeedbackForm({
+        text: '',
+        predictedCategory: '',
+        correctedCategory: 'Kategori-1',
+        fixOutcome: 'unknown',
+        source: 'manual',
+        notes: '',
+      });
+      await Promise.all([fetchMLFeedback(), fetchMLFeedbackStats()]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit ML feedback';
+      setError(message);
+      alert(message);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const updateMLFeedbackStatus = async (feedbackId: string, status: MLFeedbackItem['status']) => {
+    try {
+      setLoadingFeedback(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/ml/feedback/${encodeURIComponent(feedbackId)}`, {
+        method: 'PATCH',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to update ML feedback');
+      }
+
+      await Promise.all([fetchMLFeedback(), fetchMLFeedbackStats()]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update ML feedback';
+      setError(message);
+      alert(message);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const exportMLFeedback = async () => {
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/feedback/export?status=approved', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to export feedback dataset');
+      }
+
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ml_feedback_approved_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (link.parentNode === document.body) document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export feedback dataset';
+      setError(message);
+      alert(message);
+    }
+  };
+
   const fetchAllAutoFixesForExport = async () => {
     try {
       // Fetch all auto-fixes with pagination to get complete data
@@ -386,8 +624,11 @@ export default function MLDashboardPage() {
       const limit = 100;
       let hasMore = true;
 
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       while (hasMore) {
-        const response = await fetch(`/api/auto-fix/history?limit=${limit}&skip=${skip}`);
+        const response = await fetch(`/api/auto-fix/history?limit=${limit}&skip=${skip}`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -414,7 +655,10 @@ export default function MLDashboardPage() {
 
   const fetchTrainingJobStatus = async () => {
     try {
-      const response = await fetch('/api/ml/model/train/status');
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/model/train/status', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
       if (!response.ok) return;
       const data = await response.json();
       if (data.success) {
@@ -458,7 +702,10 @@ export default function MLDashboardPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/ml/model/info');
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch('/api/ml/model/info', {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -490,7 +737,7 @@ export default function MLDashboardPage() {
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch('/api/staff', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -525,7 +772,7 @@ export default function MLDashboardPage() {
 
       const response = await fetch(`/api/notifications/stats?analytics=true&period=${days}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "Content-Type": "application/json",
         },
       });
@@ -561,11 +808,13 @@ export default function MLDashboardPage() {
   const handlePredict = async (text: string) => {
     try {
       setError(null);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
 
       const response = await fetch('/api/ml/predict', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ text }),
       });
@@ -639,7 +888,10 @@ export default function MLDashboardPage() {
     const timeoutMs = 1000 * 60 * 12; // 12 minutes polling limit
 
     while (true) {
-      const response = await fetch(`/api/ml/model/train/status/${jobId}`);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/ml/model/train/status/${jobId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Training status error! status: ${response.status}. ${errorText.substring(0, 200)}`);
@@ -651,7 +903,9 @@ export default function MLDashboardPage() {
       }
 
       const status = data.data.status;
+      const elapsedSeconds = Math.floor((Date.now() - start) / 1000);
       if (status === 'completed') {
+        setTrainingStatusMessage(`Training job ${jobId} completed. Refreshing model info...`);
         return data.data.result || { job_id: jobId, message: 'Training completed' };
       }
 
@@ -663,7 +917,55 @@ export default function MLDashboardPage() {
         throw new Error('Training status polling timed out. Please check back later.');
       }
 
+      setTrainingStatusMessage(
+        `Training job ${jobId} is ${status}. Elapsed ${elapsedSeconds}s. Checking again in 5s...`
+      );
       await delay(5000);
+    }
+  };
+
+  const handleReviewAutoFix = async (fixId: string, decision: "approve" | "reject") => {
+    const confirmed = window.confirm(
+      decision === "approve"
+        ? "Approve this item for manual/on-site review?"
+        : "Reject and cancel this pending auto-fix item?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setReviewingFixId(fixId);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const response = await fetch(`/api/auto-fix/${encodeURIComponent(fixId)}/review`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          decision,
+          note: decision === "approve"
+            ? "Approved from ML Dashboard pending queue"
+            : "Rejected from ML Dashboard pending queue",
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || `Failed to ${decision} auto-fix item`);
+      }
+
+      await Promise.all([
+        fetchAutoFixStats(),
+        fetchRecentAutoFixes(),
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to review auto-fix item";
+      setError(message);
+      alert(message);
+    } finally {
+      setReviewingFixId(null);
     }
   };
 
@@ -679,10 +981,12 @@ export default function MLDashboardPage() {
       const timeoutId = setTimeout(() => controller.abort(), 300000);
 
       try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const response = await fetch('/api/ml/model/train', {
           method: 'POST',
           body: formData,
           signal: controller.signal,
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         });
 
         clearTimeout(timeoutId);
@@ -758,8 +1062,10 @@ export default function MLDashboardPage() {
     try {
       setError(null);
 
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
       const response = await fetch('/api/ml/model', {
         method: 'DELETE',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
 
       if (!response.ok) {
@@ -798,12 +1104,13 @@ export default function MLDashboardPage() {
         return;
       }
 
-      console.log(`Exporting ${allFixes.length} records...`);
-
       // Fetch chromecast devices to enrich room numbers
       const chromecastRoomMap: Record<string, string> = {};
       try {
-        const chromecastResponse = await fetch('/api/chromecast?limit=1000');
+        const ccToken = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const chromecastResponse = await fetch('/api/chromecast?limit=1000', {
+          headers: { ...(ccToken ? { Authorization: `Bearer ${ccToken}` } : {}) },
+        });
         if (chromecastResponse.ok) {
           const chromecastData = await chromecastResponse.json();
           if (chromecastData.success && chromecastData.data) {
@@ -868,7 +1175,7 @@ export default function MLDashboardPage() {
       const url = URL.createObjectURL(blob);
 
       link.setAttribute('href', url);
-      link.setAttribute('download', `autofix_export_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
+      link.setAttribute('download', `ml_dashboard_autofix_export_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -895,6 +1202,8 @@ export default function MLDashboardPage() {
       fetchRecentAutoFixes(),
       fetchTimeSeriesData(),
       fetchStaffPerformance(),
+      fetchMLFeedback(),
+      fetchMLFeedbackStats(),
       //fetchAllNotificationsForDashboard(),
     ]);
   };
@@ -1064,20 +1373,55 @@ export default function MLDashboardPage() {
     return result;
   };
 
-  // Calculate category breakdown from notifications using FAQ categories
+  // Map a deviceType to a human-readable label (null when unknown)
+  const deviceTypeLabel = (t?: string | null): string | null => {
+    switch ((t || "").toLowerCase()) {
+      case "chromecast": return "Chromecast";
+      case "tv": return "TV";
+      case "channel": return "Channel";
+      default: return null;
+    }
+  };
+
+  // Format a model category for display. "Kategori-X" stays as-is; any other
+  // label (e.g. "External") is a model output class, NOT a device issue, so it
+  // is prefixed to avoid confusing it with an operational auto-fix category.
+  const formatCategoryLabel = (cat?: string | null): string => {
+    if (!cat) return "Uncategorized";
+    const norm = cat.replace(/Katagori-/gi, "Kategori-");
+    if (/^Kategori-\d+$/i.test(norm)) return norm;
+    return `Model Class: ${norm}`;
+  };
+
+  // Category breakdown comes straight from /api/auto-fix/stats byCategory,
+  // which the backend computes from auto_fix_logs.category (no frontend inference).
   const categoryBreakdown = useMemo(() => {
     if (!autoFixStats?.byCategory) return [];
-    return autoFixStats.byCategory; // sudah dalam format {_id, count, success}
+    return autoFixStats.byCategory; // format {_id, count, success}
   }, [autoFixStats]);
+
+  const pendingQueue = useMemo(
+    () => autoFixStats?.pendingDetails ?? [],
+    [autoFixStats]
+  );
+
+  const pendingCount = autoFixStats?.byStatus.pending ?? 0;
+  const executingCount = autoFixStats?.byStatus.executing ?? 0;
+  const pendingReviewCount = autoFixStats?.pendingSummary?.needsReview ?? pendingQueue.filter(item => item.needsReview).length;
+  const stalePendingCount = autoFixStats?.pendingSummary?.stale ?? pendingQueue.filter(item => item.isStale).length;
+  const categoryOptions = Array.from({ length: 14 }, (_, index) => `Kategori-${index + 1}`);
+  const feedbackPendingCount = mlFeedbackStats?.byStatus.find(item => item._id === 'pending_review')?.count ?? 0;
 
   // Update auto-refresh to include notifications
   useEffect(() => {
     if (autoRefreshInterval > 0) {
       const interval = setInterval(() => {
-        fetchAutoFixStats();
-        fetchRecentAutoFixes();
-        fetchTimeSeriesData();
-        //fetchAllNotificationsForDashboard();
+        if (document.visibilityState === "visible") {
+          fetchAutoFixStats();
+          fetchRecentAutoFixes();
+          fetchTimeSeriesData();
+          //fetchAllNotificationsForDashboard();
+        }
       }, autoRefreshInterval * 1000);
 
       return () => clearInterval(interval);
@@ -1158,7 +1502,7 @@ export default function MLDashboardPage() {
   };
 
   const doughnutChartData = {
-    labels: categoryBreakdown.slice(0, 6).map(c => c._id) || [],
+    labels: categoryBreakdown.slice(0, 6).map(c => formatCategoryLabel(c._id)) || [],
     datasets: [
       {
         data: categoryBreakdown.slice(0, 6).map(c => c.count) || [],
@@ -1324,7 +1668,7 @@ export default function MLDashboardPage() {
               className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 ${isExporting ? "animate-pulse" : ""}`}
             >
               <DocumentArrowDownIcon className="w-4 h-4" />
-              <span className="text-sm font-medium">{isExporting ? "Exporting..." : "Export CSV"}</span>
+              <span className="text-sm font-medium">{isExporting ? "Exporting..." : "Export Auto-Fix CSV"}</span>
             </button>
           </div>
         </div>
@@ -1344,6 +1688,24 @@ export default function MLDashboardPage() {
             <span>Overview</span>
           </button>
           <button
+            onClick={() => setActiveTab('pending')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'pending'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
+          >
+            <ClockIcon className="w-5 h-5" />
+            <span>Pending Queue</span>
+            {(pendingCount + executingCount) > 0 && (
+              <span className={`min-w-6 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'pending'
+                ? 'bg-white text-blue-700'
+                : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                {pendingCount + executingCount}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab('staff')}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'staff'
               ? 'bg-blue-600 text-white shadow-md'
@@ -1352,6 +1714,24 @@ export default function MLDashboardPage() {
           >
             <ShieldCheckIcon className="w-5 h-5" />
             <span>Staff Performance</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('feedback')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${activeTab === 'feedback'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-100'
+              }`}
+          >
+            <CheckCircleIcon className="w-5 h-5" />
+            <span>Feedback Dataset</span>
+            {feedbackPendingCount > 0 && (
+              <span className={`min-w-6 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'feedback'
+                ? 'bg-white text-blue-700'
+                : 'bg-orange-100 text-orange-700'
+                }`}>
+                {feedbackPendingCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -1578,8 +1958,11 @@ export default function MLDashboardPage() {
                       {/* ── Per-class bars (2-column grid on wider screens) ── */}
                       <div className="grid grid-cols-1 gap-y-2">
                         {sorted.map(([rawLabel, acc], idx) => {
-                          const displayLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
                           const isNonNumeric = isNaN(parseInt(rawLabel.replace(/[^0-9]/g, ""), 10));
+                          const normLabel = rawLabel.replace(/Katagori-/gi, "Kategori-");
+                          // Non-numeric classes (e.g. "External") are model output classes,
+                          // labelled clearly so they are not mistaken for device issue categories.
+                          const displayLabel = isNonNumeric ? `Model Class: ${normLabel}` : normLabel;
                           const { bar, badge } = getBarColor(acc);
                           // Bar width: use actual percentage (0-100 scale) for honest representation
                           const barWidth = Math.max(1, acc);
@@ -1595,7 +1978,7 @@ export default function MLDashboardPage() {
                               </span>
 
                               {/* Label */}
-                              <span className={`flex-shrink-0 w-24 text-xs font-semibold truncate ${isNonNumeric ? "text-gray-400 italic" : "text-gray-700"}`}>
+                              <span title={displayLabel} className={`flex-shrink-0 w-32 text-xs font-semibold truncate ${isNonNumeric ? "text-gray-400 italic" : "text-gray-700"}`}>
                                 {displayLabel}
                               </span>
 
@@ -1647,6 +2030,372 @@ export default function MLDashboardPage() {
                   </div>
                 );
               })()}
+        </div>
+      )}
+
+      {activeTab === 'pending' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-yellow-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending</p>
+              <p className="text-3xl font-bold text-yellow-600">{pendingCount}</p>
+              <p className="text-xs text-gray-400 mt-1">Waiting to be processed</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Executing</p>
+              <p className="text-3xl font-bold text-blue-600">{executingCount}</p>
+              <p className="text-xs text-gray-400 mt-1">Currently running</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Needs Review</p>
+              <p className="text-3xl font-bold text-orange-600">{pendingReviewCount}</p>
+              <p className="text-xs text-gray-400 mt-1">{stalePendingCount} stale item(s)</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Pending Auto-Fix Queue</h2>
+                <p className="text-sm text-gray-500">
+                  Device, kategori, action, status, dan tanggal untuk auto-fix yang belum selesai.
+                </p>
+              </div>
+              <span className="inline-flex w-fit px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
+                {pendingCount + executingCount} open
+              </span>
+            </div>
+
+            {pendingQueue.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Device</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Review</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Decision</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {pendingQueue.map((item) => {
+                      const deviceName = item.deviceName || item.deviceId || "Unknown device";
+                      const typeLabel = deviceTypeLabel(item.deviceType) || item.source || "Unknown type";
+                      return (
+                        <tr key={item.fixId} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate max-w-[240px]" title={deviceName}>
+                                {deviceName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.roomNo ? `Room ${item.roomNo} • ` : ""}
+                                {typeLabel}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                              {formatCategoryLabel(item.category)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            <div>
+                              <p>{item.action || "No action"}</p>
+                              {item.confidence != null && (
+                                <p className="text-xs text-gray-400">
+                                  Confidence {(item.confidence * 100).toFixed(1)}%
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${item.status === 'executing'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {item.needsReview ? (
+                              <span
+                                className="inline-flex max-w-[280px] px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200"
+                                title={item.staleReason || "Needs review"}
+                              >
+                                {item.isStale ? "Stale / review" : "Review needed"}
+                              </span>
+                            ) : (
+                              <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                Actionable
+                              </span>
+                            )}
+                            {item.staleReason && (
+                              <p className="mt-1 max-w-[280px] truncate text-xs text-gray-500" title={item.staleReason}>
+                                {item.staleReason}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleReviewAutoFix(item.fixId, "approve")}
+                                disabled={reviewingFixId === item.fixId}
+                                className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Approve this queue item for manual/on-site handling"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReviewAutoFix(item.fixId, "reject")}
+                                disabled={reviewingFixId === item.fixId}
+                                className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Reject and cancel this pending auto-fix item"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-8 text-center">
+                <ClockIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-sm font-semibold text-gray-700">No pending auto-fix items</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Queue kosong untuk periode {dateRange} hari terakhir.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'feedback' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Total Feedback</p>
+              <p className="text-3xl font-bold text-gray-900">{mlFeedbackStats?.total ?? 0}</p>
+              <p className="text-xs text-gray-400 mt-1">Admin corrections collected</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-emerald-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Approved</p>
+              <p className="text-3xl font-bold text-emerald-600">{mlFeedbackStats?.approved ?? 0}</p>
+              <p className="text-xs text-gray-400 mt-1">Ready for dataset export</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-orange-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending Review</p>
+              <p className="text-3xl font-bold text-orange-600">{feedbackPendingCount}</p>
+              <p className="text-xs text-gray-400 mt-1">Needs admin approval</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Retrain Status</p>
+              <p className={`text-2xl font-bold ${mlFeedbackStats?.readyForRetrain ? 'text-emerald-600' : 'text-blue-600'}`}>
+                {mlFeedbackStats?.readyForRetrain ? 'Ready' : `${mlFeedbackStats?.approved ?? 0}/${mlFeedbackStats?.minimumRecommendedFeedback ?? 50}`}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Approved feedback threshold</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 xl:col-span-1">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Submit Correction</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Issue Text</label>
+                  <textarea
+                    value={feedbackForm.text}
+                    onChange={(event) => setFeedbackForm(prev => ({ ...prev, text: event.target.value }))}
+                    rows={5}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="Contoh: Room 211 TV offline karena LAN cable disconnected"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Predicted</label>
+                    <select
+                      value={feedbackForm.predictedCategory}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, predictedCategory: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="">Unknown</option>
+                      {categoryOptions.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Corrected</label>
+                    <select
+                      value={feedbackForm.correctedCategory}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, correctedCategory: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      {categoryOptions.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Fix Outcome</label>
+                    <select
+                      value={feedbackForm.fixOutcome}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, fixOutcome: event.target.value as MLFeedbackItem['fixOutcome'] }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="unknown">Unknown</option>
+                      <option value="worked">Worked</option>
+                      <option value="failed">Failed</option>
+                      <option value="manual_required">Manual Required</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Source</label>
+                    <select
+                      value={feedbackForm.source}
+                      onChange={(event) => setFeedbackForm(prev => ({ ...prev, source: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="manual">Manual</option>
+                      <option value="notification">Notification</option>
+                      <option value="auto_fix">Auto Fix</option>
+                      <option value="chat">Live Chat</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Notes</label>
+                  <input
+                    value={feedbackForm.notes}
+                    onChange={(event) => setFeedbackForm(prev => ({ ...prev, notes: event.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    placeholder="Catatan admin"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={submitMLFeedback}
+                  disabled={loadingFeedback}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Submit Feedback
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 xl:col-span-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Feedback Dataset</h2>
+                  <p className="text-sm text-gray-500">Approved feedback becomes the candidate dataset for future model retraining.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={exportMLFeedback}
+                  className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  Export Approved JSON
+                </button>
+              </div>
+
+              {loadingFeedback ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                </div>
+              ) : mlFeedback.length === 0 ? (
+                <div className="rounded-lg bg-gray-50 border border-gray-200 p-8 text-center text-sm text-gray-500">
+                  No ML feedback collected yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Text</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Correction</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Outcome</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {mlFeedback.map(item => (
+                        <tr key={item.feedbackId} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <p className="max-w-[360px] truncate text-sm font-medium text-gray-900" title={item.text}>{item.text}</p>
+                            <p className="text-xs text-gray-500">{new Date(item.createdAt).toLocaleString()} • {item.source}</p>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex flex-wrap gap-1">
+                              {item.predictedCategory && (
+                                <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                                  Pred: {item.predictedCategory}
+                                </span>
+                              )}
+                              <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">
+                                Correct: {item.correctedCategory}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                              {item.fixOutcome}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${item.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : item.status === 'rejected'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-orange-100 text-orange-700'
+                              }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateMLFeedbackStatus(item.feedbackId, 'approved')}
+                                disabled={item.status === 'approved' || loadingFeedback}
+                                className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateMLFeedbackStatus(item.feedbackId, 'rejected')}
+                                disabled={item.status === 'rejected' || loadingFeedback}
+                                className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1749,19 +2498,42 @@ export default function MLDashboardPage() {
                         {fix.status}
                       </span>
                     </div>
-                    <div className="text-base font-semibold text-gray-900 mb-2">{fix.category}</div>
-                    <div className="text-sm text-gray-600 mb-3">{fix.description}</div>
-                    {fix.notification && (
-                      <div className="flex items-center gap-3 text-sm text-gray-500 bg-white p-2 rounded-lg">
-                        <ComputerDesktopIcon className="w-4 h-4" />
-                        <span className="font-medium">{fix.notification.deviceName}</span>
-                        {fix.notification.roomNo && (
-                          <>
-                            <span>•</span>
-                            <span>Room {fix.notification.roomNo}</span>
-                          </>
-                        )}
-                      </div>
+                    {/* Category + device type + action badges (fast scan) */}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                        {formatCategoryLabel(fix.category)}
+                      </span>
+                      {deviceTypeLabel(fix.deviceType) && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                          {deviceTypeLabel(fix.deviceType)}
+                        </span>
+                      )}
+                      {fix.action && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
+                          {fix.action}
+                        </span>
+                      )}
+                    </div>
+                    {/* Device + room line (uses log device fields, falls back to notification) */}
+                    {(() => {
+                      const dName = fix.deviceName || fix.notification?.deviceName || null;
+                      const rNo = (fix.roomNo ?? fix.notification?.roomNo) || null;
+                      if (!dName && !rNo) return null;
+                      return (
+                        <div className="flex items-center gap-3 text-sm text-gray-600 bg-white p-2 rounded-lg">
+                          <ComputerDesktopIcon className="w-4 h-4 text-gray-400" />
+                          {dName && <span className="font-medium text-gray-900">{dName}</span>}
+                          {rNo && (
+                            <>
+                              <span>•</span>
+                              <span>Room {rNo}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {fix.description && (
+                      <div className="text-xs text-gray-500 mt-2">{fix.description}</div>
                     )}
                   </div>
                 ))
@@ -1823,12 +2595,11 @@ export default function MLDashboardPage() {
                 <SignalIcon className="w-6 h-6 text-purple-500" />
               </div>
               <div className="h-80">
-                {loadingNotifications ? (
+                {loadingAutoFix ? (
                   <div className="flex flex-col items-center justify-center h-full space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <div className="text-center">
-                      <p className="text-sm text-gray-600">Analyzing notification patterns...</p>
-                      <p className="text-xs text-gray-400 mt-1">Processing {allNotifications.length} notifications</p>
+                      <p className="text-sm text-gray-600">Loading auto-fix categories...</p>
                     </div>
                   </div>
                 ) : Chart && categoryBreakdown.length > 0 ? (
@@ -1845,12 +2616,11 @@ export default function MLDashboardPage() {
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Top Issue Categories</h3>
               <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                {loadingNotifications ? (
+                {loadingAutoFix ? (
                   <div className="flex flex-col items-center justify-center py-12 space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <div className="text-center">
-                      <p className="text-sm text-gray-600">Categorizing issues...</p>
-                      <p className="text-xs text-gray-400 mt-1">This may take a moment for large datasets</p>
+                      <p className="text-sm text-gray-600">Loading auto-fix categories...</p>
                     </div>
                   </div>
                 ) : categoryBreakdown.length > 0 ? (
@@ -1866,7 +2636,7 @@ export default function MLDashboardPage() {
                           }`}>
                           {index + 1}
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">{category._id}</span>
+                        <span className="text-sm font-semibold text-gray-900">{formatCategoryLabel(category._id)}</span>
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-bold text-gray-900">{category.count}</div>
@@ -1938,6 +2708,54 @@ export default function MLDashboardPage() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Top Auto-Fix Devices (from auto_fix_logs: byDevice / byDeviceType) */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Top Auto-Fix Devices</h3>
+              <div className="flex flex-wrap gap-2">
+                {(autoFixStats?.byDeviceType || []).map((dt) => (
+                  <span key={String(dt._id)} className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                    {deviceTypeLabel(dt._id) || "Other"}: {dt.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+              {(autoFixStats?.byDevice || []).length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">No auto-fix device data available</div>
+              ) : (
+                autoFixStats!.byDevice!.map((item, index) => {
+                  const typeLabel = deviceTypeLabel(item._id?.deviceType);
+                  const name =
+                    item.deviceName ||
+                    (item.roomNo != null ? `Room ${item.roomNo}` : item._id?.deviceId) ||
+                    "Unknown device";
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${index < 3 ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-500'][index] : 'bg-gray-500'}`}>
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate max-w-[200px]" title={name}>{name}</div>
+                          {typeLabel && (
+                            <div className="text-xs text-gray-500">
+                              {typeLabel}{item.roomNo != null ? ` • Room ${item.roomNo}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold">{item.count}</div>
+                        <div className="text-[11px] text-gray-500 mt-0.5">{item.success} ok</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

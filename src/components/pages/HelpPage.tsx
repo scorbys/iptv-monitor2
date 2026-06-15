@@ -176,7 +176,7 @@ const faqData: FAQ[] = [
     issue: "Reset Configuration",
     solutions: [
       "Restart Chromecast",
-      "Reset Chromecast dibawa ke ruang server pencet tombol poer 10 Detik",
+      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 detik",
     ],
     hasImage: false,
     actionType: "On Site",
@@ -265,7 +265,7 @@ const faqData: FAQ[] = [
     hasImage: false,
     actionType: "System",
     priority: "High",
-    slug: "no-device-found-chromecast-logined",
+    slug: "no-device-found-logined",
   },
 ];
 

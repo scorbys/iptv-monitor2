@@ -68,15 +68,17 @@ export default async function TvDetail({ params }: PageProps) {
   }
 
   // Properly decode the device ID to handle special characters and spaces
-  let decodedTvId: string;
+  let decodedTvId = '';
+  let decodeError = false;
+
   try {
     decodedTvId = decodeURIComponent(tvId);
-    // Additional validation after decoding
-    if (!decodedTvId || decodedTvId.trim() === '') {
-      return <TvDetailError tvId={tvId} />;
-    }
   } catch (error) {
     console.error('Error decoding device ID:', error);
+    decodeError = true;
+  }
+
+  if (decodeError || !decodedTvId || decodedTvId.trim() === '') {
     return <TvDetailError tvId={tvId} />;
   }
 

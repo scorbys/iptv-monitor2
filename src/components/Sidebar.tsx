@@ -75,6 +75,19 @@ function NavbarLink({
   );
 }
 
+function SidebarDivider() {
+  return (
+    <div
+      style={{
+        width: '80%',
+        height: '1px',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        margin: '8px auto'
+      }}
+    />
+  );
+}
+
 const mockdata = [
   // Main Navigation (Admin & Guest - Ordered)
   { name: "Dashboard", href: "/dashboard", icon: IconHome2, roles: ["admin", "guest"], section: "main" },
@@ -127,22 +140,10 @@ export function NavbarMinimalColored() {
       icon={link.icon}
       label={link.name}
       key={link.name}
-      active={pathname === link.href}
+      active={pathname === link.href || (link.href !== "/" && pathname.startsWith(`${link.href}/`))}
       onClick={() => router.push(link.href)}
     />
   ));
-
-  // Add divider component
-  const Divider = () => (
-    <div
-      style={{
-        width: '80%',
-        height: '1px',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        margin: '8px auto'
-      }}
-    />
-  );
 
   // Improved mobile navbar visibility logic
   const getNavbarClasses = () => {
@@ -164,13 +165,13 @@ export function NavbarMinimalColored() {
         {isMobile ? (
           <div className={classes.mainLinks}>
             {renderLinks(mainLinks)}
-            {managementLinks.length > 0 && <Divider />}
+            {managementLinks.length > 0 && <SidebarDivider />}
             {renderLinks(managementLinks)}
           </div>
         ) : (
           <Stack justify="center" gap={0}>
             {renderLinks(mainLinks)}
-            {managementLinks.length > 0 && <Divider />}
+            {managementLinks.length > 0 && <SidebarDivider />}
             {renderLinks(managementLinks)}
           </Stack>
         )}

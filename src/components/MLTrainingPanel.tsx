@@ -102,6 +102,28 @@ export default function MLTrainingPanel({
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Model Training</h2>
 
+      {(trainingInProgress || trainingStatusMessage) && (
+        <div className={`rounded-xl border p-4 text-sm mb-4 ${
+          trainingInProgress
+            ? 'border-yellow-300 bg-yellow-50 text-yellow-900'
+            : 'border-green-300 bg-green-50 text-green-900'
+        }`}>
+          <div className="flex items-start gap-3">
+            {trainingInProgress ? (
+              <div className="mt-0.5 h-4 w-4 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin flex-shrink-0" />
+            ) : (
+              <div className="mt-1 h-2.5 w-2.5 rounded-full bg-green-500 flex-shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold">
+                {trainingInProgress ? 'Training in progress' : 'Training status'}
+              </p>
+              <p>{trainingStatusMessage ?? 'Please wait for the current training job to complete.'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!modelInfo?.is_trained ? (
         <div className="space-y-4">
           {/* File Upload */}
@@ -168,13 +190,6 @@ export default function MLTrainingPanel({
               </div>
             )}
           </div>
-
-          {trainingInProgress && (
-            <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900 mb-4">
-              <p className="font-semibold">Training is already in progress.</p>
-              <p>{trainingStatusMessage ?? 'Please wait for the current training job to complete before uploading a new dataset.'}</p>
-            </div>
-          )}
 
           {/* Progress Bar */}
           {training && (

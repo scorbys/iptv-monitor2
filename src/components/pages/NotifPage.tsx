@@ -22,6 +22,7 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { componentLogger, storageLogger } from "@/utils/debugLogger";
+import { useAuth } from "@/components/AuthContext";
 
 import {
   Notification,
@@ -157,7 +158,7 @@ const faqData = [
     issue: "Reset Configuration",
     solutions: [
       "Restart Chromecast",
-      "Reset Chromecast dibawa ke ruang server pencet tombol poer 10 Detik",
+      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 detik",
     ],
     hasImage: false,
     actionType: "On Site",
@@ -246,11 +247,13 @@ const faqData = [
     hasImage: false,
     actionType: "System",
     priority: "High",
-    slug: "no-device-found-chromecast-logined",
+    slug: "no-device-found-logined",
   },
 ];
 
 export default function NotifPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -281,6 +284,16 @@ export default function NotifPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const search = params.get("search");
+    if (search) {
+      setSearchTerm(search);
+    }
+  }, [mounted]);
+
+  useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       if (width < 640) {
@@ -307,8 +320,8 @@ export default function NotifPage() {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const resp = await fetch("/api/notifications/stats/count/total", {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
         });
@@ -323,12 +336,17 @@ export default function NotifPage() {
     };
 
     const fetchAutoFixStats = async () => {
+      if (!isAdmin) {
+        setAutoFixStats(null);
+        return;
+      }
+
       try {
         const token = localStorage.getItem("authToken") || localStorage.getItem("token");
         const resp = await fetch("/api/auto-fix/stats", {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
         });
@@ -364,7 +382,7 @@ export default function NotifPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []); // mount only, independent dari fetchNotifications
+  }, [isAdmin]); // re-run when auth role is resolved so admin-only stats can load
 
   const calculateStats = useCallback(
     (notifications: Notification[]): NotificationStats => {
@@ -551,9 +569,7 @@ export default function NotifPage() {
     window.dispatchEvent(chatEvent);
   };
 
-  const activeIssuesDisplay = autoFixStats
-    ? Math.max(0, autoFixStats.total - (autoFixStats.byStatus.pending ?? 0))
-    : stats?.activeIssues ?? 0;
+  const activeIssuesDisplay = stats?.activeIssues ?? 0;
 
   // Helper function to normalize category names
   const normalizeCategoryName = (category: string): string => {
@@ -572,6 +588,16 @@ export default function NotifPage() {
     // Check cache first
     if (faqCategoryCache.current.has(cacheKey)) {
       return faqCategoryCache.current.get(cacheKey)!;
+    }
+
+    // Trust an explicit backend/ML category (e.g. "Kategori-7") and skip keyword
+    // inference entirely — the backend is the source of truth when it has a category.
+    if (notification.errorCategory) {
+      const normCat = normalizeCategoryName(notification.errorCategory);
+      if (/^Kategori-\d+$/i.test(normCat)) {
+        faqCategoryCache.current.set(cacheKey, normCat);
+        return normCat;
+      }
     }
 
     // Normalize notification text for better matching
@@ -896,16 +922,6 @@ export default function NotifPage() {
         const labeledMetrics = (notification as any).labeledMetrics || {};
         const netStats = (notification as any).networkStats || {};
 
-        // DEBUG: Log metrics data to understand what we're getting
-        console.log('[CSV Export] Notification:', notification.notificationId, {
-          hasMetrics: !!notification.metrics,
-          hasLabeledMetrics: !!notification.labeledMetrics,
-          metricsKeys: Object.keys(metrics),
-          labeledMetricsKeys: Object.keys(labeledMetrics),
-          packetLoss: metrics.packetLoss,
-          latency: metrics.latency
-        });
-
         // Determine if device is offline (for score calculation)
         // Match the logic from ChannelsPage.tsx
         const isOffline = notification.currentStatus === 'offline' ||
@@ -1078,13 +1094,17 @@ export default function NotifPage() {
     []
   );
 
-  const TypeBadge = useCallback(({ type }: { type: string }) => {
+  const TypeBadge = useCallback(({ type, status }: { type: string; status?: string }) => {
+    // Severity is driven by status first: an offline device is always critical (red),
+    // regardless of the notification "type" field, so badge & status never contradict.
+    const isOffline = status === "offline";
+
     const getTypeConfig = (type: string) => {
       switch (type) {
         case "warning":
           return {
-            bg: "bg-yellow-100",
-            text: "text-yellow-800",
+            bg: "bg-amber-100",
+            text: "text-amber-800",
             icon: ExclamationTriangleIcon,
           };
         case "success":
@@ -1098,15 +1118,18 @@ export default function NotifPage() {
       }
     };
 
-    const config = getTypeConfig(type);
+    const config = isOffline
+      ? { bg: "bg-red-100", text: "text-red-800", icon: ExclamationTriangleIcon }
+      : getTypeConfig(type);
     const Icon = config.icon;
+    const label = isOffline ? "Offline" : type.charAt(0).toUpperCase() + type.slice(1);
 
     return (
       <span
         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
       >
         <Icon className="w-3 h-3 mr-1" />
-        {type.charAt(0).toUpperCase() + type.slice(1)}
+        {label}
       </span>
     );
   }, []);
@@ -1440,7 +1463,7 @@ export default function NotifPage() {
                   }`}
               />
               <span className="text-xs sm:text-sm font-medium">
-                {exportLoading ? "Exporting..." : "Export"}
+                {exportLoading ? "Exporting..." : "Export CSV"}
               </span>
             </button>
           </div>
@@ -1596,7 +1619,7 @@ export default function NotifPage() {
                           status={notification.currentStatus || "unknown"}
                           isStatusChange={notification.isStatusChange}
                         />
-                        <TypeBadge type={notification.type || "info"} />
+                        <TypeBadge type={notification.type || "info"} status={notification.currentStatus} />
                       </div>
                     </td>
 
@@ -1676,42 +1699,60 @@ export default function NotifPage() {
 
                     {/* Performance Column */}
                     <td className="px-6 py-5">
-                      <div className="space-y-2">
-                        {notification.responseTime && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-500 min-w-0">
-                              Response:
-                            </span>
-                            <span
-                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${notification.responseTime < 100
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : notification.responseTime < 300
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : "bg-red-50 text-red-700 border-red-200"
-                                }`}
-                            >
-                              {notification.responseTime}ms
-                            </span>
+                      {(() => {
+                        const isOffline = notification.currentStatus === "offline";
+                        const hasMetrics = !!(notification.responseTime || notification.signalLevel);
+                        return (
+                          <div className="space-y-2">
+                            {notification.responseTime && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-500 min-w-0">
+                                  Response:
+                                </span>
+                                <span
+                                  title={isOffline ? "Last known value — device offline" : undefined}
+                                  className={`px-2 py-1 rounded-md text-xs font-semibold border ${isOffline
+                                    ? "bg-red-50 text-red-700 border-red-200"
+                                    : notification.responseTime < 100
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : notification.responseTime < 300
+                                        ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                        : "bg-red-50 text-red-700 border-red-200"
+                                    }`}
+                                >
+                                  {notification.responseTime}ms
+                                </span>
+                              </div>
+                            )}
+                            {notification.signalLevel && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-500 min-w-0">
+                                  Signal:
+                                </span>
+                                <span
+                                  title={isOffline ? "Last known value — device offline" : undefined}
+                                  className={`px-2 py-1 rounded-md text-xs font-semibold border ${isOffline
+                                    ? "bg-red-50 text-red-700 border-red-200"
+                                    : notification.signalLevel > 70
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : notification.signalLevel > 40
+                                        ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                        : "bg-red-50 text-red-700 border-red-200"
+                                    }`}
+                                >
+                                  {notification.signalLevel}%
+                                </span>
+                              </div>
+                            )}
+                            {isOffline && hasMetrics && (
+                              <div className="text-[10px] text-gray-400 italic">last known · device offline</div>
+                            )}
+                            {isOffline && !hasMetrics && (
+                              <span className="text-xs font-medium text-red-600">Offline — no live metrics</span>
+                            )}
                           </div>
-                        )}
-                        {notification.signalLevel && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-500 min-w-0">
-                              Signal:
-                            </span>
-                            <span
-                              className={`px-2 py-1 rounded-md text-xs font-semibold border ${notification.signalLevel > 70
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : notification.signalLevel > 40
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : "bg-red-50 text-red-700 border-red-200"
-                                }`}
-                            >
-                              {notification.signalLevel}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Timestamp Column */}
@@ -1804,7 +1845,7 @@ export default function NotifPage() {
                     status={notification.currentStatus || "unknown"}
                     isStatusChange={notification.isStatusChange}
                   />
-                  <TypeBadge type={notification.type || "info"} />
+                  <TypeBadge type={notification.type || "info"} status={notification.currentStatus} />
 
                   {/* Ask AI - mobile layout */}
                   {notification.currentStatus === "offline" && (
@@ -1905,14 +1946,17 @@ export default function NotifPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Response Time:</span>
                     <span
-                      className={`px-2 py-1 rounded text-xs ${notification.responseTime < 100
-                        ? "bg-green-100 text-green-700"
-                        : notification.responseTime < 300
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
+                      title={notification.currentStatus === "offline" ? "Last known value — device offline" : undefined}
+                      className={`px-2 py-1 rounded text-xs ${notification.currentStatus === "offline"
+                        ? "bg-red-100 text-red-700"
+                        : notification.responseTime < 100
+                          ? "bg-green-100 text-green-700"
+                          : notification.responseTime < 300
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700"
                         }`}
                     >
-                      {notification.responseTime}ms
+                      {notification.responseTime}ms{notification.currentStatus === "offline" ? " (last known)" : ""}
                     </span>
                   </div>
                 )}
@@ -1920,14 +1964,17 @@ export default function NotifPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Signal Level:</span>
                     <span
-                      className={`px-2 py-1 rounded text-xs ${notification.signalLevel > 70
-                        ? "bg-green-100 text-green-700"
-                        : notification.signalLevel > 40
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
+                      title={notification.currentStatus === "offline" ? "Last known value — device offline" : undefined}
+                      className={`px-2 py-1 rounded text-xs ${notification.currentStatus === "offline"
+                        ? "bg-red-100 text-red-700"
+                        : notification.signalLevel > 70
+                          ? "bg-green-100 text-green-700"
+                          : notification.signalLevel > 40
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700"
                         }`}
                     >
-                      {notification.signalLevel}%
+                      {notification.signalLevel}%{notification.currentStatus === "offline" ? " (last known)" : ""}
                     </span>
                   </div>
                 )}

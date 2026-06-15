@@ -354,7 +354,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               const secure = isProduction ? "secure;" : "";
 
               // Cookie setting yang sama untuk mobile dan desktop
-              const cookieValue = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60
+              const cookieValue = `token=${token}; path=/; max-age=${60 * 60
                   }; ${secure}${isProduction ? ` samesite=none; domain=${domain}` : "samesite=lax"}`;
 
               document.cookie = cookieValue;
@@ -467,7 +467,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem("authToken", result.token);
 
           // Save to cookie
-          const cookieValue = `token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60
+          const cookieValue = `token=${result.token}; path=/; max-age=${60 * 60
             }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
@@ -607,7 +607,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem("authToken", result.token);
 
           // Save to cookie
-          const cookieValue = `token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60
+          const cookieValue = `token=${result.token}; path=/; max-age=${60 * 60
             }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 
@@ -687,10 +687,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     cookieNames.forEach(name => clearCookie(name));
 
-    // Clear all storage
+    // Clear only auth-related keys (avoid wiping unrelated app/user data)
     try {
-      localStorage.clear();
-      sessionStorage.clear();
+      const authKeys = ["authToken", "token", "auth-token", "session-token", "jwt", "user"];
+      authKeys.forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
     } catch (e) {
       storageLogger.warn("Could not clear storage:", e);
     }
@@ -745,7 +748,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Set cookie with proper domain
           const isProduction = window.location.protocol === "https:";
           const domain = getCookieDomain();
-          const cookieValue = `token=${decodedToken}; path=/; max-age=${7 * 24 * 60 * 60
+          const cookieValue = `token=${decodedToken}; path=/; max-age=${60 * 60
             }; ${isProduction ? `secure; samesite=none; domain=${domain}` : "samesite=lax"}`;
           document.cookie = cookieValue;
 

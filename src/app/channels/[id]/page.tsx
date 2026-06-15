@@ -69,14 +69,17 @@ export default async function ChannelDetail({ params }: PageProps) {
     return <ChannelDetailError channelId={channelId || "undefined"} />;
   }
 
-  let decodedChannelId: string;
+  let decodedChannelId = "";
+  let decodeError = false;
+
   try {
     decodedChannelId = decodeURIComponent(channelId);
-    if (!decodedChannelId || decodedChannelId.trim() === "") {
-      return <ChannelDetailError channelId={channelId} />;
-    }
   } catch (error) {
     console.error("Error decoding device ID:", error);
+    decodeError = true;
+  }
+
+  if (decodeError || !decodedChannelId || decodedChannelId.trim() === "") {
     return <ChannelDetailError channelId={channelId} />;
   }
 
