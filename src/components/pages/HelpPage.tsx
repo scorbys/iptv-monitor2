@@ -70,11 +70,11 @@ const faqData: FAQ[] = [
     device: "Chromecast",
     issue: "No Device Found Chromecast",
     solutions: [
-      "Deactive White list profile",
-      "Restart Chromecast & WIFI",
-      "Radisson Guest Must Be Login",
-      "Forget WIFI Radisson Guest",
-      "Logout WIFI (log-out.me)",
+      "Deactivate the whitelist profile",
+      "Restart Chromecast & WiFi",
+      "Radisson Guest must be logged in",
+      "Forget the Radisson Guest WiFi",
+      "Log out of WiFi (log-out.me)",
     ],
     hasImage: true,
     actionType: "System",
@@ -87,10 +87,10 @@ const faqData: FAQ[] = [
     device: "IPTV",
     issue: "Weak Or No Signal",
     solutions: [
-      "Periksa koneksi LAN pada TV",
-      "Pastikan sumber HDMI diatur ke HDMI-1",
-      "Restart perangkat IPTV",
-      "Periksa indikator LED pada box IPTV",
+      "Check the LAN connection on the TV",
+      "Make sure the HDMI source is set to HDMI-1",
+      "Restart the IPTV device",
+      "Check the LED indicator on the IPTV box",
     ],
     hasImage: true,
     actionType: "On Site",
@@ -103,10 +103,10 @@ const faqData: FAQ[] = [
     device: "IPTV",
     issue: "Unplug LAN TV",
     solutions: [
-      "Periksa koneksi LAN (pastikan terpasang di LAN IN)",
-      "Posisikan kabel LAN dengan benar",
-      "Pastikan tidak terpasang di LAN OUT",
-      "Test koneksi dengan kabel LAN lain",
+      "Check the LAN connection (make sure it's plugged into LAN IN)",
+      "Position the LAN cable correctly",
+      "Make sure it's not plugged into LAN OUT",
+      "Test the connection with another LAN cable",
     ],
     hasImage: true,
     actionType: "On Site",
@@ -120,9 +120,9 @@ const faqData: FAQ[] = [
     issue: "Chromecast Setup iOS",
     solutions: [
       "Install Google Home app",
-      "Pastikan perangkat dalam satu jaringan WiFi",
-      "Allow local network access pada iPhone",
-      "Follow setup wizard di aplikasi",
+      "Make sure the devices are on the same WiFi network",
+      "Allow local network access on the iPhone",
+      "Follow the setup wizard in the app",
     ],
     hasImage: true,
     actionType: "System",
@@ -176,7 +176,7 @@ const faqData: FAQ[] = [
     issue: "Reset Configuration",
     solutions: [
       "Restart Chromecast",
-      "Reset Chromecast dibawa ke ruang server pencet tombol power 10 detik",
+      "Reset Chromecast: bring it to the server room and hold the power button for 10 seconds",
     ],
     hasImage: false,
     actionType: "On Site",
@@ -189,7 +189,7 @@ const faqData: FAQ[] = [
     device: "IPTV",
     issue: "No Device Logged",
     solutions: [
-      "Pastikan Allow local Network pada Setingan Iphone",
+      "Make sure Allow Local Network is enabled in the iPhone settings",
       "Check VPN and Cast settings",
     ],
     hasImage: true,
@@ -202,7 +202,7 @@ const faqData: FAQ[] = [
     category: "Kategori-10",
     device: "Chromecast",
     issue: "Chromecast Black Screen",
-    solutions: ["Chromecast Power Adaptor Rusak", "Check Adaptor Chromecast"],
+    solutions: ["Chromecast power adapter broken", "Check the Chromecast adapter"],
     hasImage: true,
     actionType: "System",
     priority: "Medium",
@@ -213,7 +213,7 @@ const faqData: FAQ[] = [
     category: "Kategori-11",
     device: "Channel",
     issue: "Channel Not Found",
-    solutions: ["LAN Out Terpasang bukan LAN In"],
+    solutions: ["LAN Out connected instead of LAN In"],
     hasImage: true,
     actionType: "System",
     priority: "Low",
@@ -301,13 +301,13 @@ const getAvailableOptions = (
 ) => {
   // Filter data berdasarkan filter lain (excluding the current filter type)
   const filteredData = faqData.filter((item) => {
-    if (filterType !== "device" && currentFilters.device !== "Semua") {
+    if (filterType !== "device" && currentFilters.device !== "All") {
       if (item.device !== currentFilters.device) return false;
     }
-    if (filterType !== "category" && currentFilters.category !== "Semua") {
+    if (filterType !== "category" && currentFilters.category !== "All") {
       if (item.category !== currentFilters.category) return false;
     }
-    if (filterType !== "issue" && currentFilters.issue !== "Semua") {
+    if (filterType !== "issue" && currentFilters.issue !== "All") {
       if (item.issue !== currentFilters.issue) return false;
     }
     return true;
@@ -317,21 +317,21 @@ const getAvailableOptions = (
   switch (filterType) {
     case "device":
       return [
-        "Semua",
+        "All",
         ...Array.from(new Set(filteredData.map((item) => item.device))),
       ];
     case "category":
       return [
-        "Semua",
+        "All",
         ...Array.from(new Set(filteredData.map((item) => item.category))),
       ];
     case "issue":
       return [
-        "Semua",
+        "All",
         ...Array.from(new Set(filteredData.map((item) => item.issue))),
       ];
     default:
-      return ["Semua"];
+      return ["All"];
   }
 };
 
@@ -472,7 +472,7 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
     option.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const displayValue = value === "Semua" ? placeholder : value;
+  const displayValue = value === "All" ? placeholder : value;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -528,7 +528,7 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
               >
                 {displayValue}
               </span>
-              {value !== "Semua" && (
+              {value !== "All" && (
                 <div
                   className={`w-2 h-2 ${currentColor.accent} rounded-full mt-1`}
                 ></div>
@@ -543,7 +543,7 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
         </div>
 
         {/* Active indicator */}
-        {value !== "Semua" && !disabled && (
+        {value !== "All" && !disabled && (
           <div
             className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 ${currentColor.accent} rounded-r-full`}
           ></div>
@@ -557,7 +557,7 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
           <div className="max-h-64 overflow-y-auto">
             {options.map((option, index) => {
               const isSelected = option === value;
-              const isDefault = option === "Semua";
+              const isDefault = option === "All";
 
               return (
                 <button
@@ -690,19 +690,19 @@ const FilterSection: React.FC<FilterSectionProps> = ({
   // Auto-reset filters when they become unavailable
   React.useEffect(() => {
     if (!availableDevices.includes(selectedDevice)) {
-      setSelectedDevice("Semua");
+      setSelectedDevice("All");
     }
   }, [availableDevices, selectedDevice, setSelectedDevice]);
 
   React.useEffect(() => {
     if (!availableCategories.includes(selectedCategory)) {
-      setSelectedCategory("Semua");
+      setSelectedCategory("All");
     }
   }, [availableCategories, selectedCategory, setSelectedCategory]);
 
   React.useEffect(() => {
     if (!availableIssues.includes(selectedIssue)) {
-      setSelectedIssue("Semua");
+      setSelectedIssue("All");
     }
   }, [availableIssues, selectedIssue, setSelectedIssue]);
 
@@ -710,7 +710,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
     selectedDevice,
     selectedCategory,
     selectedIssue,
-  ].filter((filter) => filter !== "Semua").length;
+  ].filter((filter) => filter !== "All").length;
 
   return (
     <div className="bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-sm border-b border-gray-100/50 py-8 relative z-40">
@@ -746,16 +746,16 @@ const FilterSection: React.FC<FilterSectionProps> = ({
           {activeFiltersCount > 0 && (
             <button
               onClick={() => {
-                setSelectedDevice("Semua");
-                setSelectedCategory("Semua");
-                setSelectedIssue("Semua");
+                setSelectedDevice("All");
+                setSelectedCategory("All");
+                setSelectedIssue("All");
               }}
               className="group px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 rounded-xl border-2 border-red-200 hover:border-red-300 transition-all duration-200 font-medium text-sm flex items-center space-x-2"
             >
               <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                 <div className="w-2 h-0.5 bg-white rounded-full"></div>
               </div>
-              <span>Reset Semua</span>
+              <span>Reset All</span>
             </button>
           )}
         </div>
@@ -804,14 +804,14 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                 Filter Aktif:
               </span>
 
-              {selectedCategory !== "Semua" && (
+              {selectedCategory !== "All" && (
                 <div className="group flex items-center space-x-2 px-3 py-2 bg-blue-100 text-blue-800 rounded-xl border border-blue-200">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span className="text-xs font-medium">
                     {selectedCategory}
                   </span>
                   <button
-                    onClick={() => setSelectedCategory("Semua")}
+                    onClick={() => setSelectedCategory("All")}
                     className="w-4 h-4 bg-blue-200 hover:bg-blue-300 rounded-full flex items-center justify-center transition-colors"
                   >
                     <div className="w-2 h-0.5 bg-blue-700 rounded-full"></div>
@@ -819,12 +819,12 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                 </div>
               )}
 
-              {selectedDevice !== "Semua" && (
+              {selectedDevice !== "All" && (
                 <div className="group flex items-center space-x-2 px-3 py-2 bg-green-100 text-green-800 rounded-xl border border-green-200">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-xs font-medium">{selectedDevice}</span>
                   <button
-                    onClick={() => setSelectedDevice("Semua")}
+                    onClick={() => setSelectedDevice("All")}
                     className="w-4 h-4 bg-green-200 hover:bg-green-300 rounded-full flex items-center justify-center transition-colors"
                   >
                     <div className="w-2 h-0.5 bg-green-700 rounded-full"></div>
@@ -832,7 +832,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                 </div>
               )}
 
-              {selectedIssue !== "Semua" && (
+              {selectedIssue !== "All" && (
                 <div className="group flex items-center space-x-2 px-3 py-2 bg-purple-100 text-purple-800 rounded-xl border border-purple-200">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                   <span className="text-xs font-medium max-w-[120px] truncate">
@@ -841,7 +841,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                       : selectedIssue}
                   </span>
                   <button
-                    onClick={() => setSelectedIssue("Semua")}
+                    onClick={() => setSelectedIssue("All")}
                     className="w-4 h-4 bg-purple-200 hover:bg-purple-300 rounded-full flex items-center justify-center transition-colors"
                   >
                     <div className="w-2 h-0.5 bg-purple-700 rounded-full"></div>
@@ -956,7 +956,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
         {/* Hover effect indicator */}
         <div className="mt-4 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-all duration-300">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500 font-medium">Lihat detail</span>
+            <span className="text-gray-500 font-medium">View details</span>
             <div className="w-3 h-3 bg-blue-100 rounded-full flex items-center justify-center">
               <ChevronDown className="w-2 h-2 text-blue-600 rotate-[-90deg]" />
             </div>
@@ -969,19 +969,19 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
 
 const HelpPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedDevice, setSelectedDevice] = useState<string>("Semua");
-  const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
-  const [selectedIssue, setSelectedIssue] = useState<string>("Semua");
+  const [selectedDevice, setSelectedDevice] = useState<string>("All");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedIssue, setSelectedIssue] = useState<string>("All");
 
   const filteredArticles: FAQ[] = useMemo(() => {
     return faqData.filter((article: FAQ) => {
       const matchesSearch = improvedSearch(searchQuery, article);
       const matchesDevice =
-        selectedDevice === "Semua" || article.device === selectedDevice;
+        selectedDevice === "All" || article.device === selectedDevice;
       const matchesCategory =
-        selectedCategory === "Semua" || article.category === selectedCategory;
+        selectedCategory === "All" || article.category === selectedCategory;
       const matchesIssue =
-        selectedIssue === "Semua" || article.issue === selectedIssue;
+        selectedIssue === "All" || article.issue === selectedIssue;
 
       return matchesSearch && matchesDevice && matchesCategory && matchesIssue;
     });
@@ -997,18 +997,18 @@ const HelpPage: React.FC = () => {
   }, []);
 
   const handleResetFilters = (): void => {
-    setSelectedDevice("Semua");
-    setSelectedCategory("Semua");
-    setSelectedIssue("Semua");
+    setSelectedDevice("All");
+    setSelectedCategory("All");
+    setSelectedIssue("All");
     setSearchQuery("");
   };
 
   // cek apakah ada filter aktif
   const hasActiveFilters =
     searchQuery !== "" ||
-    selectedDevice !== "Semua" ||
-    selectedCategory !== "Semua" ||
-    selectedIssue !== "Semua";
+    selectedDevice !== "All" ||
+    selectedCategory !== "All" ||
+    selectedIssue !== "All";
 
   return (
     <div className="min-h-screen bg-gray-50">
