@@ -388,7 +388,7 @@ const SearchBar: React.FC<{
       <input
         type="text"
         className="block w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl bg-white placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-sm font-medium"
-        placeholder="Cari masalah teknis, device, atau solusi..."
+        placeholder="Search technical issues, devices, or solutions..."
         value={searchQuery}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           setSearchQuery(e.target.value)

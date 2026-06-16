@@ -306,7 +306,7 @@ export default function QosPage() {
   const [sortKey, setSortKey] = useState<keyof QoSRow>("category");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
-  const [periodDays, setPeriodDays] = useState(7);
+  const [periodDays, setPeriodDays] = useState(30);
 
   const categoryCache = useRef<Map<string, string | null>>(new Map());
 
@@ -590,7 +590,7 @@ export default function QosPage() {
                         {!freshLoaded ? "Loading…" : (summary.totalIssues ?? 0)}
                       </span>
                       <span className="text-blue-100 text-sm">
-                        Issues ({periodDays} hari{dbTotalCount != null ? ` · ${dbTotalCount} total` : ""})
+                        Issues ({periodDays} days{dbTotalCount != null ? ` · ${dbTotalCount} total` : ""})
                       </span>
                     </div>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
@@ -702,7 +702,7 @@ export default function QosPage() {
           <div className="h-4 w-px bg-gray-200" />
 
           {/* Period filter (7/30/90 hari) */}
-          <span className="text-sm font-medium text-gray-600">Periode:</span>
+          <span className="text-sm font-medium text-gray-600">Period:</span>
           <div className="flex items-center gap-1">
             {[7, 30, 90].map((d) => (
               <button
@@ -713,7 +713,7 @@ export default function QosPage() {
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
-                {d} hari
+                {d} days
               </button>
             ))}
           </div>

@@ -929,18 +929,18 @@ export default function ChannelDetailsPage({
         if (result.autoFixExecuted) {
           const { mlPrediction, executedFix, fixResult } = result.data || {};
           alert(
-            `🔧 Auto-Fix Otomatis Berhasil!\n\n` +
+            `🔧 Auto-Fix executed successfully!\n\n` +
             `Channel: ${channel.channelName}\n` +
             `Issue: ${issueDescription}\n` +
             `ML Category: ${mlPrediction?.category ?? 'N/A'}\n` +
             `Confidence: ${mlPrediction?.confidence != null ? (mlPrediction.confidence * 100).toFixed(1) + '%' : 'N/A'}\n` +
             `Action: ${executedFix?.action ?? executedFix?.description ?? 'N/A'}\n` +
-            `Status: ${fixResult?.success ? '✅ Berhasil' : '❌ Gagal'}`
+            `Status: ${fixResult?.success ? '✅ Success' : '❌ Failed'}`
           );
         } else {
           const reason = result.reason || 'Manual intervention required';
           const rec = result.recommendedFix?.description || result.recommendedFix?.action;
-          alert(`ℹ️ Auto-Fix tidak dijalankan\n\nAlasan: ${reason}${rec ? `\nRekomendasi: ${rec}` : ''}`);
+          alert(`ℹ️ Auto-Fix not executed\n\nReason: ${reason}${rec ? `\nRecommendation: ${rec}` : ''}`);
         }
 
         // Refresh channel status and logs
@@ -951,9 +951,9 @@ export default function ChannelDetailsPage({
         const errMsg = result.error || 'Failed to execute auto-fix';
         if (/not trained/i.test(errMsg)) {
           alert(
-            '⚠️ Model ML belum dilatih\n\n' +
-            'Auto-Fix membutuhkan model ML yang sudah dilatih untuk memprediksi kategori masalah.\n\n' +
-            'Silakan buka halaman ML Dashboard dan latih (train) model terlebih dahulu, lalu coba Auto-Fix lagi.'
+            '⚠️ ML model is not trained yet\n\n' +
+            'Auto-Fix needs a trained ML model to predict the issue category.\n\n' +
+            'Please open the ML Dashboard and train the model first, then try Auto-Fix again.'
           );
         } else {
           alert(`Error: ${errMsg}`);
@@ -2589,7 +2589,7 @@ export default function ChannelDetailsPage({
                     )}
                   </div>
                   <p className="text-sm text-gray-500 mt-1">
-                    Riwayat perbaikan otomatis dengan ML
+                    Automatic repair history with ML
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2689,11 +2689,11 @@ export default function ChannelDetailsPage({
                               }`}
                             >
                               {log.status === 'success'
-                                ? '✅ Berhasil'
+                                ? '✅ Success'
                                 : log.status === 'failed'
-                                ? '❌ Gagal'
+                                ? '❌ Failed'
                                 : log.status === 'executing'
-                                ? '⏳ Sedang Berjalan'
+                                ? '⏳ Running'
                                 : '⏸ Pending'}
                             </span>
                             <span className="text-xs text-gray-500">
