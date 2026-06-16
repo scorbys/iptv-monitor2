@@ -29,20 +29,14 @@ export default function MLPredictionForm({ onPredict, disabled }: MLPredictionFo
   };
 
   const exampleTexts = [
-    'No Device Found Chromecast',
-    'Week Or No Signal',
-    'Unplug LAN TV',
-    'Chromecast Setup iOS',
-    'Error Playing Channel',
-    'Error: Playing_Error_Connection_Failed',
-    'Connection Failure',
-    'Reset Configure Chromecast',
-    'No Device Logined',
-    'Chromecast Black Screen',
-    'Channel Not Found',
-    'Undefined Network',
-    'TV Blank',
-    'No Device Found: Logined',
+    'Chromecast not detected device offline',
+    'Weak or no signal on the TV reception',
+    'LAN cable unplugged from the TV box',
+    'Error playing the channel video stream',
+    'Factory reset Chromecast configuration and restart power',
+    'No device found after login, already registered account',
+    'Chromecast black screen no display output',
+    'Channel not found, missing from the channel list',
   ];
 
   return (
