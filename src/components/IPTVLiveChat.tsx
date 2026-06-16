@@ -35,7 +35,7 @@ const IPTVLiveChat = () => {
     {
       id: 1,
       type: "bot",
-      text: "🎉 **Selamat Datang di IPTV Monitoring System!**\n\nSaya asisten virtual yang siap membantu Anda dengan:\n\n📺 **Monitoring**: Channel, Chromecast, Hospitality TV\n📊 **Dashboard**: Statistik & performa sistem\n🤖 **AI/ML**: Prediksi & Auto-Fix\n👥 **Management**: Staff & Users\n\nSilakan tanya apa saja! Contoh:\n• \"Bagaimana cara monitoring channel?\"\n• \"TV offline bagaimana fix?\"\n• \"Apa itu Auto-Fit?\"\n\nSaya siap membantu! 😊",
+      text: "🎉 **Welcome to the IPTV Monitoring System!**\n\nI am a virtual assistant ready to help you with:\n\n📺 **Monitoring**: Channel, Chromecast, Hospitality TV\n📊 **Dashboard**: System statistics & performance\n🤖 **AI/ML**: Prediction & Auto-Fix\n👥 **Management**: Staff & Users\n\nAsk me anything! For example:\n• \"How do I monitor a channel?\"\n• \"How do I fix an offline TV?\"\n• \"What is Auto-Fix?\"\n\nI am here to help! 😊",
       timestamp: new Date(),
     },
   ]);
@@ -224,12 +224,12 @@ const IPTVLiveChat = () => {
                 ? "Channel"
                 : "device";
 
-        const contextMessage = `Saya ada masalah dengan ${deviceType} ${notification.deviceName ? `"${notification.deviceName}"` : ""
-          } ${notification.roomNo ? `di kamar ${notification.roomNo}` : ""}.  Status: ${notification.status}. ${notification.error ? `Error: ${notification.error}.` : ""
+        const contextMessage = `I have an issue with ${deviceType} ${notification.deviceName ? `"${notification.deviceName}"` : ""
+          } ${notification.roomNo ? `in room ${notification.roomNo}` : ""}.  Status: ${notification.status}. ${notification.error ? `Error: ${notification.error}.` : ""
           }${notification.errorCategory
-            ? ` Kategori error: ${notification.errorCategory}.`
+            ? ` Error category: ${notification.errorCategory}.`
             : ""
-          } Bagaimana cara mengatasinya?`;
+          } How do I fix it?`;
 
         setInputMessage(contextMessage);
         setTimeout(() => {
@@ -308,7 +308,7 @@ const IPTVLiveChat = () => {
       const botMessage: Message = {
         id: Date.now() + 1,
         type: "bot",
-        text: data.response || "Maaf, tidak ada respons dari server.",
+        text: data.response || "Sorry, no response from the server.",
         relatedFAQs: data.relatedFAQs || [],
         detailedInfo: data.detailedInfo || null,
         timestamp: new Date(),
@@ -516,17 +516,29 @@ const IPTVLiveChat = () => {
                         className="text-[10px] md:text-xs bg-blue-600 text-white px-2.5 py-1.5 rounded-full hover:bg-blue-700 transition-colors w-full"
                       >
                         {expandedMessageId === message.id
-                          ? "▼ Sembunyikan Detail"
-                          : "▶ Lihat Detail Lengkap"}
+                          ? "▼ Hide Details"
+                          : "▶ View Full Details"}
                       </button>
 
                       {expandedMessageId === message.id && (
                         <div className="mt-2 space-y-2">
+                          {/* Long/complex guide -> link to the full Help page */}
+                          {message.relatedFAQs?.[0]?.slug &&
+                            message.detailedInfo.detailedSteps.length >= 5 && (
+                              <a
+                                href={`/help/details/${message.relatedFAQs[0].slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-[10px] md:text-xs bg-indigo-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors text-center font-medium"
+                              >
+                                📖 Open full step-by-step guide
+                              </a>
+                            )}
                           {/* Detailed Steps */}
                           {message.detailedInfo.detailedSteps.length > 0 && (
                             <div>
                               <p className="text-[10px] md:text-xs font-semibold text-gray-700 mb-1">
-                                Langkah Detail:
+                                Detailed Steps:
                               </p>
                               <ol className="text-[10px] md:text-xs text-gray-600 space-y-0.5 list-decimal list-inside">
                                 {message.detailedInfo.detailedSteps.map(
@@ -572,12 +584,9 @@ const IPTVLiveChat = () => {
                         {message.relatedFAQs.map((faq) => (
                           <button
                             key={faq.id}
-                            className="text-[10px] md:text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 transition-colors w-full text-left"
-                            onClick={() =>
-                              setInputMessage(
-                                `Bagaimana cara mengatasi: ${faq.issue}`
-                              )
-                            }
+                            disabled={isLoading}
+                            className="text-[10px] md:text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 transition-colors w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => sendMessage(`How do I fix: ${faq.issue}`)}
                           >
                             {faq.device}: {faq.issue}
                           </button>
@@ -603,7 +612,7 @@ const IPTVLiveChat = () => {
                 <div className="bg-white text-gray-800 rounded-2xl rounded-bl-none px-3 py-2 shadow-sm border border-gray-100">
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin text-blue-600" />
-                    <span className="text-xs md:text-sm text-gray-500">Mengetik...</span>
+                    <span className="text-xs md:text-sm text-gray-500">Typing...</span>
                   </div>
                 </div>
               </div>
@@ -620,7 +629,7 @@ const IPTVLiveChat = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ketik pertanyaan..."
+                placeholder="Type a question..."
                 disabled={isLoading}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-xs md:text-sm resize-none max-h-20 min-h-[40px]"
                 rows={1}

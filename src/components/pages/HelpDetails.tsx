@@ -154,7 +154,7 @@ const faqData: FAQ[] = [
       "Check whether the LAN cable is firmly seated in the correct port",
       "Make sure the LAN cable is connected to the 'LAN IN' port, not 'LAN OUT'",
       "On the TV remote, press the 'Source' or 'Input' button",
-      "Pilih HDMI-1 sebagai sumber input",
+      "Select HDMI-1 as the input source",
       "Unplug the IPTV box power adapter for 10 seconds, then plug it back in",
       "Wait until the LED indicator turns green (about 2-3 minutes)",
       "If the LED is still red or blinking, check the internet connection",
@@ -230,7 +230,7 @@ const faqData: FAQ[] = [
       "Enable the toggle for the Google Home app",
       "Open the Google Home app and sign in with a Google account",
       "Tap the '+' button to add a new device",
-      "Pilih 'Set up device' > 'New devices'",
+      "Select 'Set up device' > 'New devices'",
       "Select the home/location where the Chromecast will be set up",
       "The app will search for nearby Chromecasts",
       "Follow the on-screen instructions to complete the setup",
@@ -253,7 +253,7 @@ const faqData: FAQ[] = [
     category: "Kategori-5",
     device: "Channel",
     issue: "Error Playing",
-    solutions: ["Channel issue dari Biznet (Testing VIA VLC)"],
+    solutions: ["Channel issue from Biznet (Testing VIA VLC)"],
     detailedSteps: [
       "Open the VLC Media Player app",
       "Select the 'Media' menu > 'Open Network Stream'",
@@ -1312,16 +1312,16 @@ const HelpDetails: React.FC = () => {
             <HelpCircle className="w-8 h-8 text-gray-500" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Artikel tidak ditemukan
+            Article not found
           </h2>
           <p className="text-gray-600 mb-4">
-            Artikel yang Anda cari tidak tersedia.
+            The article you are looking for is not available.
           </p>
           <Link
             href="/help"
             className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
           >
-            Kembali ke Bantuan
+            Back to Help
           </Link>
         </div>
       </div>

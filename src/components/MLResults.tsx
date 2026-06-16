@@ -49,6 +49,7 @@ function formatCategory(label?: string | null): { code: string; name: string } {
   if (/^Kategori-\d+$/i.test(norm)) {
     return { code: norm, name: CATEGORY_LABELS[norm] ?? norm };
   }
+  if (/^external$/i.test(norm)) return { code: "External", name: "External (Infrastructure)" };
   return { code: norm, name: `Model Class: ${norm}` };
 }
 

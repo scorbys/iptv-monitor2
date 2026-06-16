@@ -1903,7 +1903,7 @@ export default function MLDashboardPage() {
                             <ShieldCheckIcon className="w-5 h-5 text-white" />
                           </div>
                           <div>
-                            <h2 className="text-base font-bold text-gray-900">Akurasi Per Kategori</h2>
+                            <h2 className="text-base font-bold text-gray-900">Per-Category Accuracy</h2>
                             {/* <p className="text-xs text-gray-400 mt-0.5">
                               {isLiveData
                                 ? `${sorted.length} kelas · data aktual dari model`

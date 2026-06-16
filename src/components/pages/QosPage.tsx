@@ -57,6 +57,7 @@ const FAQ_DATA = [
   { category: "Kategori-12", device: "Chromecast", issue: "Network Connection Failed", keywords: ["network connection", "connection failed", "wifi", "router", "network"] },
   { category: "Kategori-13", device: "IPTV", issue: "System Initialization Error", keywords: ["initialization", "system error", "firmware", "boot"] },
   { category: "Kategori-14", device: "Chromecast", issue: "No Device Found: Logined", keywords: ["logined", "logged in", "authentication", "no device found", "registered"] },
+  { category: "External", device: "Mixed", issue: "External / Infrastructure (AP, switch, WiFi)", keywords: [] },
 ];
 
 const SOURCE_TO_DEVICE: Record<string, string> = {
@@ -121,6 +122,10 @@ function getFAQCategory(notification: Notification, cache: Map<string, string | 
     const norm = notification.errorCategory
       .replace(/katagori-/gi, "Kategori-")
       .replace(/kategori-/gi, "Kategori-");
+    if (/^external$/i.test(norm.trim())) {
+      cache.set(key, "External");
+      return "External";
+    }
     if (/^Kategori-\d+$/i.test(norm)) {
       cache.set(key, norm);
       return norm;

@@ -361,9 +361,9 @@ function getChromecastSolutions(
     errorCategory === "Authentication"
   ) {
     solutions.push(
-      "Deactive White list profile",
+      "Deactivate the whitelist profile",
       "Restart Chromecast & WIFI",
-      "Radisson Guest Must Be Login"
+      "Radisson Guest must be logged in"
     );
   }
 
@@ -393,22 +393,22 @@ function getTVSolutions(errorLower: string, errorCategory?: string): string[] {
 
   if (errorLower.includes("weak") || errorLower.includes("no signal")) {
     solutions.push(
-      "Periksa koneksi LAN pada TV",
-      "Pastikan sumber HDMI diatur ke HDMI-1"
+      "Check the LAN connection on the TV",
+      "Make sure the HDMI source is set to HDMI-1"
     );
   }
 
   if (errorLower.includes("unplug") || errorLower.includes("lan")) {
     solutions.push(
-      "Periksa koneksi LAN (pastikan terpasang di LAN IN)",
-      "Posisikan kabel LAN dengan benar"
+      "Check the LAN connection (make sure it is plugged into LAN IN)",
+      "Position the LAN cable correctly"
     );
   }
 
   if (errorCategory === "Power") {
     solutions.push(
-      "Restart perangkat IPTV",
-      "Periksa indikator LED pada box IPTV"
+      "Restart the IPTV device",
+      "Check the LED indicator on the IPTV box"
     );
   }
 
@@ -434,7 +434,7 @@ function getChannelSolutions(
   }
 
   if (errorLower.includes("not found")) {
-    solutions.push("LAN Out Terpasang bukan LAN In");
+    solutions.push("LAN Out connected instead of LAN In");
   }
 
   return solutions;

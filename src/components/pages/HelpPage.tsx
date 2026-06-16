@@ -134,7 +134,7 @@ const faqData: FAQ[] = [
     category: "Kategori-5",
     device: "Channel",
     issue: "Error Playing",
-    solutions: ["Channel issue dari Biznet (Testing VIA VLC)"],
+    solutions: ["Channel issue from Biznet (Testing VIA VLC)"],
     hasImage: false,
     actionType: "System",
     priority: "Medium",
@@ -603,7 +603,7 @@ const ModernDropdown: React.FC<ModernDropdownProps> = ({
             {filteredOptions.length === 0 && (
               <div className="px-4 py-8 text-center text-gray-500 text-sm">
                 <Search className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                Tidak ada opsi ditemukan
+                No options found
               </div>
             )}
           </div>
@@ -725,10 +725,10 @@ const FilterSection: React.FC<FilterSectionProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
-                  Filter Pencarian
+                  Search Filters
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Persempit hasil pencarian Anda
+                  Narrow down your search results
                 </p>
               </div>
             </div>
@@ -736,7 +736,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
             {activeFiltersCount > 0 && (
               <div className="flex items-center space-x-2">
                 <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                  {activeFiltersCount} filter aktif
+                  {activeFiltersCount} active filters
                 </div>
               </div>
             )}
@@ -801,7 +801,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
           <div className="mt-6 p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-gray-200/50">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm font-semibold text-gray-700">
-                Filter Aktif:
+                Active Filters:
               </span>
 
               {selectedCategory !== "All" && (
@@ -928,7 +928,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full"></div>
             <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-              Solusi
+              Solutions
             </span>
           </div>
           <div className="space-y-1.5">
@@ -947,7 +947,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
               ))}
             {article.solutions.length > 2 && (
               <div className="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded-lg inline-block">
-                +{article.solutions.length - 2} lainnya
+                +{article.solutions.length - 2} more
               </div>
             )}
           </div>
@@ -1003,7 +1003,7 @@ const HelpPage: React.FC = () => {
     setSearchQuery("");
   };
 
-  // cek apakah ada filter aktif
+  // cek apakah ada active filters
   const hasActiveFilters =
     searchQuery !== "" ||
     selectedDevice !== "All" ||
@@ -1028,10 +1028,10 @@ const HelpPage: React.FC = () => {
           <>
             <div className="text-center mb-12">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Pusat Bantuan Teknis
+                Technical Help Center
               </h1>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Temukan solusi cepat untuk masalah IPTV, Chromecast, dan Channel
+                Find quick solutions for IPTV, Chromecast, and Channel issues
               </p>
             </div>
 
@@ -1063,7 +1063,7 @@ const HelpPage: React.FC = () => {
                           {device}
                         </h3>
                         <p className="text-sm text-gray-500 font-medium">
-                          {count} artikel tersedia
+                          {count} articles available
                         </p>
                       </div>
                     </div>
@@ -1074,11 +1074,11 @@ const HelpPage: React.FC = () => {
           </>
         )}
 
-        {/* Summary hanya tampil jika filter aktif */}
+        {/* Summary hanya tampil jika active filters */}
         {hasActiveFilters && (
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {filteredArticles.length} artikel ditemukan
+              {filteredArticles.length} articles found
             </h2>
           </div>
         )}
@@ -1090,16 +1090,16 @@ const HelpPage: React.FC = () => {
               <Search className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Tidak ada artikel ditemukan
+              No articles found
             </h3>
             <p className="text-gray-500 mb-4">
-              Coba ubah filter atau kata kunci pencarian
+              Try changing the filter or search keywords
             </p>
             <button
               onClick={handleResetFilters}
               className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
             >
-              Reset Filter
+              Reset Filters
             </button>
           </div>
         ) : (
