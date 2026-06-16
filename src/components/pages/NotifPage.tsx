@@ -1456,14 +1456,14 @@ export default function NotifPage() {
               disabled={exportLoading}
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95 flex-1 sm:flex-initial ${exportLoading ? "animate-pulse" : ""
                 }`}
-              title={exportLoading ? "Exporting..." : "Export CSV"}
+              title={exportLoading ? "Exporting..." : "Export"}
             >
               <ArrowDownTrayIcon
                 className={`w-4 h-4 flex-shrink-0 ${exportLoading ? "animate-bounce" : ""
                   }`}
               />
               <span className="text-xs sm:text-sm font-medium">
-                {exportLoading ? "Exporting..." : "Export CSV"}
+                {exportLoading ? "Exporting..." : "Export"}
               </span>
             </button>
           </div>
