@@ -862,11 +862,11 @@ export default function ChromecastPage() {
               onClick={exportToCSV}
               disabled={exportLoading || filteredChromecasts.length === 0}
               className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
-              title={exportLoading ? "Exporting..." : "Export CSV"}
+              title={exportLoading ? "Exporting..." : "Export"}
             >
               <ArrowDownTrayIcon className="w-4 h-4 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium hidden sm:inline">
-                {exportLoading ? "Exporting..." : "Export CSV"}
+                {exportLoading ? "Exporting..." : "Export"}
               </span>
             </button>
 

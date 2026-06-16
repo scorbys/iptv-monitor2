@@ -601,18 +601,18 @@ export default function QosPage() {
                   <button
                     onClick={() => load(true)}
                     disabled={refreshing}
-                    className="flex items-center justify-center gap-2 px-5 py-3 bg-white/20 backdrop-blur-sm text-white font-medium rounded-xl hover:bg-white/30 disabled:opacity-50 transition-all border border-white/30 shadow-lg hover:shadow-xl"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white font-medium rounded-xl hover:bg-white/30 disabled:opacity-50 transition-all border border-white/30 shadow-lg hover:shadow-xl"
                   >
-                    <ArrowPathIcon className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
+                    <ArrowPathIcon className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
                     {refreshing ? "Refreshing…" : "Refresh Data"}
                   </button>
                   <button
                     onClick={exportCSV}
                     disabled={exportLoading}
-                    className="flex items-center justify-center gap-2 px-5 py-3 bg-white text-blue-700 font-semibold rounded-xl hover:bg-blue-50 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-blue-700 font-semibold rounded-xl hover:bg-blue-50 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl"
                   >
-                    <ArrowDownTrayIcon className="w-5 h-5" />
-                    {exportLoading ? "Exporting…" : "Export CSV"}
+                    <ArrowDownTrayIcon className="w-4 h-4" />
+                    {exportLoading ? "Exporting…" : "Export"}
                   </button>
                 </div>
               </div>
