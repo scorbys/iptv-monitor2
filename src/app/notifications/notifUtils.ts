@@ -577,16 +577,16 @@ const debugLog = (message: string, ...args: unknown[]): void => {
 export function cleanOldNotifications(
   notifications: Notification[]
 ): Notification[] {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const beforeCount = notifications.length;
 
   const cleaned = notifications.filter(
-    (n) => new Date(n.rawDate).getTime() >= sevenDaysAgo
+    (n) => new Date(n.rawDate).getTime() >= cutoff
   );
 
   const removedCount = beforeCount - cleaned.length;
   if (removedCount > 0) {
-    debugLog(`Cleaned ${removedCount} old notifications (older than 7 days)`);
+    debugLog(`Cleaned ${removedCount} old notifications (older than 30 days)`);
   }
 
   return cleaned;

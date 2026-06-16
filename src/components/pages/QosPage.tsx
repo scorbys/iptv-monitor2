@@ -306,6 +306,7 @@ export default function QosPage() {
   const [sortKey, setSortKey] = useState<keyof QoSRow>("category");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dbTotalCount, setDbTotalCount] = useState<number | null>(null);
+  const [periodDays, setPeriodDays] = useState(30);
 
   const categoryCache = useRef<Map<string, string | null>>(new Map());
 
@@ -382,9 +383,18 @@ export default function QosPage() {
 
   // ── QoS rows ──────────────────────────────────────────────────────────────
 
+  // Filter notifikasi sesuai jendela waktu yang dipilih (7/30/90 hari)
+  const periodNotifications = useMemo(() => {
+    const cutoff = Date.now() - periodDays * 24 * 60 * 60 * 1000;
+    return notifications.filter((n) => {
+      const t = new Date((n as { rawDate?: string }).rawDate || "").getTime();
+      return !isFinite(t) || t >= cutoff;
+    });
+  }, [notifications, periodDays]);
+
   const rows = useMemo(
-    () => buildQoSRows(notifications, categoryCache.current),
-    [notifications]
+    () => buildQoSRows(periodNotifications, categoryCache.current),
+    [periodNotifications]
   );
 
   // ── Filtered + sorted ─────────────────────────────────────────────────────
@@ -577,9 +587,11 @@ export default function QosPage() {
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <ExclamationTriangleIcon className="w-4 h-4 text-white" />
                       <span className="text-white font-semibold">
-                        {!freshLoaded ? "Loading…" : (dbTotalCount ?? summary.totalIssues ?? 0)}
+                        {!freshLoaded ? "Loading…" : (summary.totalIssues ?? 0)}
                       </span>
-                      <span className="text-blue-100 text-sm">Total Issues</span>
+                      <span className="text-blue-100 text-sm">
+                        Issues ({periodDays} days{dbTotalCount != null ? ` · ${dbTotalCount} total` : ""})
+                      </span>
                     </div>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <FunnelIcon className="w-4 h-4 text-white" />
@@ -683,6 +695,25 @@ export default function QosPage() {
                   }`}
               >
                 {l === "all" ? "All Labels" : l}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          {/* Period filter (7/30/90 hari) */}
+          <span className="text-sm font-medium text-gray-600">Period:</span>
+          <div className="flex items-center gap-1">
+            {[7, 30, 90].map((d) => (
+              <button
+                key={d}
+                onClick={() => setPeriodDays(d)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${periodDays === d
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+              >
+                {d} days
               </button>
             ))}
           </div>
