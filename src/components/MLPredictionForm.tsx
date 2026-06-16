@@ -31,12 +31,12 @@ export default function MLPredictionForm({ onPredict, disabled }: MLPredictionFo
   const exampleTexts = [
     'Chromecast not detected device offline',
     'Weak or no signal on the TV reception',
-    'LAN cable unplugged from the TV box',
     'Error playing the channel video stream',
     'Factory reset Chromecast configuration and restart power',
     'No device found after login, already registered account',
     'Chromecast black screen no display output',
     'Channel not found, missing from the channel list',
+    'Access point broken, weak WiFi infrastructure issue',
   ];
 
   return (
